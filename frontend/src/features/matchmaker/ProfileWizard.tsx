@@ -273,7 +273,7 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
           <span className="text-xs uppercase tracking-widest text-[#B69A62] font-semibold">
             {language === 'ur' ? '۷ مراحل پر مشتمل رہنمائی' : '7-Step Guided Profile Workflow'}
           </span>
-          <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#164E4A]">
+          <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#182848]">
             {language === 'ur' ? 'نیا پروفائل شامل کریں' : 'Add New Profile'}
           </h2>
           <p className="text-xs text-[#68716D]">
@@ -285,7 +285,7 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
 
         <button
           onClick={onCancel}
-          className="self-start rounded-xl border border-[#E7E2D8] bg-[#FFFEFA] px-4 py-2 text-xs font-medium text-[#68716D] hover:text-[#252E2C]"
+          className="self-start rounded-full border border-white/20 bg-white/10 hover:bg-white/20 backdrop-blur-md px-4 py-2 text-xs font-medium text-[#252E2C] transition-colors"
         >
           {t.btnCancel}
         </button>
@@ -311,17 +311,21 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
                   <div
                     className={`flex h-10 w-10 items-center justify-center rounded-2xl border text-xs font-semibold transition-all ${
                       isActive
-                        ? 'border-[#164E4A] bg-[#164E4A] text-[#F7F3EA] shadow-md ring-4 ring-[#164E4A]/10'
+                        ? 'border-[#182848] bg-[#182848] text-[#F7F3EA] shadow-md ring-4 ring-[#182848]/10'
                         : isCompleted
-                        ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
-                        : 'border-[#E7E2D8] bg-[#FFFEFA] text-[#68716D]'
+                        ? 'border-emerald-600 bg-emerald-50/80 text-emerald-700'
+                        : 'border-white/15 bg-white/10 backdrop-blur-md text-[#68716D]'
                     }`}
                   >
                     {isCompleted ? <CheckCircle className="w-5 h-5" /> : <Icon className="w-4 h-4" />}
                   </div>
                   <span
-                    className={`mt-1.5 text-[11px] font-medium whitespace-nowrap ${
-                      isActive ? 'text-[#164E4A] font-bold' : isCompleted ? 'text-emerald-800' : 'text-[#68716D]'
+                    className={`mt-1.5 text-[11px] whitespace-nowrap transition-all duration-300 ${
+                      isActive 
+                        ? 'px-3 py-1 rounded-full bg-[#182848] text-[#F7F3EA] font-bold shadow-md border border-[#B69A62]/40 tracking-wide scale-105' 
+                        : isCompleted 
+                        ? 'text-emerald-800 font-medium px-1' 
+                        : 'text-[#68716D] font-medium px-1'
                     }`}
                   >
                     {st.title}
@@ -348,18 +352,18 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
         </div>
       )}
 
-      {/* Form Content Container */}
-      <div className="porcelain-card rounded-3xl p-6 sm:p-8 mb-8 shadow-sm">
+      {/* Form Content Container — Dense Glass Panel for Maximum Readability */}
+      <div className="glass-panel-dense p-6 sm:p-8 mb-8 shadow-xl border border-white/20">
         {/* STEP 1: Personal Information */}
         {currentStep === 1 && (
           <div className="space-y-5 animate-fadeIn">
-            <h3 className="font-serif text-xl font-bold text-[#164E4A] border-b border-[#E7E2D8] pb-2">
+            <h3 className="font-serif text-xl font-bold text-[#182848] border-b border-[#E7E2D8] pb-2">
               {t.stepPersonal}
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div>
-                <label className="block font-semibold text-[#164E4A] mb-1">
+                <label className="block font-semibold text-[#182848] mb-1">
                   {t.fullName} *
                 </label>
                 <input
@@ -367,12 +371,12 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
                   value={formData.fullName}
                   onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                   placeholder="e.g. Fatima Tariq"
-                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#164E4A] focus:outline-none"
+                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#182848] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-[#164E4A] mb-1">
+                <label className="block font-semibold text-[#182848] mb-1">
                   {t.displayName}
                 </label>
                 <input
@@ -380,16 +384,16 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
                   value={formData.displayName}
                   onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
                   placeholder="e.g. Dr. Fatima (Physician)"
-                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#164E4A] focus:outline-none"
+                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#182848] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-[#164E4A] mb-1">{t.gender} *</label>
+                <label className="block font-semibold text-[#182848] mb-1">{t.gender} *</label>
                 <select
                   value={formData.gender}
                   onChange={(e) => setFormData({ ...formData, gender: e.target.value as Gender })}
-                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#164E4A] focus:outline-none bg-white"
+                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#182848] focus:outline-none bg-white"
                 >
                   <option value="female">{language === 'ur' ? 'خاتون (دلہن)' : 'Female (Bride)'}</option>
                   <option value="male">{language === 'ur' ? 'مرد (دولہا)' : 'Male (Groom)'}</option>
@@ -397,32 +401,32 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
               </div>
 
               <div>
-                <label className="block font-semibold text-[#164E4A] mb-1">{t.age} *</label>
+                <label className="block font-semibold text-[#182848] mb-1">{t.age} *</label>
                 <input
                   type="number"
                   value={formData.age}
                   onChange={(e) => setFormData({ ...formData, age: Number(e.target.value) })}
-                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#164E4A] focus:outline-none"
+                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#182848] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-[#164E4A] mb-1">{t.height} *</label>
+                <label className="block font-semibold text-[#182848] mb-1">{t.height} *</label>
                 <input
                   type="text"
                   value={formData.height}
                   onChange={(e) => setFormData({ ...formData, height: e.target.value })}
                   placeholder="e.g. 5'4&quot;"
-                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#164E4A] focus:outline-none"
+                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#182848] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-[#164E4A] mb-1">{t.maritalStatus} *</label>
+                <label className="block font-semibold text-[#182848] mb-1">{t.maritalStatus} *</label>
                 <select
                   value={formData.maritalStatus}
                   onChange={(e) => setFormData({ ...formData, maritalStatus: e.target.value as MaritalStatus })}
-                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#164E4A] focus:outline-none bg-white"
+                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#182848] focus:outline-none bg-white"
                 >
                   <option value="never_married">{language === 'ur' ? 'غیر شادی شدہ' : 'Never Married'}</option>
                   <option value="divorced">{language === 'ur' ? 'مطلقہ' : 'Divorced'}</option>
@@ -432,46 +436,46 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
               </div>
 
               <div>
-                <label className="block font-semibold text-[#164E4A] mb-1">{t.caste} *</label>
+                <label className="block font-semibold text-[#182848] mb-1">{t.caste} *</label>
                 <input
                   type="text"
                   value={formData.caste}
                   onChange={(e) => setFormData({ ...formData, caste: e.target.value })}
                   placeholder="e.g. Sheikh / Rajput / Arain / Syed"
-                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#164E4A] focus:outline-none"
+                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#182848] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-[#164E4A] mb-1">{t.aqeedah}</label>
+                <label className="block font-semibold text-[#182848] mb-1">{t.aqeedah}</label>
                 <input
                   type="text"
                   value={formData.aqeedah}
                   onChange={(e) => setFormData({ ...formData, aqeedah: e.target.value })}
                   placeholder="e.g. Sunni / Hanafi"
-                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#164E4A] focus:outline-none"
+                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#182848] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-[#164E4A] mb-1">{t.currentCity} *</label>
+                <label className="block font-semibold text-[#182848] mb-1">{t.currentCity} *</label>
                 <input
                   type="text"
                   value={formData.currentCity}
                   onChange={(e) => setFormData({ ...formData, currentCity: e.target.value })}
                   placeholder="e.g. Lahore / Islamabad"
-                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#164E4A] focus:outline-none"
+                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#182848] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-[#164E4A] mb-1">{t.residenceArea}</label>
+                <label className="block font-semibold text-[#182848] mb-1">{t.residenceArea}</label>
                 <input
                   type="text"
                   value={formData.residenceArea}
                   onChange={(e) => setFormData({ ...formData, residenceArea: e.target.value })}
                   placeholder="e.g. DHA Phase 5 / Gulberg"
-                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#164E4A] focus:outline-none"
+                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#182848] focus:outline-none"
                 />
               </div>
             </div>
@@ -481,57 +485,57 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
         {/* STEP 2: Education and Work */}
         {currentStep === 2 && (
           <div className="space-y-5 animate-fadeIn">
-            <h3 className="font-serif text-xl font-bold text-[#164E4A] border-b border-[#E7E2D8] pb-2">
+            <h3 className="font-serif text-xl font-bold text-[#182848] border-b border-[#E7E2D8] pb-2">
               {t.stepEducation}
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div>
-                <label className="block font-semibold text-[#164E4A] mb-1">{t.education} *</label>
+                <label className="block font-semibold text-[#182848] mb-1">{t.education} *</label>
                 <input
                   type="text"
                   value={formData.education}
                   onChange={(e) => setFormData({ ...formData, education: e.target.value })}
                   placeholder="e.g. MBBS / MS Computer Science / CA"
-                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#164E4A] focus:outline-none"
+                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#182848] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-[#164E4A] mb-1">{t.educationField}</label>
+                <label className="block font-semibold text-[#182848] mb-1">{t.educationField}</label>
                 <input
                   type="text"
                   value={formData.educationField}
                   onChange={(e) => setFormData({ ...formData, educationField: e.target.value })}
                   placeholder="e.g. Medicine / Software Engineering"
-                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#164E4A] focus:outline-none"
+                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#182848] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-[#164E4A] mb-1">{t.occupation} *</label>
+                <label className="block font-semibold text-[#182848] mb-1">{t.occupation} *</label>
                 <input
                   type="text"
                   value={formData.occupation}
                   onChange={(e) => setFormData({ ...formData, occupation: e.target.value })}
                   placeholder="e.g. Physician / Software Architect"
-                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#164E4A] focus:outline-none"
+                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#182848] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-[#164E4A] mb-1">{t.jobTitle}</label>
+                <label className="block font-semibold text-[#182848] mb-1">{t.jobTitle}</label>
                 <input
                   type="text"
                   value={formData.jobTitle}
                   onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
                   placeholder="e.g. Senior Resident / Lead Consultant"
-                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#164E4A] focus:outline-none"
+                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#182848] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-[#164E4A] mb-1">
+                <label className="block font-semibold text-[#182848] mb-1">
                   {t.monthlyIncome} (PKR) - {language === 'ur' ? 'صوابدیدی' : 'Optional / Withheld by default'}
                 </label>
                 <input
@@ -539,7 +543,7 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
                   value={formData.monthlyIncomePKR || ''}
                   onChange={(e) => setFormData({ ...formData, monthlyIncomePKR: Number(e.target.value) })}
                   placeholder="e.g. 250000"
-                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#164E4A] focus:outline-none"
+                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#182848] focus:outline-none"
                 />
               </div>
             </div>
@@ -549,14 +553,14 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
         {/* STEP 3: Family Details & Sibling Records */}
         {currentStep === 3 && (
           <div className="space-y-6 animate-fadeIn">
-            <h3 className="font-serif text-xl font-bold text-[#164E4A] border-b border-[#E7E2D8] pb-2">
+            <h3 className="font-serif text-xl font-bold text-[#182848] border-b border-[#E7E2D8] pb-2">
               {t.stepFamily}
             </h3>
 
             {/* Parents */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-[#F7F3EA] p-4 rounded-2xl border border-[#E7E2D8]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/20">
               <div>
-                <label className="block font-semibold text-[#164E4A] mb-1">{t.fatherStatus}</label>
+                <label className="block font-semibold text-[#182848] mb-1">{t.fatherStatus}</label>
                 <select
                   value={formData.fatherStatus}
                   onChange={(e) => setFormData({ ...formData, fatherStatus: e.target.value as any })}
@@ -568,7 +572,7 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
               </div>
 
               <div>
-                <label className="block font-semibold text-[#164E4A] mb-1">{t.fatherOccupation}</label>
+                <label className="block font-semibold text-[#182848] mb-1">{t.fatherOccupation}</label>
                 <input
                   type="text"
                   value={formData.fatherOccupation}
@@ -579,7 +583,7 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
               </div>
 
               <div>
-                <label className="block font-semibold text-[#164E4A] mb-1">{t.motherStatus}</label>
+                <label className="block font-semibold text-[#182848] mb-1">{t.motherStatus}</label>
                 <select
                   value={formData.motherStatus}
                   onChange={(e) => setFormData({ ...formData, motherStatus: e.target.value as any })}
@@ -591,7 +595,7 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
               </div>
 
               <div>
-                <label className="block font-semibold text-[#164E4A] mb-1">{t.motherOccupation}</label>
+                <label className="block font-semibold text-[#182848] mb-1">{t.motherOccupation}</label>
                 <input
                   type="text"
                   value={formData.motherOccupation}
@@ -605,13 +609,13 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
             {/* Dynamic Sibling Records */}
             <div>
               <div className="flex items-center justify-between mb-3">
-                <label className="font-semibold text-sm text-[#164E4A]">
+                <label className="font-semibold text-sm text-[#182848]">
                   {language === 'ur' ? 'بہن بھائیوں کے انفرادی ریکارڈز:' : 'Individual Sibling Detailed Records:'}
                 </label>
                 <button
                   type="button"
                   onClick={handleAddSibling}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#164E4A] px-3 py-1.5 text-xs font-medium text-[#F7F3EA] hover:bg-[#103B39] transition-colors"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#182848] px-3 py-1.5 text-xs font-medium text-[#F7F3EA] hover:bg-[#283848] transition-colors"
                 >
                   <Plus className="w-3.5 h-3.5 text-[#B69A62]" />
                   <span>{t.addSibling}</span>
@@ -620,9 +624,9 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
 
               <div className="space-y-3">
                 {(formData.siblings || []).map((sib, index) => (
-                  <div key={sib.id} className="rounded-2xl border border-[#E7E2D8] bg-[#FFFEFA] p-4 text-xs space-y-3 shadow-sm">
+                  <div key={sib.id} className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md p-4 text-xs space-y-3 shadow-sm">
                     <div className="flex items-center justify-between border-b border-[#E7E2D8] pb-2">
-                      <span className="font-bold text-[#164E4A]">
+                      <span className="font-bold text-[#182848]">
                         {language === 'ur' ? `اندراج نمبر ${index + 1}` : `Sibling Entry #${index + 1}`}
                       </span>
                       <button
@@ -699,13 +703,13 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
             </div>
 
             <div>
-              <label className="block font-semibold text-[#164E4A] mb-1">{t.familyBackground}</label>
+              <label className="block font-semibold text-[#182848] mb-1">{t.familyBackground}</label>
               <textarea
                 value={formData.familyBackgroundNotes}
                 onChange={(e) => setFormData({ ...formData, familyBackgroundNotes: e.target.value })}
                 rows={3}
                 placeholder="Mention ancestral hometown, lineage standing, values..."
-                className="w-full rounded-xl border border-[#E7E2D8] p-3 text-xs focus:border-[#164E4A] focus:outline-none"
+                className="w-full rounded-xl border border-[#E7E2D8] p-3 text-xs focus:border-[#182848] focus:outline-none"
               />
             </div>
           </div>
@@ -714,13 +718,13 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
         {/* STEP 4: Property and Household */}
         {currentStep === 4 && (
           <div className="space-y-5 animate-fadeIn">
-            <h3 className="font-serif text-xl font-bold text-[#164E4A] border-b border-[#E7E2D8] pb-2">
+            <h3 className="font-serif text-xl font-bold text-[#182848] border-b border-[#E7E2D8] pb-2">
               {t.stepProperty}
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div>
-                <label className="block font-semibold text-[#164E4A] mb-1">{t.propertyOwnership}</label>
+                <label className="block font-semibold text-[#182848] mb-1">{t.propertyOwnership}</label>
                 <select
                   value={formData.property?.ownership}
                   onChange={(e) =>
@@ -738,7 +742,7 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
               </div>
 
               <div>
-                <label className="block font-semibold text-[#164E4A] mb-1">{t.propertyType}</label>
+                <label className="block font-semibold text-[#182848] mb-1">{t.propertyType}</label>
                 <select
                   value={formData.property?.propertyType}
                   onChange={(e) =>
@@ -757,10 +761,10 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
               </div>
 
               {/* Dynamic Marla <-> Kanal Conversion Live Preview */}
-              <div className="sm:col-span-2 bg-[#164E4A]/5 border border-[#164E4A]/20 rounded-2xl p-4">
+              <div className="sm:col-span-2 bg-[#182848]/5 border border-[#182848]/20 rounded-2xl p-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block font-semibold text-[#164E4A] mb-1">
+                    <label className="block font-semibold text-[#182848] mb-1">
                       {t.landAreaMarla} (e.g. 25 Marla)
                     </label>
                     <input
@@ -772,7 +776,7 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
                           property: { ...(formData.property as any), areaMarlas: Number(e.target.value) },
                         })
                       }
-                      className="w-full rounded-xl border border-[#E7E2D8] p-2.5 text-sm bg-white focus:border-[#164E4A] focus:outline-none"
+                      className="w-full rounded-xl border border-[#E7E2D8] p-2.5 text-sm bg-white focus:border-[#182848] focus:outline-none"
                     />
                   </div>
 
@@ -780,7 +784,7 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
                     <label className="block font-semibold text-[#B69A62] mb-1">
                       {t.landAreaKanalEquiv} (Automatic Conversion)
                     </label>
-                    <div className="rounded-xl border border-[#B69A62]/30 bg-white p-2.5 text-sm font-semibold text-[#164E4A]">
+                    <div className="rounded-xl border border-[#B69A62]/30 bg-white p-2.5 text-sm font-semibold text-[#182848]">
                       {language === 'ur' ? landCalc.formattedUrdu : landCalc.formattedEn}
                       <span className="block text-[10px] text-[#68716D] font-normal">
                         Convention: 20 Marla = 1 Kanal ({landCalc.sqFtEquivalent.toLocaleString()} sq ft)
@@ -791,7 +795,7 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
               </div>
 
               <div>
-                <label className="block font-semibold text-[#164E4A] mb-1">{t.approxValue} (PKR)</label>
+                <label className="block font-semibold text-[#182848] mb-1">{t.approxValue} (PKR)</label>
                 <input
                   type="number"
                   value={formData.property?.approxValuePKR || ''}
@@ -802,12 +806,12 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
                     })
                   }
                   placeholder="e.g. 85000000"
-                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#164E4A] focus:outline-none"
+                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#182848] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-[#164E4A] mb-1">{t.householdType}</label>
+                <label className="block font-semibold text-[#182848] mb-1">{t.householdType}</label>
                 <select
                   value={formData.property?.householdArrangement}
                   onChange={(e) =>
@@ -829,29 +833,29 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
         {/* STEP 5: Photographs and Consent */}
         {currentStep === 5 && (
           <div className="space-y-5 animate-fadeIn">
-            <h3 className="font-serif text-xl font-bold text-[#164E4A] border-b border-[#E7E2D8] pb-2">
+            <h3 className="font-serif text-xl font-bold text-[#182848] border-b border-[#E7E2D8] pb-2">
               {t.stepPhotos}
             </h3>
 
-            <div className="rounded-2xl border border-[#B69A62]/40 bg-[#F7F3EA] p-5 text-xs text-[#252E2C] space-y-4">
+            <div className="rounded-2xl border border-[#B69A62]/40 bg-white/10 backdrop-blur-md p-5 text-xs text-[#252E2C] space-y-4">
               <div className="flex items-start gap-3">
                 <ShieldCheck className="w-5 h-5 text-[#B69A62] shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-bold text-[#164E4A]">{t.customerPrivacyCenter}</h4>
+                  <h4 className="font-bold text-[#182848]">{t.customerPrivacyCenter}</h4>
                   <p className="text-[#68716D] leading-relaxed">
                     {t.photoPrivacyNotice}
                   </p>
                 </div>
               </div>
 
-              <label className="flex items-center gap-3 p-3 bg-white rounded-xl border border-[#E7E2D8] cursor-pointer">
+              <label className="flex items-center gap-3 p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={formData.photoPermissionGranted}
                   onChange={(e) => setFormData({ ...formData, photoPermissionGranted: e.target.checked })}
-                  className="rounded border-[#B69A62] text-[#164E4A] h-4 w-4"
+                  className="rounded border-[#B69A62] text-[#182848] h-4 w-4"
                 />
-                <span className="font-medium text-[#164E4A]">
+                <span className="font-medium text-[#182848]">
                   {language === 'ur'
                     ? 'تصویر شیئر کرنے کی اجازت ہے (صرف ندیم صاحب کی تصدیق اور باہمی رضامندی کے بعد)'
                     : 'Authorize photo sharing exclusively upon mutual interest and matchmaker verification'}
@@ -859,7 +863,7 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
               </label>
 
               <div>
-                <label className="block font-semibold text-[#164E4A] mb-1">
+                <label className="block font-semibold text-[#182848] mb-1">
                   Candidate Safe Demonstration Photo URL
                 </label>
                 <input
@@ -877,7 +881,7 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
         {currentStep === 6 && (
           <div className="space-y-6 animate-fadeIn">
             <div className="border-b border-[#E7E2D8] pb-2">
-              <h3 className="font-serif text-xl font-bold text-[#164E4A]">
+              <h3 className="font-serif text-xl font-bold text-[#182848]">
                 {t.stepPreferences}
               </h3>
               <p className="text-xs text-[#68716D]">
@@ -902,10 +906,10 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
                 return (
                   <div
                     key={key}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl border border-[#E7E2D8] bg-[#FFFEFA] gap-3"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md gap-3"
                   >
                     <div>
-                      <span className="font-semibold text-sm text-[#164E4A] block">
+                      <span className="font-semibold text-sm text-[#182848] block">
                         {language === 'ur' ? labelUr : labelEn}
                       </span>
                     </div>
@@ -921,7 +925,7 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
                               ? imp === 'mandatory'
                                 ? 'bg-rose-700 text-white font-bold'
                                 : imp === 'preferred'
-                                ? 'bg-[#164E4A] text-white font-bold'
+                                ? 'bg-[#182848] text-white font-bold'
                                 : 'bg-[#B69A62] text-white font-bold'
                               : 'bg-[#F7F3EA] text-[#68716D] hover:text-[#252E2C]'
                           }`}
@@ -940,33 +944,33 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
         {/* STEP 7: Review & Final Save */}
         {currentStep === 7 && (
           <div className="space-y-6 animate-fadeIn">
-            <h3 className="font-serif text-xl font-bold text-[#164E4A] border-b border-[#E7E2D8] pb-2">
+            <h3 className="font-serif text-xl font-bold text-[#182848] border-b border-[#E7E2D8] pb-2">
               {t.stepReview}
             </h3>
 
-            <div className="rounded-2xl border border-[#B69A62]/40 bg-[#F7F3EA]/70 p-5 space-y-4 text-xs">
+            <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md p-5 space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <span className="text-[#68716D] block">Candidate:</span>
-                  <span className="font-bold text-sm text-[#164E4A]">{formData.fullName} ({formData.age} yrs)</span>
+                  <span className="font-bold text-sm text-[#182848]">{formData.fullName} ({formData.age} yrs)</span>
                 </div>
                 <div>
                   <span className="text-[#68716D] block">Education & Career:</span>
-                  <span className="font-bold text-sm text-[#164E4A]">{formData.education} • {formData.occupation}</span>
+                  <span className="font-bold text-sm text-[#182848]">{formData.education} • {formData.occupation}</span>
                 </div>
                 <div>
                   <span className="text-[#68716D] block">Caste & Location:</span>
-                  <span className="font-bold text-sm text-[#164E4A]">{formData.caste} • {formData.currentCity}</span>
+                  <span className="font-bold text-sm text-[#182848]">{formData.caste} • {formData.currentCity}</span>
                 </div>
                 <div>
                   <span className="text-[#68716D] block">Property:</span>
-                  <span className="font-bold text-sm text-[#164E4A]">
+                  <span className="font-bold text-sm text-[#182848]">
                     {landCalc.formattedEn} ({formData.property?.propertyType})
                   </span>
                 </div>
                 <div>
                   <span className="text-[#68716D] block">Siblings:</span>
-                  <span className="font-bold text-sm text-[#164E4A]">
+                  <span className="font-bold text-sm text-[#182848]">
                     {formData.siblings?.length} records entered
                   </span>
                 </div>
@@ -996,8 +1000,8 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
             type="button"
             disabled={currentStep === 1}
             onClick={handleBack}
-            className={`inline-flex items-center gap-1.5 rounded-xl border border-[#E7E2D8] px-4 py-2.5 text-xs font-medium transition-colors ${
-              currentStep === 1 ? 'opacity-40 cursor-not-allowed text-[#68716D]' : 'bg-[#FFFEFA] text-[#252E2C] hover:border-[#164E4A]'
+            className={`inline-flex items-center gap-1.5 rounded-xl border border-white/20 px-4 py-2.5 text-xs font-medium transition-colors ${
+              currentStep === 1 ? 'opacity-40 cursor-not-allowed text-[#68716D]' : 'bg-white/10 hover:bg-white/20 backdrop-blur-md text-[#252E2C] hover:border-[#182848]'
             }`}
           >
             <ArrowLeft className="w-4 h-4" />
@@ -1008,7 +1012,7 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
             <button
               type="button"
               onClick={handleNext}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#164E4A] px-6 py-2.5 text-xs font-semibold text-[#F7F3EA] shadow-md hover:bg-[#103B39] transition-all transform active:scale-95"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#182848] px-6 py-2.5 text-xs font-semibold text-[#F7F3EA] shadow-md hover:bg-[#283848] transition-all transform active:scale-95"
             >
               <span>{t.btnNext}</span>
               <ArrowRight className="w-4 h-4" />

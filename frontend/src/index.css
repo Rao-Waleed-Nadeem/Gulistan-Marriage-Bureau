@@ -1,14 +1,20 @@
 @import "tailwindcss";
 
 @theme {
-  --color-teal-deep: #164E4A;
-  --color-teal-midnight: #103B39;
+  --color-teal-deep: #182848;
+  --color-teal-midnight: #283848;
+  --color-navy-midnight: #182848;
+  --color-navy-deep: #283848;
+  --color-blue-arch: #486878;
+  --color-blue-slate: #587888;
+  --color-blue-dusty: #789898;
+  --color-blue-pale: #88A8A8;
   --color-ivory-warm: #F7F3EA;
   --color-porcelain: #FFFEFA;
   --color-gold-champagne: #B69A62;
-  --color-sage-pale: #DCE6DE;
-  --color-teal-muted: #6D9189;
-  --color-ink: #252E2C;
+  --color-sage-pale: #88A8A8;
+  --color-teal-muted: #789898;
+  --color-ink: #243238;
   --color-text-secondary: #68716D;
   --color-border-subtle: #E7E2D8;
   --color-status-success: #287653;
@@ -20,6 +26,45 @@
   --font-urdu: 'Noto Nastaliq Urdu', 'Noto Sans Arabic', Tahoma, sans-serif;
 }
 
+:root {
+  /* Architectural Blue Luxury Palette Tokens (agent-prompt.md Section 3) */
+  --gulistan-navy-950: #121c30;
+  --gulistan-navy-900: #182848;
+  --gulistan-navy-800: #283848;
+
+  --gulistan-blue-700: #486878;
+  --gulistan-blue-600: #587888;
+  --gulistan-blue-500: #789898;
+  --gulistan-blue-300: #88A8A8;
+
+  --gulistan-ivory-50: #FBF7F0;
+  --gulistan-ivory-100: #F5E8D8;
+  --gulistan-sandstone-200: #E8D8C8;
+  --gulistan-sandstone-400: #C8A888;
+
+  --gulistan-gold-500: #B69A62;
+  --gulistan-ink-900: #243238;
+
+  --glass-white: rgba(255, 252, 246, 0.16);
+  --glass-white-strong: rgba(255, 252, 246, 0.28);
+  --glass-dark: rgba(24, 40, 72, 0.35);
+
+  --glass-border-light: rgba(255, 255, 255, 0.38);
+  --glass-border-dark: rgba(40, 56, 72, 0.20);
+
+  /* Motion & Radius Tokens (agent-prompt.md Section 8) */
+  --motion-fast: 160ms;
+  --motion-standard: 240ms;
+  --motion-emphasis: 380ms;
+
+  --ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-emphasis: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --radius-card: 24px;
+  --radius-control: 14px;
+  --radius-pill: 999px;
+}
+
 /* RTL and Typography support */
 [dir="rtl"] {
   font-family: 'Noto Sans Arabic', 'Noto Nastaliq Urdu', Tahoma, sans-serif;
@@ -29,6 +74,117 @@
 [dir="rtl"] h1, [dir="rtl"] h2, [dir="rtl"] h3 {
   font-family: 'Noto Nastaliq Urdu', 'Noto Sans Arabic', serif;
   line-height: 1.8;
+}
+
+/* ----------------------------------------------------
+   FLOATING CAPSULE NAVIGATION (agent-prompt.md Section 5)
+   ---------------------------------------------------- */
+.nav-capsule {
+  background: rgba(247, 243, 234, 0.06);
+  border: none;
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  border-radius: 999px;
+  box-shadow:
+    0 8px 32px -4px rgba(20, 40, 45, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.03);
+  transition: all var(--motion-standard) var(--ease-emphasis);
+}
+
+.nav-capsule-scrolled {
+  background: rgba(247, 243, 234, 0.14);
+  border: none;
+  backdrop-filter: blur(28px) saturate(150%);
+  -webkit-backdrop-filter: blur(28px) saturate(150%);
+  box-shadow:
+    0 12px 36px -6px rgba(24, 40, 72, 0.12),
+    0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+/* ----------------------------------------------------
+   GLASS DESIGN SYSTEM (Transparent with Blurry Effect)
+   ---------------------------------------------------- */
+.glass-card {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    0 10px 30px -5px rgba(24, 40, 72, 0.06),
+    0 2px 6px rgba(0, 0, 0, 0.02);
+  border-radius: var(--radius-card);
+  transition: all var(--motion-standard) var(--ease-standard);
+}
+
+.glass-card-interactive {
+  transition: transform var(--motion-standard) var(--ease-standard),
+              box-shadow var(--motion-standard) var(--ease-standard),
+              background var(--motion-standard) var(--ease-standard);
+}
+
+.glass-card-interactive:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    0 16px 40px -8px rgba(24, 40, 72, 0.10),
+    0 4px 12px rgba(182, 154, 98, 0.08);
+}
+
+/* Glass Panel for text-heavy & form workflows */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius-card);
+}
+
+/* Dense form panels (Profile Wizard, Financial Ledger, Admin) */
+.glass-panel-dense {
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(28px) saturate(150%);
+  -webkit-backdrop-filter: blur(28px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 14px 36px -4px rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius-card);
+}
+
+/* Dark Glass Card (Architectural Sanctuary & High-Contrast Features) */
+.glass-dark-card {
+  background: linear-gradient(180deg, rgba(24, 40, 72, 0.78) 0%, rgba(40, 56, 72, 0.82) 100%);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  border: 1px solid rgba(182, 154, 98, 0.35);
+  box-shadow: 0 20px 48px -10px rgba(18, 28, 48, 0.35);
+  border-radius: var(--radius-card);
+}
+
+/* Glass Form Inputs */
+.glass-input {
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-radius: var(--radius-control);
+  transition: all var(--motion-fast) ease-out;
+}
+
+.glass-input:focus {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(182, 154, 98, 0.60);
+  box-shadow: 0 0 0 3px rgba(24, 40, 72, 0.12);
+  outline: none;
+}
+
+/* Legacy porcelain-card compatibility */
+.porcelain-card {
+  background: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(20px) saturate(135%);
+  -webkit-backdrop-filter: blur(20px) saturate(135%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 8px 28px -4px rgba(0, 0, 0, 0.06);
+  border-radius: var(--radius-card);
 }
 
 /* Custom Architectural Arch & Mask Styles */
@@ -49,26 +205,34 @@
   box-shadow: 0 4px 24px -2px rgba(182, 154, 98, 0.15);
 }
 
-.porcelain-card {
-  background-color: rgba(255, 254, 250, 0.88);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(231, 226, 216, 0.75);
-  box-shadow: 0 4px 20px -2px rgba(22, 78, 74, 0.08);
-}
-
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #F7F3EA;
+  background: rgba(247, 243, 234, 0.4);
 }
 ::-webkit-scrollbar-thumb {
-  background: #6D9189;
+  background: #789898;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #164E4A;
+  background: #182848;
+}
+
+/* Accessibility Focus Ring */
+:focus-visible {
+  outline: 2px solid #B69A62;
+  outline-offset: 2px;
+}
+
+/* Reduced Motion Policy (agent-prompt.md Section 13) */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

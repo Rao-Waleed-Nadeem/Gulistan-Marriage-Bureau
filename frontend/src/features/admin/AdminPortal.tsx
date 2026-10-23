@@ -64,7 +64,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               Executive Administrative Portal (English Only)
             </span>
           </div>
-          <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#164E4A]">
+          <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#182848]">
             Gulistan System Administration
           </h1>
           <p className="text-xs sm:text-sm text-[#68716D] max-w-xl mt-1">
@@ -83,7 +83,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         <button
           onClick={() => setActiveTab('dashboard')}
           className={`px-4 py-2.5 rounded-2xl whitespace-nowrap transition-colors ${
-            activeTab === 'dashboard' ? 'bg-[#164E4A] text-[#F7F3EA] shadow-sm' : 'text-[#68716D] hover:text-[#252E2C]'
+            activeTab === 'dashboard' ? 'bg-[#182848] text-[#F7F3EA] shadow-sm' : 'text-[#68716D] hover:text-[#252E2C]'
           }`}
         >
           System Oversight Dashboard
@@ -92,7 +92,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         <button
           onClick={() => setActiveTab('profiles')}
           className={`px-4 py-2.5 rounded-2xl whitespace-nowrap transition-colors ${
-            activeTab === 'profiles' ? 'bg-[#164E4A] text-[#F7F3EA] shadow-sm' : 'text-[#68716D] hover:text-[#252E2C]'
+            activeTab === 'profiles' ? 'bg-[#182848] text-[#F7F3EA] shadow-sm' : 'text-[#68716D] hover:text-[#252E2C]'
           }`}
         >
           Profile Directory Oversight ({profiles.length})
@@ -101,7 +101,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         <button
           onClick={() => setActiveTab('users')}
           className={`px-4 py-2.5 rounded-2xl whitespace-nowrap transition-colors ${
-            activeTab === 'users' ? 'bg-[#164E4A] text-[#F7F3EA] shadow-sm' : 'text-[#68716D] hover:text-[#252E2C]'
+            activeTab === 'users' ? 'bg-[#182848] text-[#F7F3EA] shadow-sm' : 'text-[#68716D] hover:text-[#252E2C]'
           }`}
         >
           Users & Permissions
@@ -110,7 +110,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         <button
           onClick={() => setActiveTab('audit')}
           className={`px-4 py-2.5 rounded-2xl whitespace-nowrap transition-colors ${
-            activeTab === 'audit' ? 'bg-[#164E4A] text-[#F7F3EA] shadow-sm' : 'text-[#68716D] hover:text-[#252E2C]'
+            activeTab === 'audit' ? 'bg-[#182848] text-[#F7F3EA] shadow-sm' : 'text-[#68716D] hover:text-[#252E2C]'
           }`}
         >
           Audit Activity Trail ({auditLogs.length})
@@ -119,7 +119,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         <button
           onClick={() => setActiveTab('settings')}
           className={`px-4 py-2.5 rounded-2xl whitespace-nowrap transition-colors ${
-            activeTab === 'settings' ? 'bg-[#164E4A] text-[#F7F3EA] shadow-sm' : 'text-[#68716D] hover:text-[#252E2C]'
+            activeTab === 'settings' ? 'bg-[#182848] text-[#F7F3EA] shadow-sm' : 'text-[#68716D] hover:text-[#252E2C]'
           }`}
         >
           Regional Settings & Land Conventions
@@ -131,42 +131,42 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         <div className="space-y-8 animate-fadeIn">
           {/* Key Metrics */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="porcelain-card rounded-3xl p-5 border-l-4 border-emerald-600">
+            <div className="glass-card p-5 border-l-4 border-emerald-600">
               <span className="text-[11px] font-semibold uppercase text-[#68716D] tracking-wider block mb-1">
                 Active Bureau Profiles
               </span>
               <div className="flex items-baseline gap-2">
-                <span className="font-serif text-3xl font-bold text-[#164E4A]">{activeCount}</span>
+                <span className="font-serif text-3xl font-bold text-[#182848]">{activeCount}</span>
                 <span className="text-xs text-emerald-700 font-semibold">+12% this month</span>
               </div>
             </div>
 
-            <div className="porcelain-card rounded-3xl p-5 border-l-4 border-amber-500">
+            <div className="glass-card p-5 border-l-4 border-amber-500">
               <span className="text-[11px] font-semibold uppercase text-[#68716D] tracking-wider block mb-1">
                 Pending Verification
               </span>
               <div className="flex items-baseline gap-2">
-                <span className="font-serif text-3xl font-bold text-[#164E4A]">{pendingCount}</span>
+                <span className="font-serif text-3xl font-bold text-[#182848]">{pendingCount}</span>
                 <span className="text-xs text-amber-700 font-semibold">Requires Nadeem Review</span>
               </div>
             </div>
 
-            <div className="porcelain-card rounded-3xl p-5 border-l-4 border-[#B69A62]">
+            <div className="glass-card p-5 border-l-4 border-[#B69A62]">
               <span className="text-[11px] font-semibold uppercase text-[#68716D] tracking-wider block mb-1">
                 External Matchmakers
               </span>
               <div className="flex items-baseline gap-2">
-                <span className="font-serif text-3xl font-bold text-[#164E4A]">{matchmakers.length}</span>
+                <span className="font-serif text-3xl font-bold text-[#182848]">{matchmakers.length}</span>
                 <span className="text-xs text-[#68716D]">Active Bureau Agents</span>
               </div>
             </div>
 
-            <div className="porcelain-card rounded-3xl p-5 border-l-4 border-[#164E4A]">
+            <div className="glass-card p-5 border-l-4 border-[#182848]">
               <span className="text-[11px] font-semibold uppercase text-[#68716D] tracking-wider block mb-1">
                 Data Completeness
               </span>
               <div className="flex items-baseline gap-2">
-                <span className="font-serif text-3xl font-bold text-[#164E4A]">96.8%</span>
+                <span className="font-serif text-3xl font-bold text-[#182848]">96.8%</span>
                 <span className="text-xs text-emerald-700 font-semibold">High Quality</span>
               </div>
             </div>
@@ -174,15 +174,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
           {/* Operational Alerts & Activity */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 porcelain-card rounded-3xl p-6 shadow-sm">
-              <h3 className="font-serif text-xl font-bold text-[#164E4A] mb-4">
+            <div className="lg:col-span-2 glass-panel p-6 shadow-sm">
+              <h3 className="font-serif text-xl font-bold text-[#182848] mb-4">
                 Recent Administrative Events
               </h3>
               <div className="space-y-3">
                 {auditLogs.slice(0, 4).map((log) => (
-                  <div key={log.id} className="p-3.5 rounded-2xl bg-[#F7F3EA]/60 border border-[#E7E2D8] text-xs">
+                  <div key={log.id} className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-xs">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-[#164E4A]">{log.action}</span>
+                      <span className="font-bold text-[#182848]">{log.action}</span>
                       <span className="font-mono text-[10px] text-[#68716D]">{log.timestamp}</span>
                     </div>
                     <p className="text-[#252E2C]">{log.details}</p>
@@ -192,8 +192,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
             </div>
 
-            <div className="porcelain-card rounded-3xl p-6 shadow-sm">
-              <h3 className="font-serif text-xl font-bold text-[#164E4A] mb-4">
+            <div className="glass-panel p-6 shadow-sm">
+              <h3 className="font-serif text-xl font-bold text-[#182848] mb-4">
                 Data Quality & Integrity
               </h3>
               <div className="space-y-4 text-xs">
@@ -234,16 +234,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
       {/* TAB 2: PROFILE OVERSIGHT TABLE */}
       {activeTab === 'profiles' && (
-        <div className="porcelain-card rounded-3xl p-6 shadow-sm space-y-6 animate-fadeIn">
+        <div className="glass-panel p-6 shadow-sm space-y-6 animate-fadeIn">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="relative w-full sm:w-80">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-[#6D9189]" />
+              <Search className="absolute left-3 top-3 h-4 w-4 text-[#486878]" />
               <input
                 type="text"
                 value={profileSearch}
                 onChange={(e) => setProfileSearch(e.target.value)}
                 placeholder="Search profiles by name or ID..."
-                className="w-full rounded-xl border border-[#E7E2D8] py-2 pl-9 pr-3 text-xs focus:border-[#164E4A] focus:outline-none"
+                className="w-full rounded-xl border border-[#E7E2D8] py-2 pl-9 pr-3 text-xs focus:border-[#182848] focus:outline-none"
               />
             </div>
 
@@ -266,7 +266,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-start text-xs">
               <thead>
-                <tr className="border-b border-[#E7E2D8] bg-[#F7F3EA] text-[#164E4A]">
+                <tr className="border-b border-[#E7E2D8] bg-[#F7F3EA] text-[#182848]">
                   <th className="p-3 text-start">ID</th>
                   <th className="p-3 text-start">Full Name</th>
                   <th className="p-3 text-start">Age/Gender</th>
@@ -279,13 +279,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <tbody className="divide-y divide-[#E7E2D8]">
                 {filteredProfiles.map((p) => (
                   <tr key={p.id} className="hover:bg-[#F7F3EA]/40">
-                    <td className="p-3 font-mono font-semibold text-[#164E4A]">{p.id}</td>
+                    <td className="p-3 font-mono font-semibold text-[#182848]">{p.id}</td>
                     <td className="p-3 font-bold text-[#252E2C]">{p.fullName}</td>
                     <td className="p-3 text-[#68716D]">
                       {p.age} yrs • {p.gender}
                     </td>
                     <td className="p-3">
-                      <span className="font-medium text-[#164E4A] block">{p.occupation}</span>
+                      <span className="font-medium text-[#182848] block">{p.occupation}</span>
                       <span className="text-[10px] text-[#68716D]">{p.education}</span>
                     </td>
                     <td className="p-3 text-[#68716D]">{p.currentCity}</td>
@@ -305,7 +305,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <td className="p-3">
                       <button
                         onClick={() => alert(`Reviewing profile ${p.id}`)}
-                        className="text-[#164E4A] hover:underline font-semibold"
+                        className="text-[#182848] hover:underline font-semibold"
                       >
                         Inspect
                       </button>
@@ -320,8 +320,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
       {/* TAB 3: USERS & PERMISSIONS */}
       {activeTab === 'users' && (
-        <div className="porcelain-card rounded-3xl p-6 sm:p-8 space-y-6 animate-fadeIn">
-          <h3 className="font-serif text-2xl font-bold text-[#164E4A]">
+        <div className="glass-panel p-6 sm:p-8 space-y-6 animate-fadeIn">
+          <h3 className="font-serif text-2xl font-bold text-[#182848]">
             Role-Based Access Control (RBAC) Matrix
           </h3>
           <p className="text-xs text-[#68716D]">
@@ -329,20 +329,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
-            <div className="p-5 rounded-2xl border border-[#164E4A] bg-[#164E4A]/5 space-y-2">
-              <span className="font-bold text-sm text-[#164E4A] block">1. System Administrator</span>
+            <div className="p-5 rounded-2xl border border-[#182848] bg-[#182848]/5 space-y-2">
+              <span className="font-bold text-sm text-[#182848] block">1. System Administrator</span>
               <p className="text-[#68716D]">Full governance over audit logs, land unit conventions, user accounts, and financial reports.</p>
               <span className="text-[10px] text-emerald-800 font-semibold block">Active Account: admin@gulistan.pk</span>
             </div>
 
             <div className="p-5 rounded-2xl border border-[#B69A62] bg-[#B69A62]/10 space-y-2">
-              <span className="font-bold text-sm text-[#164E4A] block">2. Nadeem (Lead Matchmaker)</span>
+              <span className="font-bold text-sm text-[#182848] block">2. Nadeem (Lead Matchmaker)</span>
               <p className="text-[#68716D]">Full operational access to 7-step wizard, match search, follow-up scheduler, and controlled sharing.</p>
               <span className="text-[10px] text-emerald-800 font-semibold block">Active Account: nadeem@gulistan.pk</span>
             </div>
 
-            <div className="p-5 rounded-2xl border border-[#E7E2D8] bg-[#F7F3EA] space-y-2">
-              <span className="font-bold text-sm text-[#164E4A] block">3. Customer / Profiler</span>
+            <div className="p-5 rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md space-y-2">
+              <span className="font-bold text-sm text-[#182848] block">3. Customer / Profiler</span>
               <p className="text-[#68716D]">Restricted to own profile, spouse preferences, and authorized recommendations with privacy protections.</p>
               <span className="text-[10px] text-emerald-800 font-semibold block">Candidate: Dr. Fatima Tariq (GLS-401)</span>
             </div>
@@ -352,8 +352,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
       {/* TAB 4: AUDIT ACTIVITY LOG */}
       {activeTab === 'audit' && (
-        <div className="porcelain-card rounded-3xl p-6 space-y-4 animate-fadeIn shadow-sm">
-          <h3 className="font-serif text-2xl font-bold text-[#164E4A]">
+        <div className="glass-panel p-6 space-y-4 animate-fadeIn shadow-sm">
+          <h3 className="font-serif text-2xl font-bold text-[#182848]">
             Security Audit Trail (Tamper-Evident Simulation)
           </h3>
           <p className="text-xs text-[#68716D] mb-4">
@@ -365,7 +365,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <div key={log.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="font-bold text-[#164E4A]">{log.action}</span>
+                    <span className="font-bold text-[#182848]">{log.action}</span>
                     <span className="font-mono text-[#68716D]">Target: {log.targetId}</span>
                   </div>
                   <p className="text-[#252E2C]">{log.details}</p>
@@ -382,9 +382,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
       {/* TAB 5: REGIONAL SETTINGS & CONVENTIONS */}
       {activeTab === 'settings' && (
-        <div className="porcelain-card rounded-3xl p-6 sm:p-8 space-y-6 animate-fadeIn">
+        <div className="glass-panel p-6 sm:p-8 space-y-6 animate-fadeIn">
           <div className="border-b border-[#E7E2D8] pb-4">
-            <h3 className="font-serif text-2xl font-bold text-[#164E4A]">
+            <h3 className="font-serif text-2xl font-bold text-[#182848]">
               Regional Land Unit & Calculation Conventions
             </h3>
             <p className="text-xs text-[#68716D] mt-1">
@@ -394,7 +394,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs max-w-xl">
             <div>
-              <label className="block font-semibold text-[#164E4A] mb-1">
+              <label className="block font-semibold text-[#182848] mb-1">
                 Marla per Kanal Convention Ratio
               </label>
               <select
@@ -411,7 +411,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
 
             <div>
-              <label className="block font-semibold text-[#164E4A] mb-1">
+              <label className="block font-semibold text-[#182848] mb-1">
                 Square Feet per Marla
               </label>
               <select
@@ -427,7 +427,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
           <button
             onClick={() => alert('Regional conventions saved successfully!')}
-            className="rounded-xl bg-[#164E4A] px-6 py-2.5 text-xs font-semibold text-[#F7F3EA] shadow"
+            className="rounded-xl bg-[#182848] px-6 py-2.5 text-xs font-semibold text-[#F7F3EA] shadow hover:bg-[#283848] transition-colors"
           >
             Save Regional Conventions
           </button>

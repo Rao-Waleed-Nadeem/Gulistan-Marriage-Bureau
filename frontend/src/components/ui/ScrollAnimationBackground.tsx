@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 const TOTAL_FRAMES = 300;
 const FRAME_PATH_PREFIX = '/frames/frame_';
 const FRAME_EXT = '.jpg';
+const INITIAL_PRELOAD_COUNT = 30; // Preload hero frames immediately for instant smoothness
 
 export const ScrollAnimationBackground: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -23,6 +24,17 @@ export const ScrollAnimationBackground: React.FC = () => {
     let lastRenderedIndex = -1;
     let needsResize = true;
     let animationFrameId: number;
+    let isPageVisible = true;
+    let isCancelled = false;
+
+    // Check reduced motion preference (agent-prompt.md Section 13)
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let prefersReducedMotion = motionQuery.matches;
+
+    const handleMotionChange = (e: MediaQueryListEvent) => {
+      prefersReducedMotion = e.matches;
+    };
+    motionQuery.addEventListener('change', handleMotionChange);
 
     const getFrameUrl = (index: number) => {
       const frameNum = String(index + 1).padStart(4, '0');
@@ -34,9 +46,12 @@ export const ScrollAnimationBackground: React.FC = () => {
       const w = window.innerWidth;
       const h = window.innerHeight;
 
-      if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
-        canvas.width = Math.round(w * dpr);
-        canvas.height = Math.round(h * dpr);
+      const targetW = Math.round(w * dpr);
+      const targetH = Math.round(h * dpr);
+
+      if (canvas.width !== targetW || canvas.height !== targetH) {
+        canvas.width = targetW;
+        canvas.height = targetH;
         needsResize = true;
       }
     };
@@ -44,7 +59,7 @@ export const ScrollAnimationBackground: React.FC = () => {
     const drawFrame = (index: number) => {
       let img = images[index];
 
-      // If target frame is not loaded, find closest loaded frame
+      // If target frame is not ready, locate the closest available loaded frame
       if (!img || !loadedFlags[index] || !img.complete || img.naturalWidth === 0) {
         for (let offset = 1; offset < TOTAL_FRAMES; offset++) {
           const prev = index - offset;
@@ -67,7 +82,7 @@ export const ScrollAnimationBackground: React.FC = () => {
       const nw = img.naturalWidth;
       const nh = img.naturalHeight;
 
-      // Cover scaling math
+      // Cover scaling calculation with deliberate centering
       const scale = Math.max(cw / nw, ch / nh);
       const dw = nw * scale;
       const dh = nh * scale;
@@ -82,6 +97,10 @@ export const ScrollAnimationBackground: React.FC = () => {
     };
 
     const onScroll = () => {
+      if (prefersReducedMotion) {
+        targetScroll = 0; // Stable view for reduced motion
+        return;
+      }
       const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
       if (maxScroll > 0) {
         targetScroll = Math.min(Math.max(window.scrollY / maxScroll, 0), 1);
@@ -91,13 +110,20 @@ export const ScrollAnimationBackground: React.FC = () => {
     };
 
     const renderLoop = () => {
+      if (!isPageVisible) return;
+
       updateDimensions();
 
-      const diff = targetScroll - currentScroll;
-      if (Math.abs(diff) > 0.0001) {
-        currentScroll += diff * 0.12;
+      if (prefersReducedMotion) {
+        currentScroll = 0;
       } else {
-        currentScroll = targetScroll;
+        const diff = targetScroll - currentScroll;
+        // Restrained smooth damping (lerp) prevents jerky jumps during rapid scrolls
+        if (Math.abs(diff) > 0.0001) {
+          currentScroll += diff * 0.10;
+        } else {
+          currentScroll = targetScroll;
+        }
       }
 
       const frameFloat = currentScroll * (TOTAL_FRAMES - 1);
@@ -111,39 +137,103 @@ export const ScrollAnimationBackground: React.FC = () => {
       animationFrameId = requestAnimationFrame(renderLoop);
     };
 
-    // Preload first frame immediately
-    const firstImg = new Image();
-    firstImg.src = getFrameUrl(0);
-    firstImg.onload = () => {
-      loadedFlags[0] = 1;
-      images[0] = firstImg;
-      needsResize = true;
-    };
-    images[0] = firstImg;
-
-    // Asynchronously preload all remaining frames
-    for (let i = 1; i < TOTAL_FRAMES; i++) {
-      const img = new Image();
-      img.src = getFrameUrl(i);
-      img.onload = () => {
-        loadedFlags[i] = 1;
-        if (i === Math.round(currentScroll * (TOTAL_FRAMES - 1))) {
-          needsResize = true;
+    // Helper to safely load and decode a frame off the main thread
+    const loadFrame = (index: number): Promise<void> => {
+      return new Promise((resolve) => {
+        if (isCancelled || images[index]) {
+          resolve();
+          return;
         }
+        const img = new Image();
+        img.src = getFrameUrl(index);
+        img.onload = () => {
+          if (isCancelled) return;
+          if ('decode' in img) {
+            img.decode().then(() => {
+              if (isCancelled) return;
+              loadedFlags[index] = 1;
+              images[index] = img;
+              needsResize = true;
+              resolve();
+            }).catch(() => {
+              loadedFlags[index] = 1;
+              images[index] = img;
+              needsResize = true;
+              resolve();
+            });
+          } else {
+            loadedFlags[index] = 1;
+            images[index] = img;
+            needsResize = true;
+            resolve();
+          }
+        };
+        img.onerror = () => resolve();
+        images[index] = img;
+      });
+    };
+
+    // 1. Preload initial priority window (0..INITIAL_PRELOAD_COUNT)
+    const preloadInitialFrames = async () => {
+      for (let i = 0; i < Math.min(INITIAL_PRELOAD_COUNT, TOTAL_FRAMES); i++) {
+        if (isCancelled) break;
+        await loadFrame(i);
+      }
+
+      // 2. Progressive background batching for remaining frames
+      let currentIdx = INITIAL_PRELOAD_COUNT;
+      const batchSize = 8;
+
+      const loadNextBatch = () => {
+        if (isCancelled || currentIdx >= TOTAL_FRAMES) return;
+        const promises = [];
+        for (let i = 0; i < batchSize && currentIdx < TOTAL_FRAMES; i++, currentIdx++) {
+          promises.push(loadFrame(currentIdx));
+        }
+        Promise.all(promises).then(() => {
+          if (!isCancelled && currentIdx < TOTAL_FRAMES) {
+            if ('requestIdleCallback' in window) {
+              (window as any).requestIdleCallback(loadNextBatch);
+            } else {
+              setTimeout(loadNextBatch, 25);
+            }
+          }
+        });
       };
-      images[i] = img;
-    }
+
+      if ('requestIdleCallback' in window) {
+        (window as any).requestIdleCallback(loadNextBatch);
+      } else {
+        setTimeout(loadNextBatch, 50);
+      }
+    };
+
+    // Visibility change handler (pause animation when tab is inactive)
+    const onVisibilityChange = () => {
+      isPageVisible = !document.hidden;
+      if (isPageVisible) {
+        needsResize = true;
+        animationFrameId = requestAnimationFrame(renderLoop);
+      } else {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
 
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', () => { needsResize = true; });
+    document.addEventListener('visibilitychange', onVisibilityChange);
 
     updateDimensions();
     onScroll();
+    preloadInitialFrames();
     renderLoop();
 
     return () => {
+      isCancelled = true;
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', () => { needsResize = true; });
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      motionQuery.removeEventListener('change', handleMotionChange);
       cancelAnimationFrame(animationFrameId);
     };
   }, []);
@@ -172,14 +262,14 @@ export const ScrollAnimationBackground: React.FC = () => {
             const nextMode = clarityMode === 'clear' ? 'ultra' : clarityMode === 'ultra' ? 'soft' : 'clear';
             setClarityMode(nextMode);
           }}
-          className="flex items-center gap-2 rounded-full border border-[#B69A62]/60 bg-[#103B39]/90 px-3.5 py-1.5 text-xs font-medium text-[#F7F3EA] shadow-xl backdrop-blur-md transition-all hover:bg-[#164E4A] hover:border-[#B69A62] cursor-pointer"
+          className="flex items-center gap-2 rounded-full border border-[#B69A62]/60 bg-[#182848]/90 px-3.5 py-1.5 text-xs font-medium text-[#F7F3EA] shadow-xl backdrop-blur-md transition-all hover:bg-[#283848] hover:border-[#B69A62] cursor-pointer"
           title="Click to toggle background animation clarity (Clear / Ultra / Soft)"
         >
           <span className="h-2 w-2 rounded-full bg-[#B69A62] animate-pulse" />
           <span>
-            {clarityMode === 'clear' && 'Animation: Clear (82%)'}
-            {clarityMode === 'ultra' && 'Animation: Ultra Clear (95%)'}
-            {clarityMode === 'soft' && 'Animation: Soft (65%)'}
+            {clarityMode === 'clear' && 'Background: Clear (82%)'}
+            {clarityMode === 'ultra' && 'Background: Ultra Clear (95%)'}
+            {clarityMode === 'soft' && 'Background: Soft (65%)'}
           </span>
         </button>
       </div>

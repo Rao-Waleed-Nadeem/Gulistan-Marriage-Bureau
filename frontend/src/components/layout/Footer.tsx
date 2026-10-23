@@ -13,13 +13,13 @@ export const Footer: React.FC<FooterProps> = ({ language, onNavigate, onSelectRo
   const t = translations[language];
 
   return (
-    <footer className="border-t border-[#B69A62]/30 bg-[#103B39] text-[#F7F3EA] pt-16 pb-12">
+    <footer className="border-t border-[#B69A62]/35 bg-gradient-to-b from-[#182848]/85 via-[#283848]/90 to-[#121e36]/95 backdrop-blur-xl text-[#F7F3EA] pt-16 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10 pb-12 border-b border-[#164E4A]">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-10 pb-12 border-b border-[#486878]/30">
           {/* Brand Col */}
           <div className="space-y-4 md:col-span-1">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#B69A62]/50 bg-[#164E4A] text-[#B69A62]">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#B69A62]/50 bg-[#182848] text-[#B69A62]">
                 <span className="font-serif text-xl font-bold">G</span>
               </div>
               <div>
@@ -29,7 +29,7 @@ export const Footer: React.FC<FooterProps> = ({ language, onNavigate, onSelectRo
                 </span>
               </div>
             </div>
-            <p className="text-sm text-[#DCE6DE]/80 leading-relaxed">
+            <p className="text-sm text-[#88A8A8]/80 leading-relaxed">
               {language === 'ur'
                 ? 'خاندانوں کے باہمی وقار، رازداری اور بھروسے کے ساتھ مناسب رشتوں کے انتخاب کا بااعتماد ادارہ۔'
                 : 'A bespoke matchmaking sanctuary devoted to privacy, family honor, and meaningful life unions.'}
@@ -45,7 +45,7 @@ export const Footer: React.FC<FooterProps> = ({ language, onNavigate, onSelectRo
             <h4 className="font-serif text-lg font-semibold text-[#B69A62] mb-4">
               {language === 'ur' ? 'رہنمائی' : 'Explore Gulistan'}
             </h4>
-            <ul className="space-y-2.5 text-sm text-[#DCE6DE]/80">
+            <ul className="space-y-2.5 text-sm text-[#88A8A8]/80">
               <li>
                 <button onClick={() => onNavigate('approach')} className="hover:text-[#F7F3EA] transition-colors">
                   {t.navOurApproach}
@@ -74,7 +74,7 @@ export const Footer: React.FC<FooterProps> = ({ language, onNavigate, onSelectRo
             <h4 className="font-serif text-lg font-semibold text-[#B69A62] mb-4">
               {language === 'ur' ? 'پورٹلز و ورک سپیس' : 'Stakeholder Access'}
             </h4>
-            <ul className="space-y-2.5 text-sm text-[#DCE6DE]/80">
+            <ul className="space-y-2.5 text-sm text-[#88A8A8]/80">
               <li>
                 <button onClick={() => onSelectRole('nadeem')} className="hover:text-[#F7F3EA] transition-colors flex items-center gap-1.5">
                   <span>{t.roleNadeem}</span>
@@ -101,7 +101,7 @@ export const Footer: React.FC<FooterProps> = ({ language, onNavigate, onSelectRo
             <h4 className="font-serif text-lg font-semibold text-[#B69A62] mb-4">
               {language === 'ur' ? 'رابطہ و ملاقات' : 'Private Consultation'}
             </h4>
-            <div className="space-y-3 text-xs text-[#DCE6DE]/80">
+            <div className="space-y-3 text-xs text-[#88A8A8]/80">
               <div className="flex items-start gap-2">
                 <MapPin className="w-4 h-4 text-[#B69A62] shrink-0 mt-0.5" />
                 <span>Gulistan Marriage Bureau, Gulberg III / DHA Phase 5, Lahore, Pakistan [Consultation by appointment]</span>
@@ -114,7 +114,7 @@ export const Footer: React.FC<FooterProps> = ({ language, onNavigate, onSelectRo
                 <Mail className="w-4 h-4 text-[#B69A62] shrink-0" />
                 <span>inquiries@gulistanmatchmaking.pk</span>
               </div>
-              <p className="text-[11px] text-[#6D9189] pt-2">
+              <p className="text-[11px] text-[#789898] pt-2">
                 Office Hours: Monday – Saturday (10:00 AM – 7:00 PM PKT)
               </p>
             </div>
@@ -122,13 +122,13 @@ export const Footer: React.FC<FooterProps> = ({ language, onNavigate, onSelectRo
         </div>
 
         {/* Bottom Credits */}
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#6D9189]">
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#789898]">
           <p>© 2026 Gulistan Marriage Bureau. All rights reserved. Private and confidential matchmaking service.</p>
           <div className="flex items-center gap-6">
-            <button onClick={() => onNavigate('privacy')} className="hover:text-[#DCE6DE] transition-colors">
+            <button onClick={() => onNavigate('privacy')} className="hover:text-[#88A8A8] transition-colors">
               Privacy Policy
             </button>
-            <button onClick={() => onNavigate('privacy')} className="hover:text-[#DCE6DE] transition-colors">
+            <button onClick={() => onNavigate('privacy')} className="hover:text-[#88A8A8] transition-colors">
               Terms of Service
             </button>
             <span className="text-[#B69A62]">Crafted with dignity & precision</span>

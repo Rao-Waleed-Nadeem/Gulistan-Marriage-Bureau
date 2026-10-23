@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Production build output
+dist/
+*/dist/
+build/
+*/build/
+
+# Local Environment Variables & Secrets
+.env
+.env*.local
+*.env
+!.env.example
+!*/.env.example
+
+# Logs and debug output
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.log
+
+# Editor & OS files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
+
+# Temporary AI Studio cache & artifacts
+.aistudio/
+*/.aistudio/
+
+# Large temporary archives and duplicate frame folders
+*.zip
+Gulistan_frames_30fps_high_quality/

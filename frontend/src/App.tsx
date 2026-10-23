@@ -127,7 +127,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col text-[#252E2C] relative selection:bg-[#164E4A] selection:text-[#F7F3EA]">
+    <div className="min-h-screen flex flex-col text-[#252E2C] relative selection:bg-[#182848] selection:text-[#F7F3EA]">
       {/* High-Quality Scroll-based Background Video Animation */}
       <ScrollAnimationBackground />
 
@@ -144,8 +144,8 @@ export default function App() {
         }}
       />
 
-      {/* Main Routed Content Area */}
-      <main className="flex-1 relative z-10">
+      {/* Main Routed Content Area with top clearance for floating capsule navigation */}
+      <main className="flex-1 relative z-10 pt-20 sm:pt-24">
         {/* PUBLIC EXPERIENCE */}
         {currentRole === 'public' && (
           <>
@@ -196,20 +196,20 @@ export default function App() {
             )}
             {activeNav === 'login' && (
               <div className="max-w-md mx-auto my-16 p-8 porcelain-card rounded-3xl text-center space-y-4">
-                <h3 className="font-serif text-2xl font-bold text-[#164E4A]">Gulistan Sign In</h3>
+                <h3 className="font-serif text-2xl font-bold text-[#182848]">Gulistan Sign In</h3>
                 <p className="text-xs text-[#68716D]">
                   Select your intended stakeholder experience to explore the platform:
                 </p>
                 <div className="space-y-2 pt-2">
                   <button
                     onClick={() => handleSelectRole('nadeem')}
-                    className="w-full py-3 px-4 rounded-xl bg-[#164E4A] text-white text-xs font-semibold"
+                    className="w-full py-3 px-4 rounded-xl bg-[#182848] text-white text-xs font-semibold hover:bg-[#283848] transition-colors"
                   >
                     Enter as Nadeem (Lead Matchmaker)
                   </button>
                   <button
                     onClick={() => handleSelectRole('customer')}
-                    className="w-full py-3 px-4 rounded-xl border border-[#164E4A] text-[#164E4A] text-xs font-semibold"
+                    className="w-full py-3 px-4 rounded-xl border border-[#182848] text-[#182848] text-xs font-semibold hover:bg-[#182848]/5 transition-colors"
                   >
                     Enter as Candidate / Customer
                   </button>

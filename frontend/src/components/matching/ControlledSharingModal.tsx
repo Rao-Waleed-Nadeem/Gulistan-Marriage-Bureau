@@ -75,26 +75,26 @@ export const ControlledSharingModal: React.FC<ControlledSharingModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="relative w-full max-w-3xl rounded-3xl border border-[#B69A62]/40 bg-[#FFFEFA] shadow-2xl overflow-hidden my-8 animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-md p-4 overflow-y-auto">
+      <div className="relative w-full max-w-3xl rounded-3xl border border-white/20 glass-panel-dense backdrop-blur-2xl shadow-2xl overflow-hidden my-8 animate-fadeIn">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#E7E2D8] bg-[#164E4A] px-6 py-4 text-[#F7F3EA]">
+        <div className="flex items-center justify-between border-b border-[#E7E2D8] bg-[#182848] px-6 py-4 text-[#F7F3EA]">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#103B39] text-[#B69A62] border border-[#B69A62]/30">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#283848] text-[#B69A62] border border-[#B69A62]/30">
               <Share2 className="w-5 h-5" />
             </div>
             <div>
               <h3 className="font-serif text-xl font-bold tracking-wide">
                 {language === 'ur' ? 'واٹس ایپ پر بااختیار شیئرنگ' : 'Controlled WhatsApp Proposal Sharing'}
               </h3>
-              <p className="text-xs text-[#DCE6DE]">
+              <p className="text-xs text-[#88A8A8]">
                 Candidate: {candidate.displayName} ({candidate.id})
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-full p-2 text-[#DCE6DE] hover:bg-[#103B39] hover:text-[#F7F3EA] transition-colors"
+            className="rounded-full p-2 text-[#88A8A8] hover:bg-[#283848] hover:text-[#F7F3EA] transition-colors"
             aria-label="Close dialog"
           >
             <X className="w-5 h-5" />
@@ -102,7 +102,7 @@ export const ControlledSharingModal: React.FC<ControlledSharingModalProps> = ({
         </div>
 
         {/* Notice Banner */}
-        <div className="bg-amber-50/80 border-b border-amber-200/80 px-6 py-2.5 text-xs text-amber-900 flex items-center gap-2">
+        <div className="bg-amber-500/10 backdrop-blur-md border-b border-amber-200/40 px-6 py-2.5 text-xs text-amber-950 flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-[#B69A62] shrink-0" />
           <span>
             {language === 'ur'
@@ -115,7 +115,7 @@ export const ControlledSharingModal: React.FC<ControlledSharingModalProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
           {/* Left: Checkboxes */}
           <div className="space-y-4">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#164E4A] border-b border-[#E7E2D8] pb-1.5">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#182848] border-b border-[#E7E2D8] pb-1.5">
               {language === 'ur' ? 'ظاہر کی جانے والی تفصیلات منتخب کریں:' : 'Select Disclosed Fields:'}
             </h4>
 
@@ -140,7 +140,7 @@ export const ControlledSharingModal: React.FC<ControlledSharingModalProps> = ({
                   <label
                     key={key}
                     className={`flex items-center justify-between p-2 rounded-xl border transition-colors cursor-pointer ${
-                      isChecked ? 'bg-[#164E4A]/5 border-[#164E4A]/30 text-[#164E4A]' : 'bg-[#FFFEFA] border-[#E7E2D8] text-[#68716D]'
+                      isChecked ? 'bg-[#182848]/15 border-[#182848]/35 text-[#182848]' : 'bg-white/10 border-white/20 text-[#68716D]'
                     }`}
                   >
                     <span>{language === 'ur' ? labelUr : labelEn}</span>
@@ -148,7 +148,7 @@ export const ControlledSharingModal: React.FC<ControlledSharingModalProps> = ({
                       type="checkbox"
                       checked={isChecked}
                       onChange={() => handleToggle(key as keyof DisclosureOptions)}
-                      className="rounded border-[#B69A62] text-[#164E4A] focus:ring-[#164E4A] h-4 w-4"
+                      className="rounded border-[#B69A62] text-[#182848] focus:ring-[#182848] h-4 w-4"
                     />
                   </label>
                 );
@@ -157,14 +157,14 @@ export const ControlledSharingModal: React.FC<ControlledSharingModalProps> = ({
 
             {/* Custom Bureau Note */}
             <div>
-              <label className="block text-xs font-semibold text-[#164E4A] mb-1">
+              <label className="block text-xs font-semibold text-[#182848] mb-1">
                 {language === 'ur' ? 'ندیم صاحب کا خصوصی نوٹ:' : 'Matchmaker Custom Note:'}
               </label>
               <textarea
                 value={options.customNote}
                 onChange={(e) => setOptions({ ...options, customNote: e.target.value })}
                 rows={2}
-                className="w-full rounded-xl border border-[#E7E2D8] p-2.5 text-xs text-[#252E2C] focus:border-[#164E4A] focus:outline-none"
+                className="w-full rounded-xl border border-white/20 bg-white/10 backdrop-blur-md p-2.5 text-xs text-[#252E2C] focus:border-[#182848] focus:outline-none"
               />
             </div>
           </div>
@@ -172,14 +172,14 @@ export const ControlledSharingModal: React.FC<ControlledSharingModalProps> = ({
           {/* Right: Interactive WhatsApp Message Preview */}
           <div className="flex flex-col">
             <div className="flex items-center justify-between border-b border-[#E7E2D8] pb-2 mb-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-[#164E4A]">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-[#182848]">
                 {language === 'ur' ? 'واٹس ایپ میسج کا لائیو پیش منظر:' : 'Live WhatsApp Message Preview:'}
               </h4>
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setMessageLang('ur')}
                   className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
-                    messageLang === 'ur' ? 'bg-[#164E4A] text-[#F7F3EA]' : 'bg-[#F7F3EA] text-[#68716D]'
+                    messageLang === 'ur' ? 'bg-[#182848] text-[#F7F3EA]' : 'bg-[#F7F3EA] text-[#68716D]'
                   }`}
                 >
                   اردو
@@ -187,7 +187,7 @@ export const ControlledSharingModal: React.FC<ControlledSharingModalProps> = ({
                 <button
                   onClick={() => setMessageLang('en')}
                   className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
-                    messageLang === 'en' ? 'bg-[#164E4A] text-[#F7F3EA]' : 'bg-[#F7F3EA] text-[#68716D]'
+                    messageLang === 'en' ? 'bg-[#182848] text-[#F7F3EA]' : 'bg-[#F7F3EA] text-[#68716D]'
                   }`}
                 >
                   English
@@ -211,9 +211,9 @@ export const ControlledSharingModal: React.FC<ControlledSharingModalProps> = ({
             <div className="mt-4 flex items-center justify-between gap-3 pt-3 border-t border-[#E7E2D8]">
               <button
                 onClick={handleCopy}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-[#E7E2D8] bg-[#FFFEFA] px-4 py-2 text-xs font-medium text-[#252E2C] hover:border-[#164E4A] transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 backdrop-blur-md px-4 py-2 text-xs font-medium text-[#252E2C] hover:border-[#182848] transition-colors"
               >
-                {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-[#6D9189]" />}
+                {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-[#486878]" />}
                 <span>{copied ? (language === 'ur' ? 'کاپی ہو گیا!' : 'Copied!') : (language === 'ur' ? 'ٹیکسٹ کاپی کریں' : 'Copy Message')}</span>
               </button>
 
@@ -228,7 +228,7 @@ export const ControlledSharingModal: React.FC<ControlledSharingModalProps> = ({
                   );
                   onClose();
                 }}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#164E4A] px-5 py-2 text-xs font-semibold text-[#F7F3EA] shadow hover:bg-[#103B39] transition-all transform active:scale-95"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#182848] px-5 py-2 text-xs font-semibold text-[#F7F3EA] shadow hover:bg-[#283848] transition-all transform active:scale-95"
               >
                 <Share2 className="w-4 h-4 text-[#B69A62]" />
                 <span>{language === 'ur' ? 'واٹس ایپ پر شیئر کریں (ڈیمو)' : 'Prepare for WhatsApp'}</span>

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Role, Language } from '../../types';
 import { translations } from '../../i18n/translations';
-import { Globe, Shield, User, Users, Menu, X, Check, Lock, ChevronDown } from 'lucide-react';
+import { Globe, Shield, User, Users, Menu, X, Check, ChevronDown } from 'lucide-react';
 
 interface NavbarProps {
   currentRole: Role;
@@ -22,7 +22,17 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const t = translations[language];
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 30);
+    };
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const handleRoleChange = (role: Role) => {
     onSelectRole(role);
@@ -37,316 +47,278 @@ export const Navbar: React.FC<NavbarProps> = ({
     admin: t.roleAdmin,
   };
 
+  const isRTL = language === 'ur';
+
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-[#E7E2D8] bg-[#F7F3EA]/95 backdrop-blur-md transition-all">
-      {/* Top Prototype / Role Switcher Banner */}
-      <div className="bg-[#103B39] text-[#F7F3EA] px-4 py-1.5 text-xs">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="inline-block h-2 w-2 rounded-full bg-[#B69A62] animate-pulse"></span>
-            <span className="font-medium tracking-wide text-[#DCE6DE]">
-              {t.demoNotice}
+    <header className="fixed top-2.5 sm:top-4 inset-x-0 z-50 flex flex-col items-center pointer-events-none px-3 sm:px-6 transition-all duration-300">
+      {/* FLOATING GLASS CAPSULE — Seamless & Borderless with Frosted Blur (No White Wash, No Border Color) */}
+      <div 
+        className={`pointer-events-auto w-full max-w-6xl nav-capsule border-none px-3.5 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between transition-all duration-300 ${
+          isScrolled ? 'nav-capsule-scrolled shadow-xl py-2' : ''
+        }`}
+      >
+        {/* Brand Logo & Monogram */}
+        <button
+          onClick={() => {
+            if (currentRole === 'public') onNavigate('home');
+            else onNavigate('dashboard');
+          }}
+          className="flex items-center gap-2.5 group text-start focus:outline-none"
+          aria-label="Gulistan Home"
+        >
+          <div className="relative flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-[#182848] text-[#B69A62] shadow-sm transition-transform group-hover:scale-105">
+            <span className="font-serif text-lg sm:text-xl font-bold tracking-wider text-[#F7F3EA]">گ</span>
+            <div className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-[#B69A62]"></div>
+          </div>
+          <div>
+            <span className="block font-serif text-lg sm:text-xl font-bold tracking-tight text-[#182848] leading-tight">
+              {t.brandName}
+            </span>
+            <span className="hidden sm:block text-[9px] font-semibold tracking-widest uppercase text-[#68716D]">
+              {t.brandTagline}
             </span>
           </div>
+        </button>
 
-          {/* Quick Role Persona Switcher */}
-          <div className="relative flex items-center gap-1.5 sm:gap-3">
-            <span className="text-[#6D9189] hidden sm:inline">
-              {language === 'ur' ? 'فعال کردار:' : 'Active Experience:'}
-            </span>
-            <div className="relative">
-              <button
-                onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#B69A62]/40 bg-[#164E4A] px-3 py-1 text-xs font-medium text-[#F7F3EA] hover:border-[#B69A62] transition-colors"
-                aria-expanded={isRoleDropdownOpen}
-              >
-                {currentRole === 'nadeem' && <Users className="w-3.5 h-3.5 text-[#B69A62]" />}
-                {currentRole === 'customer' && <User className="w-3.5 h-3.5 text-[#B69A62]" />}
-                {currentRole === 'admin' && <Shield className="w-3.5 h-3.5 text-[#B69A62]" />}
-                {currentRole === 'public' && <Globe className="w-3.5 h-3.5 text-[#B69A62]" />}
-                <span>{roleLabels[currentRole]}</span>
-                <ChevronDown className="w-3 h-3 text-[#B69A62]" />
-              </button>
+        {/* Desktop Navigation Links — Transparent Pill Items with subtle gold active indicator */}
+        <nav className="hidden lg:flex items-center gap-1">
+          {currentRole === 'public' && (
+            <>
+              {[
+                { id: 'home', label: t.navHome },
+                { id: 'approach', label: t.navOurApproach },
+                { id: 'how-it-works', label: t.navHowItWorks },
+                { id: 'privacy', label: t.navPrivacy },
+                { id: 'contact', label: t.navContact },
+              ].map((item) => {
+                const isActive = activeNav === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => onNavigate(item.id)}
+                    className={`relative px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 cursor-pointer ${
+                      isActive
+                        ? 'bg-[#182848] text-[#F7F3EA] shadow-sm font-semibold'
+                        : 'text-[#243238] hover:text-[#182848] hover:bg-white/15'
+                    }`}
+                  >
+                    <span>{item.label}</span>
+                    {isActive && (
+                      <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-3 h-0.5 rounded-full bg-[#B69A62]" />
+                    )}
+                  </button>
+                );
+              })}
+            </>
+          )}
 
-              {isRoleDropdownOpen && (
-                <div className="absolute end-0 mt-1.5 w-60 rounded-xl border border-[#B69A62]/30 bg-[#FFFEFA] p-1.5 text-[#252E2C] shadow-xl z-50">
-                  <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#68716D] border-b border-[#E7E2D8]">
-                    Select Demo Persona
-                  </div>
-                  {(['public', 'nadeem', 'customer', 'admin'] as Role[]).map((role) => (
-                    <button
-                      key={role}
-                      onClick={() => handleRoleChange(role)}
-                      className={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
-                        currentRole === role
-                          ? 'bg-[#164E4A] text-[#F7F3EA]'
-                          : 'hover:bg-[#DCE6DE]/40 text-[#252E2C]'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        {role === 'nadeem' && <Users className="w-3.5 h-3.5" />}
-                        {role === 'customer' && <User className="w-3.5 h-3.5" />}
-                        {role === 'admin' && <Shield className="w-3.5 h-3.5" />}
-                        {role === 'public' && <Globe className="w-3.5 h-3.5" />}
-                        <span>{roleLabels[role]}</span>
-                      </div>
-                      {currentRole === role && <Check className="w-3.5 h-3.5 text-[#B69A62]" />}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+          {currentRole === 'nadeem' && (
+            <>
+              {[
+                { id: 'dashboard', label: isRTL ? 'ڈیش بورڈ' : 'Dashboard' },
+                { id: 'profiles', label: isRTL ? 'تمام پروفائلز' : 'Profiles' },
+                { id: 'search-match', label: t.actionFindMatch },
+                { id: 'followups', label: t.actionFollowUps },
+                { id: 'finances', label: t.actionFinances },
+              ].map((item) => {
+                const isActive = activeNav === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => onNavigate(item.id)}
+                    className={`relative px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 cursor-pointer ${
+                      isActive
+                        ? 'bg-[#182848] text-[#F7F3EA] shadow-sm font-semibold'
+                        : 'text-[#243238] hover:text-[#182848] hover:bg-white/15'
+                    }`}
+                  >
+                    <span>{item.label}</span>
+                    {isActive && (
+                      <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-3 h-0.5 rounded-full bg-[#B69A62]" />
+                    )}
+                  </button>
+                );
+              })}
+            </>
+          )}
 
-            {/* Language Toggle */}
+          {currentRole === 'customer' && (
+            <>
+              {[
+                { id: 'dashboard', label: isRTL ? 'میرا ڈیش بورڈ' : 'My Dashboard' },
+                { id: 'recommendations', label: t.customerRecommendations },
+                { id: 'preferences', label: t.customerPreferences },
+                { id: 'privacy-center', label: t.customerPrivacyCenter },
+              ].map((item) => {
+                const isActive = activeNav === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => onNavigate(item.id)}
+                    className={`relative px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 cursor-pointer ${
+                      isActive
+                        ? 'bg-[#182848] text-[#F7F3EA] shadow-sm font-semibold'
+                        : 'text-[#243238] hover:text-[#182848] hover:bg-white/15'
+                    }`}
+                  >
+                    <span>{item.label}</span>
+                    {isActive && (
+                      <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-3 h-0.5 rounded-full bg-[#B69A62]" />
+                    )}
+                  </button>
+                );
+              })}
+            </>
+          )}
+
+          {currentRole === 'admin' && (
+            <>
+              {[
+                { id: 'dashboard', label: 'System Dashboard' },
+                { id: 'profiles-audit', label: 'Profile Oversight' },
+                { id: 'audit-logs', label: 'Audit Activity' },
+                { id: 'system-settings', label: 'Settings' },
+              ].map((item) => {
+                const isActive = activeNav === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => onNavigate(item.id)}
+                    className={`relative px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 cursor-pointer ${
+                      isActive
+                        ? 'bg-[#182848] text-[#F7F3EA] shadow-sm font-semibold'
+                        : 'text-[#243238] hover:text-[#182848] hover:bg-white/15'
+                    }`}
+                  >
+                    <span>{item.label}</span>
+                    {isActive && (
+                      <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-3 h-0.5 rounded-full bg-[#B69A62]" />
+                    )}
+                  </button>
+                );
+              })}
+            </>
+          )}
+        </nav>
+
+        {/* Right Action Controls: Persona Switcher, Language Toggle, and CTA */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Persona Switcher Dropdown */}
+          <div className="relative">
             <button
-              onClick={() => onToggleLanguage(language === 'en' ? 'ur' : 'en')}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[#B69A62]/40 bg-[#164E4A] px-2.5 py-1 text-xs font-medium text-[#F7F3EA] hover:border-[#B69A62] transition-colors"
-              title="Switch Language (Urdu / English)"
+              onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
+              className="inline-flex items-center gap-1.5 rounded-full border-none bg-white/10 hover:bg-white/20 backdrop-blur-md px-2.5 sm:px-3 py-1.5 text-xs font-medium text-[#182848] transition-all shadow-xs cursor-pointer"
+              aria-expanded={isRoleDropdownOpen}
+              title="Select Stakeholder Experience"
             >
-              <Globe className="w-3.5 h-3.5 text-[#B69A62]" />
-              <span>{language === 'en' ? 'اردو (RTL)' : 'English (LTR)'}</span>
+              {currentRole === 'nadeem' && <Users className="w-3.5 h-3.5 text-[#B69A62]" />}
+              {currentRole === 'customer' && <User className="w-3.5 h-3.5 text-[#B69A62]" />}
+              {currentRole === 'admin' && <Shield className="w-3.5 h-3.5 text-[#B69A62]" />}
+              {currentRole === 'public' && <Globe className="w-3.5 h-3.5 text-[#B69A62]" />}
+              <span className="hidden sm:inline max-w-[110px] truncate">{roleLabels[currentRole]}</span>
+              <ChevronDown className="w-3 h-3 text-[#B69A62]" />
             </button>
-          </div>
-        </div>
-      </div>
 
-      {/* Main Navigation Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
-          {/* Brand Logo & Monogram */}
+            {isRoleDropdownOpen && (
+              <div className="absolute end-0 mt-2 w-56 rounded-2xl border-none bg-[#182848]/95 text-[#F7F3EA] p-1.5 shadow-2xl backdrop-blur-2xl z-50">
+                <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#88A8A8]/70 border-b border-white/10">
+                  Select Stakeholder Persona
+                </div>
+                {(['public', 'nadeem', 'customer', 'admin'] as Role[]).map((role) => (
+                  <button
+                    key={role}
+                    onClick={() => handleRoleChange(role)}
+                    className={`w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition-colors cursor-pointer ${
+                      currentRole === role
+                        ? 'bg-[#182848] text-[#F7F3EA] font-semibold'
+                        : 'hover:bg-white/10 text-[#88A8A8]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {role === 'nadeem' && <Users className="w-3.5 h-3.5" />}
+                      {role === 'customer' && <User className="w-3.5 h-3.5" />}
+                      {role === 'admin' && <Shield className="w-3.5 h-3.5" />}
+                      {role === 'public' && <Globe className="w-3.5 h-3.5" />}
+                      <span>{roleLabels[role]}</span>
+                    </div>
+                    {currentRole === role && <Check className="w-3.5 h-3.5 text-[#B69A62]" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Language Toggle Pill */}
           <button
-            onClick={() => {
-              if (currentRole === 'public') onNavigate('home');
-              else onNavigate('dashboard');
-            }}
-            className="flex items-center gap-3 group text-start focus:outline-none"
+            onClick={() => onToggleLanguage(language === 'en' ? 'ur' : 'en')}
+            className="inline-flex items-center gap-1 rounded-full border-none bg-white/10 hover:bg-white/20 backdrop-blur-md px-2.5 py-1.5 text-xs font-medium text-[#182848] transition-all shadow-xs cursor-pointer"
+            title="Switch Language (Urdu / English)"
           >
-            <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-[#B69A62]/40 bg-[#164E4A] text-[#B69A62] shadow-md group-hover:border-[#B69A62] transition-colors">
-              <span className="font-serif text-2xl font-semibold tracking-wider">G</span>
-              <div className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-[#B69A62]"></div>
-            </div>
-            <div>
-              <span className="block font-serif text-2xl font-bold tracking-tight text-[#164E4A]">
-                {t.brandName}
-              </span>
-              <span className="block text-[11px] font-medium tracking-widest uppercase text-[#68716D]">
-                {t.brandTagline}
-              </span>
-            </div>
+            <span className="font-bold text-[11px] text-[#B69A62]">{language === 'en' ? 'اردو' : 'EN'}</span>
           </button>
 
-          {/* Desktop Navigation Links */}
-          <nav className="hidden md:flex items-center gap-7">
-            {currentRole === 'public' && (
-              <>
-                <button
-                  onClick={() => onNavigate('home')}
-                  className={`text-sm font-medium transition-colors ${activeNav === 'home' ? 'text-[#164E4A] font-semibold border-b-2 border-[#164E4A] pb-1' : 'text-[#68716D] hover:text-[#164E4A]'}`}
-                >
-                  {t.navHome}
-                </button>
-                <button
-                  onClick={() => onNavigate('approach')}
-                  className={`text-sm font-medium transition-colors ${activeNav === 'approach' ? 'text-[#164E4A] font-semibold border-b-2 border-[#164E4A] pb-1' : 'text-[#68716D] hover:text-[#164E4A]'}`}
-                >
-                  {t.navOurApproach}
-                </button>
-                <button
-                  onClick={() => onNavigate('how-it-works')}
-                  className={`text-sm font-medium transition-colors ${activeNav === 'how-it-works' ? 'text-[#164E4A] font-semibold border-b-2 border-[#164E4A] pb-1' : 'text-[#68716D] hover:text-[#164E4A]'}`}
-                >
-                  {t.navHowItWorks}
-                </button>
-                <button
-                  onClick={() => onNavigate('privacy')}
-                  className={`text-sm font-medium transition-colors ${activeNav === 'privacy' ? 'text-[#164E4A] font-semibold border-b-2 border-[#164E4A] pb-1' : 'text-[#68716D] hover:text-[#164E4A]'}`}
-                >
-                  {t.navPrivacy}
-                </button>
-                <button
-                  onClick={() => onNavigate('contact')}
-                  className={`text-sm font-medium transition-colors ${activeNav === 'contact' ? 'text-[#164E4A] font-semibold border-b-2 border-[#164E4A] pb-1' : 'text-[#68716D] hover:text-[#164E4A]'}`}
-                >
-                  {t.navContact}
-                </button>
-              </>
-            )}
-
-            {currentRole === 'nadeem' && (
-              <>
-                <button
-                  onClick={() => onNavigate('dashboard')}
-                  className={`text-sm font-medium transition-colors ${activeNav === 'dashboard' ? 'text-[#164E4A] font-semibold border-b-2 border-[#164E4A] pb-1' : 'text-[#68716D] hover:text-[#164E4A]'}`}
-                >
-                  {language === 'ur' ? 'ڈیش بورڈ' : 'Dashboard'}
-                </button>
-                <button
-                  onClick={() => onNavigate('profiles')}
-                  className={`text-sm font-medium transition-colors ${activeNav === 'profiles' ? 'text-[#164E4A] font-semibold border-b-2 border-[#164E4A] pb-1' : 'text-[#68716D] hover:text-[#164E4A]'}`}
-                >
-                  {language === 'ur' ? 'تمام پروفائلز' : 'Profiles'}
-                </button>
-                <button
-                  onClick={() => onNavigate('search-match')}
-                  className={`text-sm font-medium transition-colors ${activeNav === 'search-match' ? 'text-[#164E4A] font-semibold border-b-2 border-[#164E4A] pb-1' : 'text-[#68716D] hover:text-[#164E4A]'}`}
-                >
-                  {t.actionFindMatch}
-                </button>
-                <button
-                  onClick={() => onNavigate('followups')}
-                  className={`text-sm font-medium transition-colors ${activeNav === 'followups' ? 'text-[#164E4A] font-semibold border-b-2 border-[#164E4A] pb-1' : 'text-[#68716D] hover:text-[#164E4A]'}`}
-                >
-                  {t.actionFollowUps}
-                </button>
-                <button
-                  onClick={() => onNavigate('finances')}
-                  className={`text-sm font-medium transition-colors ${activeNav === 'finances' ? 'text-[#164E4A] font-semibold border-b-2 border-[#164E4A] pb-1' : 'text-[#68716D] hover:text-[#164E4A]'}`}
-                >
-                  {t.actionFinances}
-                </button>
-              </>
-            )}
-
-            {currentRole === 'customer' && (
-              <>
-                <button
-                  onClick={() => onNavigate('dashboard')}
-                  className={`text-sm font-medium transition-colors ${activeNav === 'dashboard' ? 'text-[#164E4A] font-semibold border-b-2 border-[#164E4A] pb-1' : 'text-[#68716D] hover:text-[#164E4A]'}`}
-                >
-                  {language === 'ur' ? 'میرا ڈیش بورڈ' : 'My Dashboard'}
-                </button>
-                <button
-                  onClick={() => onNavigate('recommendations')}
-                  className={`text-sm font-medium transition-colors ${activeNav === 'recommendations' ? 'text-[#164E4A] font-semibold border-b-2 border-[#164E4A] pb-1' : 'text-[#68716D] hover:text-[#164E4A]'}`}
-                >
-                  {t.customerRecommendations}
-                </button>
-                <button
-                  onClick={() => onNavigate('preferences')}
-                  className={`text-sm font-medium transition-colors ${activeNav === 'preferences' ? 'text-[#164E4A] font-semibold border-b-2 border-[#164E4A] pb-1' : 'text-[#68716D] hover:text-[#164E4A]'}`}
-                >
-                  {t.customerPreferences}
-                </button>
-                <button
-                  onClick={() => onNavigate('privacy-center')}
-                  className={`text-sm font-medium transition-colors ${activeNav === 'privacy-center' ? 'text-[#164E4A] font-semibold border-b-2 border-[#164E4A] pb-1' : 'text-[#68716D] hover:text-[#164E4A]'}`}
-                >
-                  {t.customerPrivacyCenter}
-                </button>
-              </>
-            )}
-
-            {currentRole === 'admin' && (
-              <>
-                <button
-                  onClick={() => onNavigate('dashboard')}
-                  className={`text-sm font-medium transition-colors ${activeNav === 'dashboard' ? 'text-[#164E4A] font-semibold border-b-2 border-[#164E4A] pb-1' : 'text-[#68716D] hover:text-[#164E4A]'}`}
-                >
-                  System Dashboard
-                </button>
-                <button
-                  onClick={() => onNavigate('profiles-audit')}
-                  className={`text-sm font-medium transition-colors ${activeNav === 'profiles-audit' ? 'text-[#164E4A] font-semibold border-b-2 border-[#164E4A] pb-1' : 'text-[#68716D] hover:text-[#164E4A]'}`}
-                >
-                  Profile Oversight
-                </button>
-                <button
-                  onClick={() => onNavigate('audit-logs')}
-                  className={`text-sm font-medium transition-colors ${activeNav === 'audit-logs' ? 'text-[#164E4A] font-semibold border-b-2 border-[#164E4A] pb-1' : 'text-[#68716D] hover:text-[#164E4A]'}`}
-                >
-                  Audit Activity
-                </button>
-                <button
-                  onClick={() => onNavigate('system-settings')}
-                  className={`text-sm font-medium transition-colors ${activeNav === 'system-settings' ? 'text-[#164E4A] font-semibold border-b-2 border-[#164E4A] pb-1' : 'text-[#68716D] hover:text-[#164E4A]'}`}
-                >
-                  Settings & Conventions
-                </button>
-              </>
-            )}
-          </nav>
-
-          {/* Action Button */}
-          <div className="hidden md:flex items-center gap-3">
+          {/* Primary Action Button */}
+          <div className="hidden sm:flex items-center">
             {currentRole === 'public' ? (
-              <>
-                <button
-                  onClick={() => onNavigate('login')}
-                  className="rounded-xl border border-[#E7E2D8] bg-[#FFFEFA] px-4 py-2.5 text-xs font-medium text-[#252E2C] hover:border-[#164E4A] transition-colors"
-                >
-                  {t.navSignIn}
-                </button>
-                <button
-                  onClick={() => onNavigate('register')}
-                  className="rounded-xl bg-[#164E4A] px-5 py-2.5 text-xs font-semibold text-[#F7F3EA] shadow-md hover:bg-[#103B39] transition-all transform active:scale-95"
-                >
-                  {t.navRegister}
-                </button>
-              </>
+              <button
+                onClick={() => onNavigate('register')}
+                className="rounded-full bg-[#182848] px-4 py-1.5 text-xs font-semibold text-[#F7F3EA] shadow-md hover:bg-[#283848] transition-all transform active:scale-95 border-none cursor-pointer"
+              >
+                {t.navRegister}
+              </button>
             ) : (
               <button
                 onClick={() => onNavigate('create-profile')}
-                className="rounded-xl bg-[#164E4A] px-5 py-2.5 text-xs font-semibold text-[#F7F3EA] shadow-md hover:bg-[#103B39] transition-all flex items-center gap-2"
+                className="rounded-full bg-[#182848] px-3.5 py-1.5 text-xs font-semibold text-[#F7F3EA] shadow-md hover:bg-[#283848] transition-all flex items-center gap-1.5 border-none cursor-pointer"
               >
-                <span>+</span>
+                <span className="text-sm font-bold leading-none">+</span>
                 <span>{t.actionAddProfile}</span>
               </button>
             )}
           </div>
 
-          {/* Mobile Menu Button */}
-          <div className="flex md:hidden items-center gap-2">
+          {/* Mobile Menu Trigger */}
+          <div className="flex lg:hidden items-center">
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="rounded-xl border border-[#E7E2D8] bg-[#FFFEFA] p-2.5 text-[#164E4A]"
-              aria-label="Toggle menu"
+              className="rounded-full border-none bg-white/10 hover:bg-white/20 backdrop-blur-md p-1.5 text-[#182848] transition-colors cursor-pointer"
+              aria-label="Toggle mobile menu"
             >
-              {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile Drawer Menu */}
+      {/* MOBILE FLOATING GLASS DRAWER MENU */}
       {isMobileMenuOpen && (
-        <div className="md:hidden border-b border-[#E7E2D8] bg-[#FFFEFA] px-4 pt-3 pb-6 space-y-3 shadow-xl">
-          <div className="flex flex-col space-y-2">
+        <div className="pointer-events-auto w-full max-w-6xl mt-2 rounded-3xl glass-panel border-none p-4 shadow-2xl space-y-3 lg:hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="flex flex-col space-y-1.5">
             {currentRole === 'public' && (
               <>
-                <button
-                  onClick={() => { onNavigate('home'); setIsMobileMenuOpen(false); }}
-                  className="text-start py-2 text-sm font-medium text-[#252E2C]"
-                >
-                  {t.navHome}
-                </button>
-                <button
-                  onClick={() => { onNavigate('approach'); setIsMobileMenuOpen(false); }}
-                  className="text-start py-2 text-sm font-medium text-[#252E2C]"
-                >
-                  {t.navOurApproach}
-                </button>
-                <button
-                  onClick={() => { onNavigate('how-it-works'); setIsMobileMenuOpen(false); }}
-                  className="text-start py-2 text-sm font-medium text-[#252E2C]"
-                >
-                  {t.navHowItWorks}
-                </button>
-                <button
-                  onClick={() => { onNavigate('privacy'); setIsMobileMenuOpen(false); }}
-                  className="text-start py-2 text-sm font-medium text-[#252E2C]"
-                >
-                  {t.navPrivacy}
-                </button>
-                <button
-                  onClick={() => { onNavigate('contact'); setIsMobileMenuOpen(false); }}
-                  className="text-start py-2 text-sm font-medium text-[#252E2C]"
-                >
-                  {t.navContact}
-                </button>
-                <div className="pt-2 flex flex-col gap-2">
+                {[
+                  { id: 'home', label: t.navHome },
+                  { id: 'approach', label: t.navOurApproach },
+                  { id: 'how-it-works', label: t.navHowItWorks },
+                  { id: 'privacy', label: t.navPrivacy },
+                  { id: 'contact', label: t.navContact },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => { onNavigate(item.id); setIsMobileMenuOpen(false); }}
+                    className={`text-start px-3.5 py-2 rounded-xl text-xs font-medium transition-colors ${
+                      activeNav === item.id
+                        ? 'bg-[#182848] text-[#F7F3EA] font-semibold'
+                        : 'text-[#252E2C] hover:bg-white/15'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+                <div className="pt-2">
                   <button
                     onClick={() => { onNavigate('register'); setIsMobileMenuOpen(false); }}
-                    className="w-full text-center rounded-xl bg-[#164E4A] py-3 text-sm font-semibold text-[#F7F3EA]"
+                    className="w-full text-center rounded-full bg-[#182848] py-2.5 text-xs font-semibold text-[#F7F3EA] shadow-md border-none"
                   >
                     {t.navRegister}
                   </button>
@@ -356,100 +328,72 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {currentRole === 'nadeem' && (
               <>
-                <button
-                  onClick={() => { onNavigate('dashboard'); setIsMobileMenuOpen(false); }}
-                  className="text-start py-2 text-sm font-medium text-[#252E2C]"
-                >
-                  {language === 'ur' ? 'ڈیش بورڈ' : 'Dashboard'}
-                </button>
-                <button
-                  onClick={() => { onNavigate('profiles'); setIsMobileMenuOpen(false); }}
-                  className="text-start py-2 text-sm font-medium text-[#252E2C]"
-                >
-                  {language === 'ur' ? 'تمام پروفائلز' : 'All Profiles'}
-                </button>
-                <button
-                  onClick={() => { onNavigate('create-profile'); setIsMobileMenuOpen(false); }}
-                  className="text-start py-2 text-sm font-medium text-[#164E4A] font-semibold"
-                >
-                  {t.actionAddProfile}
-                </button>
-                <button
-                  onClick={() => { onNavigate('search-match'); setIsMobileMenuOpen(false); }}
-                  className="text-start py-2 text-sm font-medium text-[#252E2C]"
-                >
-                  {t.actionFindMatch}
-                </button>
-                <button
-                  onClick={() => { onNavigate('followups'); setIsMobileMenuOpen(false); }}
-                  className="text-start py-2 text-sm font-medium text-[#252E2C]"
-                >
-                  {t.actionFollowUps}
-                </button>
-                <button
-                  onClick={() => { onNavigate('finances'); setIsMobileMenuOpen(false); }}
-                  className="text-start py-2 text-sm font-medium text-[#252E2C]"
-                >
-                  {t.actionFinances}
-                </button>
+                {[
+                  { id: 'dashboard', label: isRTL ? 'ڈیش بورڈ' : 'Dashboard' },
+                  { id: 'profiles', label: isRTL ? 'تمام پروفائلز' : 'All Profiles' },
+                  { id: 'create-profile', label: t.actionAddProfile },
+                  { id: 'search-match', label: t.actionFindMatch },
+                  { id: 'followups', label: t.actionFollowUps },
+                  { id: 'finances', label: t.actionFinances },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => { onNavigate(item.id); setIsMobileMenuOpen(false); }}
+                    className={`text-start px-3.5 py-2 rounded-xl text-xs font-medium transition-colors ${
+                      activeNav === item.id
+                        ? 'bg-[#182848] text-[#F7F3EA] font-semibold'
+                        : 'text-[#252E2C] hover:bg-white/15'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
               </>
             )}
 
             {currentRole === 'customer' && (
               <>
-                <button
-                  onClick={() => { onNavigate('dashboard'); setIsMobileMenuOpen(false); }}
-                  className="text-start py-2 text-sm font-medium text-[#252E2C]"
-                >
-                  {language === 'ur' ? 'میرا ڈیش بورڈ' : 'My Dashboard'}
-                </button>
-                <button
-                  onClick={() => { onNavigate('recommendations'); setIsMobileMenuOpen(false); }}
-                  className="text-start py-2 text-sm font-medium text-[#252E2C]"
-                >
-                  {t.customerRecommendations}
-                </button>
-                <button
-                  onClick={() => { onNavigate('preferences'); setIsMobileMenuOpen(false); }}
-                  className="text-start py-2 text-sm font-medium text-[#252E2C]"
-                >
-                  {t.customerPreferences}
-                </button>
-                <button
-                  onClick={() => { onNavigate('privacy-center'); setIsMobileMenuOpen(false); }}
-                  className="text-start py-2 text-sm font-medium text-[#252E2C]"
-                >
-                  {t.customerPrivacyCenter}
-                </button>
+                {[
+                  { id: 'dashboard', label: isRTL ? 'میرا ڈیش بورڈ' : 'My Dashboard' },
+                  { id: 'recommendations', label: t.customerRecommendations },
+                  { id: 'preferences', label: t.customerPreferences },
+                  { id: 'privacy-center', label: t.customerPrivacyCenter },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => { onNavigate(item.id); setIsMobileMenuOpen(false); }}
+                    className={`text-start px-3.5 py-2 rounded-xl text-xs font-medium transition-colors ${
+                      activeNav === item.id
+                        ? 'bg-[#182848] text-[#F7F3EA] font-semibold'
+                        : 'text-[#252E2C] hover:bg-white/15'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
               </>
             )}
 
             {currentRole === 'admin' && (
               <>
-                <button
-                  onClick={() => { onNavigate('dashboard'); setIsMobileMenuOpen(false); }}
-                  className="text-start py-2 text-sm font-medium text-[#252E2C]"
-                >
-                  System Dashboard
-                </button>
-                <button
-                  onClick={() => { onNavigate('profiles-audit'); setIsMobileMenuOpen(false); }}
-                  className="text-start py-2 text-sm font-medium text-[#252E2C]"
-                >
-                  Profile Oversight
-                </button>
-                <button
-                  onClick={() => { onNavigate('audit-logs'); setIsMobileMenuOpen(false); }}
-                  className="text-start py-2 text-sm font-medium text-[#252E2C]"
-                >
-                  Audit Activity
-                </button>
-                <button
-                  onClick={() => { onNavigate('system-settings'); setIsMobileMenuOpen(false); }}
-                  className="text-start py-2 text-sm font-medium text-[#252E2C]"
-                >
-                  Settings & Conventions
-                </button>
+                {[
+                  { id: 'dashboard', label: 'System Dashboard' },
+                  { id: 'profiles-audit', label: 'Profile Oversight' },
+                  { id: 'audit-logs', label: 'Audit Activity' },
+                  { id: 'system-settings', label: 'Settings & Conventions' },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => { onNavigate(item.id); setIsMobileMenuOpen(false); }}
+                    className={`text-start px-3.5 py-2 rounded-xl text-xs font-medium transition-colors ${
+                      activeNav === item.id
+                        ? 'bg-[#182848] text-[#F7F3EA] font-semibold'
+                        : 'text-[#252E2C] hover:bg-white/15'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
               </>
             )}
           </div>

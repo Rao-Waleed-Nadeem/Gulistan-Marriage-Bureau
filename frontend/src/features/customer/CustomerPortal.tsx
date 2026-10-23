@@ -60,17 +60,17 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Customer Welcome Header */}
-      <div className="mb-8 rounded-3xl border border-[#B69A62]/40 bg-gradient-to-r from-[#164E4A] to-[#103B39] text-[#F7F3EA] p-6 sm:p-8 shadow-xl relative overflow-hidden">
+      <div className="mb-8 rounded-3xl border border-[#B69A62]/40 bg-gradient-to-r from-[#182848] to-[#283848] text-[#F7F3EA] p-6 sm:p-8 shadow-xl relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#B69A62]/40 bg-[#103B39]/80 px-3.5 py-1 text-xs text-[#B69A62] mb-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#B69A62]/40 bg-[#182848]/80 px-3.5 py-1 text-xs text-[#B69A62] mb-3">
               <Sparkles className="w-3.5 h-3.5" />
               <span>{t.customerProfileStatus}: Active & Verified</span>
             </div>
             <h1 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight">
               {t.customerWelcome} {currentProfile.fullName}
             </h1>
-            <p className="text-xs sm:text-sm text-[#DCE6DE]/80 mt-1 max-w-xl leading-relaxed">
+            <p className="text-xs sm:text-sm text-[#88A8A8]/80 mt-1 max-w-xl leading-relaxed">
               {language === 'ur'
                 ? 'خوش آمدید! آپ کے کوائف کی مکمل رازداری کے ساتھ مناسب رشتوں کا باوقار انتخاب کیا جا رہا ہے۔'
                 : 'Your private portfolio is managed with complete family discretion and personalized matchmaker care.'}
@@ -79,7 +79,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
 
           <div className="flex items-center gap-3">
             <div className="text-end">
-              <span className="block text-[11px] text-[#DCE6DE]/70">Reference ID</span>
+              <span className="block text-[11px] text-[#88A8A8]/70">Reference ID</span>
               <span className="font-mono text-lg font-bold text-[#B69A62]">{currentProfile.id}</span>
             </div>
           </div>
@@ -91,7 +91,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
         <button
           onClick={() => { setActiveTab('recommendations'); setSelectedCandidate(null); }}
           className={`px-4 py-2.5 rounded-2xl text-xs font-semibold whitespace-nowrap transition-colors ${
-            activeTab === 'recommendations' ? 'bg-[#164E4A] text-[#F7F3EA] shadow-sm' : 'text-[#68716D] hover:text-[#252E2C]'
+            activeTab === 'recommendations' ? 'bg-[#182848] text-[#F7F3EA] shadow-sm' : 'text-[#68716D] hover:text-[#252E2C]'
           }`}
         >
           {t.customerRecommendations} ({userRecs.length})
@@ -100,7 +100,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
         <button
           onClick={() => { setActiveTab('my-profile'); setSelectedCandidate(null); }}
           className={`px-4 py-2.5 rounded-2xl text-xs font-semibold whitespace-nowrap transition-colors ${
-            activeTab === 'my-profile' ? 'bg-[#164E4A] text-[#F7F3EA] shadow-sm' : 'text-[#68716D] hover:text-[#252E2C]'
+            activeTab === 'my-profile' ? 'bg-[#182848] text-[#F7F3EA] shadow-sm' : 'text-[#68716D] hover:text-[#252E2C]'
           }`}
         >
           {language === 'ur' ? 'میرے درج شدہ کوائف' : 'My Registered Profile'}
@@ -109,7 +109,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
         <button
           onClick={() => { setActiveTab('preferences'); setSelectedCandidate(null); }}
           className={`px-4 py-2.5 rounded-2xl text-xs font-semibold whitespace-nowrap transition-colors ${
-            activeTab === 'preferences' ? 'bg-[#164E4A] text-[#F7F3EA] shadow-sm' : 'text-[#68716D] hover:text-[#252E2C]'
+            activeTab === 'preferences' ? 'bg-[#182848] text-[#F7F3EA] shadow-sm' : 'text-[#68716D] hover:text-[#252E2C]'
           }`}
         >
           {t.customerPreferences}
@@ -118,7 +118,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
         <button
           onClick={() => { setActiveTab('privacy'); setSelectedCandidate(null); }}
           className={`px-4 py-2.5 rounded-2xl text-xs font-semibold whitespace-nowrap transition-colors ${
-            activeTab === 'privacy' ? 'bg-[#164E4A] text-[#F7F3EA] shadow-sm' : 'text-[#68716D] hover:text-[#252E2C]'
+            activeTab === 'privacy' ? 'bg-[#182848] text-[#F7F3EA] shadow-sm' : 'text-[#68716D] hover:text-[#252E2C]'
           }`}
         >
           {t.customerPrivacyCenter}
@@ -155,8 +155,8 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
                     matchScore={rec.matchScore}
                     onViewDetails={() => setSelectedCandidate(candidate)}
                   />
-                  <div className="p-3 bg-[#F7F3EA] rounded-xl border border-[#E7E2D8] text-xs">
-                    <span className="font-semibold text-[#164E4A] block mb-0.5">
+                  <div className="p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 text-xs">
+                    <span className="font-semibold text-[#182848] block mb-0.5">
                       {language === 'ur' ? 'تجویز کی مطابقت کا خلاصہ:' : 'Match Rationale:'}
                     </span>
                     <p className="text-[#68716D] leading-relaxed italic">
@@ -170,10 +170,10 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
 
           {/* Modal / Overlay for Candidate View if selected */}
           {selectedCandidate && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-              <div className="relative w-full max-w-2xl rounded-3xl bg-[#FFFEFA] p-6 sm:p-8 shadow-2xl border border-[#B69A62]/40 text-xs">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-md p-4 overflow-y-auto">
+              <div className="relative w-full max-w-2xl rounded-3xl glass-panel-dense p-6 sm:p-8 shadow-2xl border border-[#B69A62]/40 text-xs">
                 <div className="flex items-center justify-between border-b border-[#E7E2D8] pb-3 mb-4">
-                  <h3 className="font-serif text-2xl font-bold text-[#164E4A]">
+                  <h3 className="font-serif text-2xl font-bold text-[#182848]">
                     {selectedCandidate.displayName} ({selectedCandidate.id})
                   </h3>
                   <button
@@ -197,7 +197,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
                   <p className="text-[#68716D] leading-relaxed">
                     Family: <strong>{selectedCandidate.familyBackgroundNotes}</strong>
                   </p>
-                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+                  <div className="rounded-2xl border border-amber-200/40 bg-amber-500/10 backdrop-blur-md p-4 text-amber-950">
                     <span className="font-bold block mb-1">Introduction Step:</span>
                     <p>
                       If your family is interested in proceeding, request an introduction. Nadeem will facilitate formal communication between both elders.
@@ -215,7 +215,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
                         alert('Introduction request sent to Nadeem. He will contact both families today.');
                         setSelectedCandidate(null);
                       }}
-                      className="px-5 py-2 bg-[#164E4A] text-white font-semibold rounded-xl"
+                      className="px-5 py-2 bg-[#182848] text-white font-semibold rounded-xl hover:bg-[#283848] transition-colors"
                     >
                       Request Formal Introduction
                     </button>
@@ -236,9 +236,9 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
 
       {/* TAB 3: PREFERENCES EDITOR */}
       {activeTab === 'preferences' && (
-        <div className="porcelain-card rounded-3xl p-6 sm:p-8 space-y-6 animate-fadeIn">
+        <div className="glass-panel p-6 sm:p-8 space-y-6 animate-fadeIn">
           <div className="border-b border-[#E7E2D8] pb-4">
-            <h3 className="font-serif text-2xl font-bold text-[#164E4A]">
+            <h3 className="font-serif text-2xl font-bold text-[#182848]">
               {t.customerPreferences}
             </h3>
             <p className="text-xs text-[#68716D] mt-1">
@@ -250,9 +250,9 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
 
           <div className="space-y-4 text-xs">
             {Object.entries(currentProfile.preferences.criteriaClassifications).map(([key, val]) => (
-              <div key={key} className="flex items-center justify-between p-3.5 rounded-2xl border border-[#E7E2D8] bg-[#F7F3EA]/50">
-                <span className="font-semibold text-sm capitalize text-[#164E4A]">{key.replace(/([A-Z])/g, ' $1')}</span>
-                <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-[#164E4A] text-white capitalize">
+              <div key={key} className="flex items-center justify-between p-3.5 rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md">
+                <span className="font-semibold text-sm capitalize text-[#182848]">{key.replace(/([A-Z])/g, ' $1')}</span>
+                <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-[#182848] text-white capitalize">
                   {val.replace('_', ' ')}
                 </span>
               </div>
@@ -261,7 +261,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
 
           <button
             onClick={() => alert('Preferences saved!')}
-            className="rounded-xl bg-[#164E4A] px-6 py-2.5 text-xs font-semibold text-[#F7F3EA] shadow"
+            className="rounded-xl bg-[#182848] px-6 py-2.5 text-xs font-semibold text-[#F7F3EA] shadow hover:bg-[#283848] transition-colors"
           >
             Update Preferences
           </button>
@@ -271,13 +271,13 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
       {/* TAB 4: PRIVACY & CONSENT CENTER */}
       {activeTab === 'privacy' && (
         <div className="space-y-6 animate-fadeIn">
-          <div className="porcelain-card rounded-3xl p-6 sm:p-8 space-y-6">
+          <div className="glass-panel p-6 sm:p-8 space-y-6">
             <div className="flex items-center gap-3 border-b border-[#E7E2D8] pb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#164E4A] text-[#B69A62]">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#182848] text-[#B69A62]">
                 <ShieldCheck className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-serif text-2xl font-bold text-[#164E4A]">
+                <h3 className="font-serif text-2xl font-bold text-[#182848]">
                   {t.customerPrivacyCenter}
                 </h3>
                 <p className="text-xs text-[#68716D]">
@@ -288,9 +288,9 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
 
             {/* Photo Sharing Toggle */}
             <div className="space-y-3">
-              <label className="flex items-center justify-between p-4 rounded-2xl border border-[#E7E2D8] bg-[#F7F3EA]/50 cursor-pointer">
+              <label className="flex items-center justify-between p-4 rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md cursor-pointer">
                 <div>
-                  <span className="font-bold text-sm text-[#164E4A] block">Photograph Discretion</span>
+                  <span className="font-bold text-sm text-[#182848] block">Photograph Discretion</span>
                   <span className="text-xs text-[#68716D]">
                     Allow Nadeem to share photographs only after candidate background verification.
                   </span>
@@ -299,13 +299,13 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
                   type="checkbox"
                   checked={photoConsent}
                   onChange={(e) => setPhotoConsent(e.target.checked)}
-                  className="rounded border-[#B69A62] text-[#164E4A] h-5 w-5"
+                  className="rounded border-[#B69A62] text-[#182848] h-5 w-5"
                 />
               </label>
 
-              <label className="flex items-center justify-between p-4 rounded-2xl border border-[#E7E2D8] bg-[#F7F3EA]/50 cursor-pointer">
+              <label className="flex items-center justify-between p-4 rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md cursor-pointer">
                 <div>
-                  <span className="font-bold text-sm text-[#164E4A] block">Direct Family Phone Number Sharing</span>
+                  <span className="font-bold text-sm text-[#182848] block">Direct Family Phone Number Sharing</span>
                   <span className="text-xs text-[#68716D]">
                     Require verbal approval from family before disclosing telephone contact to prospective match.
                   </span>
@@ -314,14 +314,14 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
                   type="checkbox"
                   checked={contactConsent}
                   onChange={(e) => setContactConsent(e.target.checked)}
-                  className="rounded border-[#B69A62] text-[#164E4A] h-5 w-5"
+                  className="rounded border-[#B69A62] text-[#182848] h-5 w-5"
                 />
               </label>
             </div>
 
             {/* Profile Data Correction / Deactivation Request */}
             <form onSubmit={handleSendCorrection} className="pt-4 border-t border-[#E7E2D8] space-y-3">
-              <h4 className="font-serif text-lg font-bold text-[#164E4A]">
+              <h4 className="font-serif text-lg font-bold text-[#182848]">
                 {language === 'ur' ? 'کوائف کی تصحیح یا پروفائل غیر فعال کرنے کی درخواست' : 'Request Profile Update, Deactivation, or Deletion'}
               </h4>
               <p className="text-xs text-[#68716D]">
@@ -332,12 +332,12 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
                 onChange={(e) => setCorrectionNote(e.target.value)}
                 placeholder="Describe your requested correction or reason for profile deactivation..."
                 rows={3}
-                className="w-full rounded-2xl border border-[#E7E2D8] p-3 text-xs focus:border-[#164E4A] focus:outline-none"
+                className="w-full rounded-2xl border border-[#E7E2D8] p-3 text-xs focus:border-[#182848] focus:outline-none"
               />
               <button
                 type="submit"
                 disabled={isRequestSent}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#164E4A] px-5 py-2.5 text-xs font-semibold text-[#F7F3EA] shadow"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#182848] px-5 py-2.5 text-xs font-semibold text-[#F7F3EA] shadow hover:bg-[#283848] transition-colors"
               >
                 <Send className="w-3.5 h-3.5 text-[#B69A62]" />
                 <span>Submit Confidential Request</span>

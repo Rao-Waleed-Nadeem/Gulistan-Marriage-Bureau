@@ -100,16 +100,16 @@ export const MatchReview: React.FC<MatchReviewProps> = ({
         <div>
           <button
             onClick={onBack}
-            className="mb-2 inline-flex items-center gap-1.5 text-xs text-[#68716D] hover:text-[#164E4A]"
+            className="mb-2 inline-flex items-center gap-1.5 text-xs text-[#68716D] hover:text-[#182848]"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>{language === 'ur' ? 'واپس رشتہ جات پر جائیں' : 'Back to Matches'}</span>
           </button>
           <div className="flex items-center gap-3">
-            <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#164E4A]">
+            <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#182848]">
               {language === 'ur' ? 'باہمی مطابقت کا تفصیلی جائزہ' : 'Match Compatibility Review'}
             </h2>
-            <span className="inline-flex items-center gap-1 rounded-full border border-[#B69A62] bg-[#B69A62]/20 px-3 py-1 text-xs font-bold text-[#164E4A]">
+            <span className="inline-flex items-center gap-1 rounded-full border border-[#B69A62] bg-[#B69A62]/20 px-3 py-1 text-xs font-bold text-[#182848]">
               <Sparkles className="w-3.5 h-3.5 text-[#B69A62]" />
               <span>{recommendation?.matchScore || 92}% Compatibility</span>
             </span>
@@ -120,7 +120,7 @@ export const MatchReview: React.FC<MatchReviewProps> = ({
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={onOpenControlledShare}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-[#B69A62]/60 bg-[#FFFEFA] px-4 py-2 text-xs font-semibold text-[#164E4A] hover:bg-[#B69A62]/10 transition-colors shadow-sm"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#B69A62]/40 bg-white/10 hover:bg-white/20 backdrop-blur-md px-4 py-2 text-xs font-semibold text-[#182848] transition-colors shadow-xs cursor-pointer"
           >
             <Share2 className="w-3.5 h-3.5 text-[#B69A62]" />
             <span>{t.btnShareWhatsApp}</span>
@@ -128,7 +128,7 @@ export const MatchReview: React.FC<MatchReviewProps> = ({
 
           <button
             onClick={onApprove}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-5 py-2 text-xs font-semibold text-white hover:bg-emerald-800 transition-all shadow-md active:scale-95"
+            className="inline-flex items-center gap-1.5 rounded-full bg-emerald-700 px-5 py-2 text-xs font-semibold text-white hover:bg-emerald-800 transition-all shadow-md active:scale-95 cursor-pointer"
           >
             <CheckCircle2 className="w-4 h-4" />
             <span>{t.btnApproveRecommendation}</span>
@@ -136,7 +136,7 @@ export const MatchReview: React.FC<MatchReviewProps> = ({
 
           <button
             onClick={onReject}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700 hover:bg-rose-100 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50/80 px-3.5 py-2 text-xs font-medium text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer"
           >
             <XCircle className="w-4 h-4" />
             <span>{t.btnReject}</span>
@@ -147,9 +147,9 @@ export const MatchReview: React.FC<MatchReviewProps> = ({
       {/* Side-by-Side Candidate Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         {/* Requesting Party */}
-        <div className="porcelain-card rounded-3xl p-6 border-t-4 border-[#164E4A]">
+        <div className="glass-card p-6 border-t-4 border-[#182848]">
           <div className="flex items-center justify-between mb-4 border-b border-[#E7E2D8] pb-3">
-            <span className="text-xs uppercase tracking-wider font-semibold text-[#164E4A]">
+            <span className="text-xs uppercase tracking-wider font-semibold text-[#182848]">
               {language === 'ur' ? 'سائل امیدوار' : 'Seeking Candidate'}
             </span>
             <span className="font-mono text-xs text-[#68716D]">{primaryProfile.id}</span>
@@ -162,7 +162,7 @@ export const MatchReview: React.FC<MatchReviewProps> = ({
               className="h-20 w-20 rounded-2xl object-cover border border-[#B69A62]/40"
             />
             <div>
-              <h3 className="font-serif text-xl font-bold text-[#164E4A]">{primaryProfile.fullName}</h3>
+              <h3 className="font-serif text-xl font-bold text-[#182848]">{primaryProfile.fullName}</h3>
               <p className="text-xs text-[#68716D] font-medium mb-1">
                 {primaryProfile.age} yrs • {primaryProfile.height} • {primaryProfile.caste}
               </p>
@@ -173,7 +173,7 @@ export const MatchReview: React.FC<MatchReviewProps> = ({
         </div>
 
         {/* Proposed Candidate */}
-        <div className="porcelain-card rounded-3xl p-6 border-t-4 border-[#B69A62]">
+        <div className="glass-card p-6 border-t-4 border-[#B69A62]">
           <div className="flex items-center justify-between mb-4 border-b border-[#E7E2D8] pb-3">
             <span className="text-xs uppercase tracking-wider font-semibold text-[#B69A62]">
               {language === 'ur' ? 'تجویز کردہ امیدوار' : 'Proposed Candidate'}
@@ -188,7 +188,7 @@ export const MatchReview: React.FC<MatchReviewProps> = ({
               className="h-20 w-20 rounded-2xl object-cover border border-[#B69A62]/40"
             />
             <div>
-              <h3 className="font-serif text-xl font-bold text-[#164E4A]">{candidateProfile.fullName}</h3>
+              <h3 className="font-serif text-xl font-bold text-[#182848]">{candidateProfile.fullName}</h3>
               <p className="text-xs text-[#68716D] font-medium mb-1">
                 {candidateProfile.age} yrs • {candidateProfile.height} • {candidateProfile.caste}
               </p>
@@ -200,14 +200,14 @@ export const MatchReview: React.FC<MatchReviewProps> = ({
       </div>
 
       {/* Rationale & Compatibility Explanation */}
-      <div className="rounded-3xl border border-[#B69A62]/40 bg-[#164E4A] text-[#F7F3EA] p-6 mb-8 shadow-md">
+      <div className="glass-dark-card p-6 mb-8 shadow-xl">
         <div className="flex items-start gap-3">
           <ShieldCheck className="w-6 h-6 text-[#B69A62] shrink-0 mt-0.5" />
           <div>
             <h4 className="font-serif text-lg font-bold text-[#B69A62] mb-1">
               {language === 'ur' ? 'ندیم صاحب کا بااعتماد تجزیہ:' : 'Nadeem’s Matchmaker Rationale:'}
             </h4>
-            <p className="text-sm text-[#DCE6DE] leading-relaxed">
+            <p className="text-sm text-[#88A8A8] leading-relaxed">
               {language === 'ur'
                 ? recommendation?.compatibilitySummaryUrdu || 'دونوں خاندان دینی، اخلاقی اور سماجی اعتبار سے انتہائی موزوں ہیں۔ تعلیم، خاندانی وقار اور مستقبل کے ارادوں میں کامل ہم آہنگی پائی گئی ہے۔'
                 : recommendation?.compatibilitySummaryEn || 'Both families share strong deen-conscious values, elite civil/professional standing, and harmonious educational pedigree.'}
@@ -217,9 +217,9 @@ export const MatchReview: React.FC<MatchReviewProps> = ({
       </div>
 
       {/* Criteria Breakdown Table */}
-      <div className="porcelain-card rounded-3xl overflow-hidden shadow-sm">
+      <div className="glass-panel overflow-hidden shadow-md">
         <div className="bg-[#F7F3EA] px-6 py-4 border-b border-[#E7E2D8]">
-          <h3 className="font-serif text-lg font-bold text-[#164E4A]">
+          <h3 className="font-serif text-lg font-bold text-[#182848]">
             {language === 'ur' ? 'معیارات کے مطابق تفصیلی موازنہ' : 'Detailed Criteria-by-Criteria Alignment'}
           </h3>
         </div>
@@ -227,7 +227,7 @@ export const MatchReview: React.FC<MatchReviewProps> = ({
         <div className="divide-y divide-[#E7E2D8] text-xs">
           {criteriaChecks.map((item, idx) => (
             <div key={idx} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[#F7F3EA]/40 transition-colors">
-              <div className="w-full sm:w-1/4 font-semibold text-[#164E4A]">
+              <div className="w-full sm:w-1/4 font-semibold text-[#182848]">
                 {item.label}
               </div>
 

@@ -192,20 +192,20 @@ export default function App() {
             )}
             {activeNav === 'login' && (
               <div className="max-w-md mx-auto my-16 p-8 porcelain-card rounded-3xl text-center space-y-4">
-                <h3 className="font-serif text-2xl font-bold text-[#164E4A]">Gulistan Sign In</h3>
+                <h3 className="font-serif text-2xl font-bold text-[#182848]">Gulistan Sign In</h3>
                 <p className="text-xs text-[#68716D]">
                   Select your intended stakeholder experience to explore the platform:
                 </p>
                 <div className="space-y-2 pt-2">
                   <button
                     onClick={() => handleSelectRole('nadeem')}
-                    className="w-full py-3 px-4 rounded-xl bg-[#164E4A] text-white text-xs font-semibold"
+                    className="w-full py-3 px-4 rounded-xl bg-[#182848] text-white text-xs font-semibold"
                   >
                     Enter as Nadeem (Lead Matchmaker)
                   </button>
                   <button
                     onClick={() => handleSelectRole('customer')}
-                    className="w-full py-3 px-4 rounded-xl border border-[#164E4A] text-[#164E4A] text-xs font-semibold"
+                    className="w-full py-3 px-4 rounded-xl border border-[#182848] text-[#182848] text-xs font-semibold"
                   >
                     Enter as Candidate / Customer
                   </button>
