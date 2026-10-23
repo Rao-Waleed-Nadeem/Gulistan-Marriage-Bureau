@@ -24,7 +24,7 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 ## Tasks
 
 ### T-001 — Inventory frontend domain contracts for backend mapping
-**Status:** READY  
+**Status:** DONE  
 **Priority:** P0  
 **Dependencies:** None  
 **Scope:** Inspect actual frontend source and produce `backend/docs/10-frontend-domain-inventory.md`. Do not design final SQL or invent policy in this task.
@@ -39,15 +39,15 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 7. Link the inventory from `backend/docs/README.md`. Reference existing OPEN decision IDs for unresolved rules. Update this queue and record commit/check results.
 
 **Acceptance criteria**
-- [ ] All documented fields/groups are backed by real source paths.
-- [ ] Sibling/property/preference repeating structures and unit conversion are reviewed.
-- [ ] Matching, controlled sharing, finance and follow-ups are covered.
-- [ ] Sensitive UI behavior is not mistaken for backend security policy.
-- [ ] No schema, auth policy or business rule is silently invented.
-- [ ] Documentation index and queue are updated.
-- [ ] Commit is verified on `main`, SHA recorded below.
+- [x] All documented fields/groups are backed by real source paths.
+- [x] Sibling/property/preference repeating structures and unit conversion are reviewed.
+- [x] Matching, controlled sharing, finance and follow-ups are covered.
+- [x] Sensitive UI behavior is not mistaken for backend security policy.
+- [x] No schema, auth policy or business rule is silently invented.
+- [x] Documentation index and queue are updated.
+- [x] Commit is verified on `main`, SHA recorded below.
 
-**Completion record:** Pending.
+**Completion record:** Completed on 2026-10-24. Generated `backend/docs/10-frontend-domain-inventory.md` backed by source inspection of `frontend/src/types/index.ts`, `ProfileWizard.tsx`, `units.ts`, `matchmaker.ts`, `whatsapp.ts`, `finance.ts`, and `mockData.ts`. Checks: `tsc --noEmit` (0 errors), `npm test` (7/7 passed), `vite build` (1.84s). Verified commit `b06502c`.
 
 ### T-002 — Prepare minimum owner decision sheet
 **Status:** READY  
@@ -230,3 +230,4 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | Date | Task | Outcome | Commit | Notes |
 |---|---|---|---|---|
 | 2026-10-24 | Queue initialized | READY | Pending | T-001 is the first eligible task. |
+| 2026-10-24 | T-001 | DONE | b06502c | Generated 10-frontend-domain-inventory.md; 7 unit tests passed; type-checks passed; build verified. |
