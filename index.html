@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="ur" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gulistan Marriage Bureau • گلستان میرج بیورو</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&family=Noto+Nastaliq+Urdu:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            teal: {
+              deep: '#164E4A',
+              midnight: '#103B39',
+              muted: '#6D9189',
+              dark: '#0D2D2B'
+            },
+            ivory: {
+              warm: '#F7F3EA',
+              porcelain: '#FFFEFA'
+            },
+            gold: {
+              champagne: '#B69A62',
+              light: '#D4B87C'
+            },
+            sage: {
+              pale: '#DCE6DE'
+            },
+            charcoal: '#252E2C',
+            mutedText: '#68716D'
+          },
+          fontFamily: {
+            serif: ['Cormorant Garamond', 'Noto Nastaliq Urdu', 'Georgia', 'serif'],
+            sans: ['Inter', 'Noto Nastaliq Urdu', 'sans-serif'],
+            urdu: ['Noto Nastaliq Urdu', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      min-height: 100%;
+      background-color: #0d1a19;
+      color: #252E2C;
+      font-family: 'Inter', 'Noto Nastaliq Urdu', sans-serif;
+      overflow-x: hidden;
+    }
+    [dir="rtl"] {
+      font-family: 'Noto Nastaliq Urdu', 'Inter', sans-serif;
+    }
+    [dir="rtl"] h1, [dir="rtl"] h2, [dir="rtl"] h3 {
+      line-height: 1.8;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #103B39;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #B69A62;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #D4B87C;
+    }
+    .canvas-bg-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      z-index: 0;
+      pointer-events: none;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      filter: contrast(1.05) brightness(1.02);
+    }
+    .glass-card {
+      background-color: rgba(255, 254, 250, 0.88);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(231, 226, 216, 0.85);
+      box-shadow: 0 10px 30px -5px rgba(22, 78, 74, 0.08);
+    }
+    .glass-dark-card {
+      background: linear-gradient(180deg, rgba(16, 59, 57, 0.90) 0%, rgba(22, 78, 74, 0.92) 100%);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(182, 154, 98, 0.35);
+      box-shadow: 0 20px 40px -10px rgba(13, 45, 43, 0.4);
+    }
+    .gold-glow {
+      box-shadow: 0 4px 24px -2px rgba(182, 154, 98, 0.25);
+    }
+  </style>
+</head>
+<body class="relative selection:bg-teal-deep selection:text-ivory-warm">
+
+  <!-- BACKGROUND SCROLL CANVAS -->
+  <div class="canvas-bg-container">
+    <canvas id="canvas"></canvas>
+    <!-- Crystal Clear Subtle Overlay for High Legibility without Fading Animation Details -->
+    <div id="canvas-overlay" class="absolute inset-0 bg-[#F7F3EA]/18 pointer-events-none transition-all duration-300"></div>
+  </div>
+
+  <!-- FOREGROUND WEB PAGE CONTENT (Above the Animation) -->
+  <div class="relative z-10 min-h-screen flex flex-col">
+
+    <!-- TOP HEADER & PERSONA SWITCHER -->
+    <header class="sticky top-0 z-40 w-full border-b border-[#E7E2D8]/80 bg-[#F7F3EA]/90 backdrop-blur-md shadow-sm">
+      <!-- Persona & Notice Bar -->
+      <div class="bg-[#103B39] text-[#F7F3EA] px-4 py-2 text-xs">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <span class="inline-block h-2.5 w-2.5 rounded-full bg-[#B69A62] animate-pulse"></span>
+            <span class="font-medium text-[#DCE6DE]" id="banner-notice">
+              گلستان باوقار نجی رشتہ داری پلیٹ فارم • لائیو پس منظر اینیمیشن فعال ہے
+            </span>
+          </div>
+
+          <!-- Switchers: Visitor / Customer & Urdu / English -->
+          <div class="flex items-center gap-3">
+            <span class="text-[#6D9189] text-[11px]" id="label-role">فعال تجربہ:</span>
+            
+            <!-- Persona Switcher Pill -->
+            <div class="inline-flex rounded-full bg-[#164E4A] p-0.5 border border-[#B69A62]/40 text-xs font-semibold">
+              <button id="btn-role-visitor" onclick="switchView('visitor')" class="px-3.5 py-1 rounded-full bg-[#B69A62] text-[#103B39] transition-all">
+                عام وزیٹر (Visitor)
+              </button>
+              <button id="btn-role-customer" onclick="switchView('customer')" class="px-3.5 py-1 rounded-full text-[#F7F3EA] hover:text-[#B69A62] transition-all">
+                صارف (Customer)
+              </button>
+            </div>
+
+            <!-- Clarity Switcher -->
+            <button onclick="cycleClarity()" title="پس منظر کی شفافیت تبدیل کریں / Toggle Background Clarity" class="px-2.5 py-1 rounded-full border border-[#B69A62]/40 bg-[#164E4A] text-[11px] font-medium text-[#F7F3EA] hover:border-[#B69A62] transition-colors flex items-center gap-1.5" id="btn-clarity">
+              <span class="text-[#B69A62]">✦</span>
+              <span id="clarity-label">اینیمیشن: واضح (82%)</span>
+            </button>
+
+            <!-- Language Switcher -->
+            <button onclick="toggleLanguage()" class="px-3 py-1 rounded-full border border-[#B69A62]/40 bg-[#164E4A] text-xs font-medium text-[#F7F3EA] hover:border-[#B69A62] transition-colors" id="btn-lang">
+              English
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Navigation Bar -->
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between">
+        <div class="flex items-center gap-3 cursor-pointer" onclick="switchView('visitor')">
+          <div class="h-10 w-10 rounded-2xl bg-[#164E4A] border border-[#B69A62]/50 flex items-center justify-center text-[#B69A62] font-serif font-bold text-xl shadow-md">
+            گ
+          </div>
+          <div>
+            <span class="font-serif text-xl sm:text-2xl font-bold tracking-tight text-[#164E4A] block leading-none">
+              گلستان • GULISTAN
+            </span>
+            <span class="text-[10px] text-[#6D9189] tracking-widest uppercase">
+              Bespoke Marriage Bureau
+            </span>
+          </div>
+        </div>
+
+        <nav class="hidden md:flex items-center gap-6 text-xs font-semibold text-[#68716D]">
+          <button onclick="switchView('visitor')" class="hover:text-[#164E4A] text-[#164E4A] transition-colors" id="nav-home">مرکزی صفحہ</button>
+          <button onclick="switchView('visitor'); scrollToSection('section-approach')" class="hover:text-[#164E4A] transition-colors" id="nav-approach">ہمارا انداز</button>
+          <button onclick="switchView('visitor'); scrollToSection('section-process')" class="hover:text-[#164E4A] transition-colors" id="nav-process">طریقہ کار</button>
+          <button onclick="switchView('customer')" class="hover:text-[#164E4A] transition-colors" id="nav-customer">امیدوار پورٹل</button>
+        </nav>
+
+        <div class="flex items-center gap-3">
+          <button onclick="switchView('customer')" class="px-5 py-2.5 rounded-xl bg-[#164E4A] hover:bg-[#103B39] text-[#F7F3EA] text-xs font-semibold shadow-md border border-[#B69A62]/30 transition-all transform active:scale-95" id="nav-cta">
+            پورٹل لاگ ان
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- ================= PAGE 1: VISITOR (PUBLIC EXPERIENCE) ================= -->
+    <div id="view-visitor" class="space-y-24 sm:space-y-32 pb-24 transition-opacity duration-300">
+
+      <!-- SECTION 1: LUXURY HERO -->
+      <section class="relative pt-12 sm:pt-20 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-4xl mx-auto text-center mb-12 sm:mb-16">
+          <div class="inline-flex items-center gap-2 rounded-full border border-[#B69A62]/40 bg-[#164E4A]/10 px-4 py-1.5 text-xs uppercase tracking-widest text-[#164E4A] mb-6">
+            <span class="text-[#B69A62]">✦</span>
+            <span id="hero-badge">معیاری اور نجی رشتہ داری خدمات • BESPOKE PRIVATE MATCHMAKING</span>
+          </div>
+
+          <h1 class="font-serif text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-[#164E4A] leading-[1.2] mb-6 drop-shadow-[0_1px_2px_rgba(247,243,234,0.95)]" id="hero-title">
+            خاندانی وقار، روایت اور بااعتماد نجی رشتے
+          </h1>
+
+          <p class="mx-auto max-w-2xl text-base sm:text-lg text-[#252E2C] font-medium leading-relaxed mb-8 drop-shadow-[0_1px_1px_rgba(247,243,234,0.9)]" id="hero-subtitle">
+            ایک نجی پلیٹ فارم جہاں شائستہ اور تصدیق شدہ خاندانی رشتوں کا انتخاب روایتی احترام اور مکمل رازداری کے ساتھ کیا جاتا ہے۔
+          </p>
+
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <button onclick="switchView('customer')" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-[#164E4A] px-8 py-4 text-sm font-semibold text-[#F7F3EA] shadow-xl hover:bg-[#103B39] transition-all transform active:scale-95 border border-[#B69A62]/30" id="hero-btn-primary">
+              <span>امیدوار پورٹل دیکھیں</span>
+              <span class="text-[#B69A62]">←</span>
+            </button>
+
+            <button onclick="scrollToSection('section-approach')" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-[#B69A62]/50 bg-[#FFFEFA]/90 backdrop-blur-md px-8 py-4 text-sm font-semibold text-[#164E4A] shadow-sm hover:bg-[#F7F3EA] transition-all" id="hero-btn-secondary">
+              <span>طریقہ کار دریافت کریں</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- VISUAL SHOWCASE: ARCH FRAME SANCTUARY (ANIMATION SHINES THROUGH) -->
+        <div class="relative mx-auto w-full max-w-5xl overflow-hidden rounded-3xl border border-[#B69A62]/40 bg-gradient-to-b from-[#103B39]/85 via-[#164E4A]/80 to-[#0D2D2B]/90 backdrop-blur-md p-6 sm:p-12 text-[#F7F3EA] shadow-2xl">
+          <!-- Multi-Arches Vector Reference -->
+          <div class="pointer-events-none absolute inset-0 overflow-hidden opacity-25">
+            <svg class="absolute -top-12 left-1/2 -translate-x-1/2 w-[700px] h-[700px] text-[#B69A62]" viewBox="0 0 500 500" fill="none" stroke="currentColor" stroke-width="1.2">
+              <path d="M50,450 C50,220 140,50 250,50 C360,50 450,220 450,450" />
+              <path d="M80,450 C80,240 160,90 250,90 C340,90 420,240 420,450" />
+              <path d="M110,450 C110,260 180,130 250,130 C320,130 390,260 390,450" />
+              <path d="M140,450 C140,280 190,170 250,170 C310,170 360,280 360,450" />
+              <circle cx="250" cy="50" r="8" fill="#B69A62" />
+            </svg>
+          </div>
+
+          <div class="relative z-10 flex flex-col items-center text-center">
+            <div class="mb-4 inline-flex items-center gap-2 rounded-full border border-[#B69A62]/50 bg-[#103B39]/90 px-4 py-1.5 text-xs uppercase tracking-widest text-[#B69A62]">
+              <span>✦</span>
+              <span>Architectural Sanctuary • لائیو واکتھرو اینیمیشن</span>
+            </div>
+
+            <h3 class="font-serif text-3xl sm:text-4xl font-medium text-[#F7F3EA] mb-3" id="arch-title">
+              جہاں وقار، خلوص اور انسانی بصیرت یکجا ہوتی ہے
+            </h3>
+
+            <p class="text-xs sm:text-base text-[#DCE6DE]/90 leading-relaxed max-w-2xl mb-8" id="arch-desc">
+              ہر پروفائل کی ندیم صاحب کے زیرِ نگرانی ذاتی تصدیق اور خاندانی مشاورت کی جاتی ہے۔ کوئی الگورتھم شور نہیں، نہ ہی کوئی غیر ضروری نمائش۔
+            </p>
+
+            <!-- Video Presentation Info Box -->
+            <div class="w-full max-w-2xl rounded-2xl border border-[#B69A62]/40 bg-[#0D2D2B]/80 backdrop-blur-md p-6 text-center shadow-lg">
+              <div class="flex items-center justify-center gap-2 text-xs text-[#B69A62] font-mono mb-2">
+                <span class="h-2.5 w-2.5 rounded-full bg-[#B69A62] animate-pulse"></span>
+                <span>300 FRAMES CINEMATIC SCROLL ENGINE RUNNING</span>
+              </div>
+              <p class="text-xs text-[#DCE6DE]/80 leading-relaxed">
+                صفحہ اسکرول کریں — پس منظر میں گلستان کا 300 فریمز کا خوبصورت آرکیٹیکچرل نظارہ اسکرولنگ کے ساتھ ساتھ ہموار طریقے سے حرکت کرتا ہے۔
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 2: THREE CORE PHILOSOPHY PILLARS -->
+      <section id="section-approach" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center max-w-3xl mx-auto mb-16">
+          <span class="text-xs uppercase font-bold tracking-widest text-[#B69A62]" id="pillars-badge">ہماری امتیازی اقدار</span>
+          <h2 class="font-serif text-3xl sm:text-5xl font-bold text-[#164E4A] mt-2 mb-4" id="pillars-title">
+            روایت، وقار اور جدید احتیاط
+          </h2>
+          <p class="text-sm sm:text-base text-[#68716D] leading-relaxed" id="pillars-desc">
+            ہم رشتے کے مقدس سفر کو ایک بااعتماد نجی خدمت کے طور پر سرانجام دیتے ہیں جہاں ہر خاندان کے وقار کی حفاظت مقدم ہے۔
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <!-- Pillar 1 -->
+          <div class="glass-card rounded-3xl p-8 transition-transform hover:-translate-y-1">
+            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#164E4A] text-[#B69A62] mb-6 font-bold text-xl">
+              🔒
+            </div>
+            <h3 class="font-serif text-2xl font-bold text-[#164E4A] mb-3">مکمل خاندانی رازداری</h3>
+            <p class="text-sm text-[#68716D] leading-relaxed">
+              تصاویر اور ذاتی کوائف صرف دونوں خاندانوں کی واضح اور تحریری رضامندی کے بعد ہی پیش کیے جاتے ہیں۔
+            </p>
+          </div>
+
+          <!-- Pillar 2 -->
+          <div class="glass-card rounded-3xl p-8 transition-transform hover:-translate-y-1">
+            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#164E4A] text-[#B69A62] mb-6 font-bold text-xl">
+              ✓
+            </div>
+            <h3 class="font-serif text-2xl font-bold text-[#164E4A] mb-3">مکمل تصدیق شدہ کوائف</h3>
+            <p class="text-sm text-[#68716D] leading-relaxed">
+              ہر امیدوار کی تعلیم، پیشہ، خاندانی پس منظر اور رہائش کی مرحلہ وار تصدیق کی جاتی ہے۔
+            </p>
+          </div>
+
+          <!-- Pillar 3 -->
+          <div class="glass-card rounded-3xl p-8 transition-transform hover:-translate-y-1">
+            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#164E4A] text-[#B69A62] mb-6 font-bold text-xl">
+              🤝
+            </div>
+            <h3 class="font-serif text-2xl font-bold text-[#164E4A] mb-3">ذاتی رہنمائی و مشاورت</h3>
+            <p class="text-sm text-[#68716D] leading-relaxed">
+              ندیم صاحب کی دہائیوں کی بصیرت اور خاندانی رشتہ داری کی روایات کے مطابق بروقت رہنمائی۔
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 3: PROCESS & SANCTUARY CTA -->
+      <section id="section-process" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div class="glass-dark-card rounded-3xl p-10 sm:p-14 text-[#F7F3EA] relative overflow-hidden">
+          <span class="text-xs uppercase font-bold tracking-widest text-[#B69A62] mb-3 block">شائستہ اور قابلِ اعتماد سفر</span>
+          <h2 class="font-serif text-3xl sm:text-5xl font-bold mb-4">
+            اپنے خاندان کے لیے بہترین رشتے کا آغاز کیجیے
+          </h2>
+          <p class="text-sm sm:text-base text-[#DCE6DE]/90 max-w-2xl mx-auto mb-8 leading-relaxed">
+            امیدوار پورٹل میں لاگ ان ہو کر اپنے موزوں ترین رشتوں کے تفصیلی کوائف اور تصدیق شدہ سفارشات ملاحظہ فرمائیں۔
+          </p>
+          <button onclick="switchView('customer')" class="px-8 py-4 rounded-2xl bg-[#B69A62] hover:bg-[#D4B87C] text-[#103B39] font-bold text-sm shadow-xl transition-all transform active:scale-95">
+            امیدوار پورٹل میں داخل ہوں (Customer Experience)
+          </button>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ================= PAGE 2: CUSTOMER (CANDIDATE PORTAL) ================= -->
+    <div id="view-customer" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 hidden transition-opacity duration-300">
+
+      <!-- WELCOME HERO BANNER -->
+      <div class="rounded-3xl border border-[#B69A62]/40 bg-gradient-to-r from-[#164E4A] via-[#103B39] to-[#0D2D2B] text-[#F7F3EA] p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+        <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <div class="inline-flex items-center gap-2 rounded-full border border-[#B69A62]/40 bg-[#103B39]/90 px-3.5 py-1 text-xs text-[#B69A62] mb-3">
+              <span class="h-2 w-2 rounded-full bg-[#B69A62] animate-pulse"></span>
+              <span id="cust-status">امیدوار پروفائل: فعال اور مکمل تصدیق شدہ</span>
+            </div>
+            <h1 class="font-serif text-3xl sm:text-4xl font-bold tracking-tight" id="cust-name">
+              خوش آمدید! ڈاکٹر فاطمہ طارق
+            </h1>
+            <p class="text-xs sm:text-sm text-[#DCE6DE]/80 mt-1 max-w-xl leading-relaxed" id="cust-desc">
+              آپ کا نجی پورٹل مکمل خاندانی رازداری اور ندیم صاحب کی ذاتی نگرانی میں فعال ہے۔
+            </p>
+          </div>
+
+          <div class="flex items-center gap-4 bg-[#103B39]/80 border border-[#B69A62]/30 p-4 rounded-2xl">
+            <div>
+              <span class="block text-[11px] text-[#DCE6DE]/70">Reference ID</span>
+              <span class="font-mono text-xl font-bold text-[#B69A62]">GUL-2026-089</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TABS -->
+      <div class="flex items-center gap-2 border-b border-[#E7E2D8] pb-3 overflow-x-auto">
+        <button onclick="setCustTab('recommendations')" id="tab-btn-recs" class="px-5 py-2.5 rounded-2xl text-xs font-semibold bg-[#164E4A] text-[#F7F3EA] shadow-md transition-all">
+          سفارش کردہ رشتے (3 Matches)
+        </button>
+        <button onclick="setCustTab('profile')" id="tab-btn-profile" class="px-5 py-2.5 rounded-2xl text-xs font-semibold text-[#68716D] hover:text-[#252E2C] transition-all">
+          میرا پروفائل (My Profile)
+        </button>
+        <button onclick="setCustTab('privacy')" id="tab-btn-privacy" class="px-5 py-2.5 rounded-2xl text-xs font-semibold text-[#68716D] hover:text-[#252E2C] transition-all">
+          رازداری کی ترتیبات (Privacy & Controls)
+        </button>
+      </div>
+
+      <!-- TAB CONTENT: RECOMMENDATIONS -->
+      <div id="cust-content-recs" class="space-y-6">
+        <div class="flex items-center justify-between">
+          <h2 class="font-serif text-2xl font-bold text-[#164E4A]">
+            آپ کے لیے منتخب کردہ تصدیق شدہ رشتے
+          </h2>
+          <span class="text-xs text-[#68716D]">3 موزوں ترین رشتے دستیاب ہیں</span>
+        </div>
+
+        <!-- CANDIDATE PROFILE CARDS -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+          <!-- Candidate 1 -->
+          <div class="glass-card rounded-3xl p-6 border border-[#B69A62]/30 flex flex-col justify-between hover:shadow-xl transition-all">
+            <div>
+              <div class="flex items-center justify-between mb-4">
+                <span class="px-3 py-1 rounded-full bg-[#164E4A] text-[#B69A62] text-[11px] font-bold">
+                  94% مطابقت (Match)
+                </span>
+                <span class="text-xs font-mono text-[#68716D]">GUL-2026-104</span>
+              </div>
+              <h3 class="font-serif text-2xl font-bold text-[#164E4A]">ڈاکٹر بلال احمد</h3>
+              <p class="text-xs text-[#B69A62] font-semibold mb-3">31 سال • MBBS, FCPS Cardiology</p>
+              
+              <div class="space-y-2 text-xs text-[#68716D] mb-4">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[#164E4A]">📍</span>
+                  <span>رہائش: راولپنڈی (بذاتی گھر)</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[#164E4A]">🏛️</span>
+                  <span>خاندان: والد ریٹائرڈ بریگیڈیئر، 2 بہن بھائی</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[#164E4A]">✓</span>
+                  <span>تصدیق: قومی شناختی کارڈ، ڈگری، رہائش تصدیق شدہ</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="pt-4 border-t border-[#E7E2D8]">
+              <div class="bg-[#164E4A]/5 p-3 rounded-xl mb-3 text-[11px] text-[#164E4A]">
+                <strong>ندیم صاحب کا نوٹ:</strong> خاندانی اقدار اور پیشہ ورانہ لحاظ سے نہایت موزوں اور شائستہ رشتہ۔
+              </div>
+              <button onclick="alert('تصویر کی اجازت کی درخواست ندیم صاحب کو موصول ہو گئی ہے۔')" class="w-full py-2.5 rounded-xl bg-[#164E4A] text-[#F7F3EA] text-xs font-semibold hover:bg-[#103B39] transition-all">
+                محفوظ تصویر کی درخواست کریں
+              </button>
+            </div>
+          </div>
+
+          <!-- Candidate 2 -->
+          <div class="glass-card rounded-3xl p-6 border border-[#B69A62]/30 flex flex-col justify-between hover:shadow-xl transition-all">
+            <div>
+              <div class="flex items-center justify-between mb-4">
+                <span class="px-3 py-1 rounded-full bg-[#164E4A] text-[#B69A62] text-[11px] font-bold">
+                  89% مطابقت (Match)
+                </span>
+                <span class="text-xs font-mono text-[#68716D]">GUL-2026-112</span>
+              </div>
+              <h3 class="font-serif text-2xl font-bold text-[#164E4A]">انجینئر حمزہ ملک</h3>
+              <p class="text-xs text-[#B69A62] font-semibold mb-3">29 سال • MS Software Eng, لاہور</p>
+              
+              <div class="space-y-2 text-xs text-[#68716D] mb-4">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[#164E4A]">📍</span>
+                  <span>رہائش: ڈی ایچ اے لاہور</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[#164E4A]">🏛️</span>
+                  <span>خاندان: صنعتی پس منظر، 1 شادی شدہ بہن</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[#164E4A]">✓</span>
+                  <span>تصدیق: روزگار اور خاندانی شرافت تصدیق شدہ</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="pt-4 border-t border-[#E7E2D8]">
+              <div class="bg-[#164E4A]/5 p-3 rounded-xl mb-3 text-[11px] text-[#164E4A]">
+                <strong>ندیم صاحب کا نوٹ:</strong> فریقین کی ترجیحات کے عین مطابق سنجیدہ اور متقی خاندان۔
+              </div>
+              <button onclick="alert('تصویر کی اجازت کی درخواست ندیم صاحب کو موصول ہو گئی ہے۔')" class="w-full py-2.5 rounded-xl bg-[#164E4A] text-[#F7F3EA] text-xs font-semibold hover:bg-[#103B39] transition-all">
+                محفوظ تصویر کی درخواست کریں
+              </button>
+            </div>
+          </div>
+
+          <!-- Candidate 3 -->
+          <div class="glass-card rounded-3xl p-6 border border-[#B69A62]/30 flex flex-col justify-between hover:shadow-xl transition-all">
+            <div>
+              <div class="flex items-center justify-between mb-4">
+                <span class="px-3 py-1 rounded-full bg-[#164E4A] text-[#B69A62] text-[11px] font-bold">
+                  86% مطابقت (Match)
+                </span>
+                <span class="text-xs font-mono text-[#68716D]">GUL-2026-128</span>
+              </div>
+              <h3 class="font-serif text-2xl font-bold text-[#164E4A]">ذیشان رضا (FCA)</h3>
+              <p class="text-xs text-[#B69A62] font-semibold mb-3">32 سال • سینئر چارٹرڈ اکاؤنٹنٹ، اسلام آباد</p>
+              
+              <div class="space-y-2 text-xs text-[#68716D] mb-4">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[#164E4A]">📍</span>
+                  <span>رہائش: F-8 اسلام آباد</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[#164E4A]">🏛️</span>
+                  <span>خاندان: اراضی و تعلیم یافتہ روایتی خاندان</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[#164E4A]">✓</span>
+                  <span>تصدیق: آمدنی، پیشہ ورانہ اسناد تصدیق شدہ</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="pt-4 border-t border-[#E7E2D8]">
+              <div class="bg-[#164E4A]/5 p-3 rounded-xl mb-3 text-[11px] text-[#164E4A]">
+                <strong>ندیم صاحب کا نوٹ:</strong> خاندانی ہم آہنگی اور مزاج کی یکسانیت کے حامل ہیں۔
+              </div>
+              <button onclick="alert('تصویر کی اجازت کی درخواست ندیم صاحب کو موصول ہو گئی ہے۔')" class="w-full py-2.5 rounded-xl bg-[#164E4A] text-[#F7F3EA] text-xs font-semibold hover:bg-[#103B39] transition-all">
+                محفوظ تصویر کی درخواست کریں
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- TAB CONTENT: MY PROFILE -->
+      <div id="cust-content-profile" class="glass-card rounded-3xl p-8 space-y-6 hidden">
+        <h2 class="font-serif text-2xl font-bold text-[#164E4A]">آپ کے رجسٹرڈ کوائف کا خلاصہ</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+          <div class="p-4 rounded-2xl bg-[#164E4A]/5 space-y-2">
+            <p><strong>مکمل نام:</strong> ڈاکٹر فاطمہ طارق</p>
+            <p><strong>عمر و تاریخ پیدائش:</strong> 28 سال (1998)</p>
+            <p><strong>تعلیم:</strong> MBBS, FCPS Resident (Dermatology)</p>
+            <p><strong>قد:</strong> 5 فٹ 5 انچ</p>
+          </div>
+          <div class="p-4 rounded-2xl bg-[#164E4A]/5 space-y-2">
+            <p><strong>شہر و رہائش:</strong> لاہور (گلبرگ III)</p>
+            <p><strong>خاندانی تفصیل:</strong> والد صاحب سینئر وکیل، والدہ ماہرِ تعلیم، 1 چھوٹا بھائی</p>
+            <p><strong>مسلک و ذات:</strong> سنی، راجپوت</p>
+            <p><strong>اسٹیٹس:</strong> مکمل تصدیق شدہ (نادرا و ادارہ)</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB CONTENT: PRIVACY -->
+      <div id="cust-content-privacy" class="glass-card rounded-3xl p-8 space-y-6 hidden">
+        <h2 class="font-serif text-2xl font-bold text-[#164E4A]">خاندانی رازداری اور فوٹو شیئرنگ کنٹرولز</h2>
+        <div class="space-y-4">
+          <label class="flex items-center gap-3 p-4 rounded-2xl bg-[#164E4A]/5 cursor-pointer">
+            <input type="checkbox" checked class="h-4 w-4 rounded text-[#164E4A]">
+            <span class="text-sm text-[#252E2C]">صرف ان امیدواروں کو تصویر دکھائی جائے جن کی میں تصدیق کروں۔</span>
+          </label>
+          <label class="flex items-center gap-3 p-4 rounded-2xl bg-[#164E4A]/5 cursor-pointer">
+            <input type="checkbox" checked class="h-4 w-4 rounded text-[#164E4A]">
+            <span class="text-sm text-[#252E2C]">رابطہ نمبر صرف تب ظاہر کیا جائے جب دونوں خاندان باہمی رضا مندی دیں۔</span>
+          </label>
+          <div class="pt-4">
+            <button onclick="alert('آپ کی ترتیبات کامیابی کے ساتھ محفوظ ہو گئی ہیں!')" class="px-6 py-3 rounded-xl bg-[#164E4A] text-white text-xs font-semibold">
+              ترتیبات محفوظ کریں
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="mt-auto border-t border-[#E7E2D8]/80 bg-[#103B39] text-[#DCE6DE] py-12 px-4 sm:px-6 lg:px-8">
+      <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-xs">
+        <div class="text-center md:text-start">
+          <p class="font-serif text-lg font-bold text-[#F7F3EA] mb-1">گلستان میرج بیورو • GULISTAN</p>
+          <p class="text-[#6D9189]">روایت، شائستگی اور باوقار نجی رشتہ داری کا معتبر ادارہ۔</p>
+        </div>
+        <div class="flex items-center gap-6">
+          <button onclick="switchView('visitor')" class="hover:text-[#B69A62] transition-colors">وزیٹر ہوم</button>
+          <button onclick="switchView('customer')" class="hover:text-[#B69A62] transition-colors">امیدوار پورٹل</button>
+          <a href="#" class="hover:text-[#B69A62] transition-colors">رازداری کی پالیسی</a>
+        </div>
+        <p class="text-[11px] text-[#6D9189]">© 2026 Gulistan Marriage Bureau. All rights reserved.</p>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- JAVASCRIPT: SCROLL ANIMATION & PAGE SWITCHING -->
+  <script>
+    // ----------------------------------------------------
+    // 1. SCROLL-BASED FRAME ANIMATION ENGINE
+    // ----------------------------------------------------
+    (function () {
+      const TOTAL_FRAMES = 300;
+      const FRAME_PATH_PREFIX = 'Gulistan_frames_30fps_high_quality/Gulistan_frames_30fps/frame_';
+      const FRAME_EXT = '.jpg';
+
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d', { alpha: false });
+
+      const images = new Array(TOTAL_FRAMES);
+      const loadedFlags = new Uint8Array(TOTAL_FRAMES);
+
+      let currentScroll = 0;
+      let targetScroll = 0;
+      let lastRenderedIndex = -1;
+      let needsResize = true;
+
+      function getFrameUrl(index) {
+        const frameNum = String(index + 1).padStart(4, '0');
+        return `${FRAME_PATH_PREFIX}${frameNum}${FRAME_EXT}`;
+      }
+
+      function updateDimensions() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+
+        if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+          canvas.width = Math.round(w * dpr);
+          canvas.height = Math.round(h * dpr);
+          needsResize = true;
+        }
+      }
+
+      function drawFrame(index) {
+        let img = images[index];
+
+        if (!img || !loadedFlags[index] || !img.complete || img.naturalWidth === 0) {
+          for (let offset = 1; offset < TOTAL_FRAMES; offset++) {
+            const prev = index - offset;
+            if (prev >= 0 && loadedFlags[prev] && images[prev]?.complete && images[prev]?.naturalWidth > 0) {
+              img = images[prev];
+              break;
+            }
+            const next = index + offset;
+            if (next < TOTAL_FRAMES && loadedFlags[next] && images[next]?.complete && images[next]?.naturalWidth > 0) {
+              img = images[next];
+              break;
+            }
+          }
+        }
+
+        if (!img || !img.complete || img.naturalWidth === 0) return;
+
+        const cw = canvas.width;
+        const ch = canvas.height;
+        const nw = img.naturalWidth;
+        const nh = img.naturalHeight;
+
+        // Cover fit scale calculation
+        const scale = Math.max(cw / nw, ch / nh);
+        const dw = nw * scale;
+        const dh = nh * scale;
+        const dx = (cw - dw) / 2;
+        const dy = (ch - dh) / 2;
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, nw, nh, dx, dy, dw, dh);
+
+        lastRenderedIndex = (img === images[index]) ? index : -1;
+      }
+
+      function onScroll() {
+        const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+        if (maxScroll > 0) {
+          targetScroll = Math.min(Math.max(window.scrollY / maxScroll, 0), 1);
+        } else {
+          targetScroll = 0;
+        }
+      }
+
+      function renderLoop() {
+        updateDimensions();
+
+        const diff = targetScroll - currentScroll;
+        if (Math.abs(diff) > 0.0001) {
+          currentScroll += diff * 0.12;
+        } else {
+          currentScroll = targetScroll;
+        }
+
+        const frameFloat = currentScroll * (TOTAL_FRAMES - 1);
+        const frameIndex = Math.min(Math.max(Math.round(frameFloat), 0), TOTAL_FRAMES - 1);
+
+        if (frameIndex !== lastRenderedIndex || needsResize) {
+          drawFrame(frameIndex);
+          needsResize = false;
+        }
+
+        requestAnimationFrame(renderLoop);
+      }
+
+      function preloadImages() {
+        const firstImg = new Image();
+        firstImg.src = getFrameUrl(0);
+        firstImg.onload = () => {
+          loadedFlags[0] = 1;
+          images[0] = firstImg;
+          needsResize = true;
+        };
+        images[0] = firstImg;
+
+        for (let i = 1; i < TOTAL_FRAMES; i++) {
+          const img = new Image();
+          img.src = getFrameUrl(i);
+          img.onload = () => {
+            loadedFlags[i] = 1;
+            if (i === Math.round(currentScroll * (TOTAL_FRAMES - 1))) {
+              needsResize = true;
+            }
+          };
+          images[i] = img;
+        }
+      }
+
+      window.addEventListener('scroll', onScroll, { passive: true });
+      window.addEventListener('resize', () => { needsResize = true; });
+
+      updateDimensions();
+      preloadImages();
+      onScroll();
+      requestAnimationFrame(renderLoop);
+    })();
+
+    // ----------------------------------------------------
+    // 2. PAGE NAVIGATION & SWITCHING (VISITOR <-> CUSTOMER)
+    // ----------------------------------------------------
+    let currentView = 'visitor';
+    let currentLang = 'ur';
+
+    function switchView(view) {
+      currentView = view;
+      const vVisitor = document.getElementById('view-visitor');
+      const vCustomer = document.getElementById('view-customer');
+      const btnVisitor = document.getElementById('btn-role-visitor');
+      const btnCustomer = document.getElementById('btn-role-customer');
+
+      if (view === 'visitor') {
+        vVisitor.classList.remove('hidden');
+        vCustomer.classList.add('hidden');
+        btnVisitor.className = 'px-3.5 py-1 rounded-full bg-[#B69A62] text-[#103B39] transition-all font-semibold';
+        btnCustomer.className = 'px-3.5 py-1 rounded-full text-[#F7F3EA] hover:text-[#B69A62] transition-all font-medium';
+      } else {
+        vVisitor.classList.add('hidden');
+        vCustomer.classList.remove('hidden');
+        btnCustomer.className = 'px-3.5 py-1 rounded-full bg-[#B69A62] text-[#103B39] transition-all font-semibold';
+        btnVisitor.className = 'px-3.5 py-1 rounded-full text-[#F7F3EA] hover:text-[#B69A62] transition-all font-medium';
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function scrollToSection(id) {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function setCustTab(tab) {
+      const recs = document.getElementById('cust-content-recs');
+      const prof = document.getElementById('cust-content-profile');
+      const priv = document.getElementById('cust-content-privacy');
+
+      const bRecs = document.getElementById('tab-btn-recs');
+      const bProf = document.getElementById('tab-btn-profile');
+      const bPriv = document.getElementById('tab-btn-privacy');
+
+      recs.classList.add('hidden');
+      prof.classList.add('hidden');
+      priv.classList.add('hidden');
+
+      bRecs.className = 'px-5 py-2.5 rounded-2xl text-xs font-semibold text-[#68716D] hover:text-[#252E2C] transition-all';
+      bProf.className = 'px-5 py-2.5 rounded-2xl text-xs font-semibold text-[#68716D] hover:text-[#252E2C] transition-all';
+      bPriv.className = 'px-5 py-2.5 rounded-2xl text-xs font-semibold text-[#68716D] hover:text-[#252E2C] transition-all';
+
+      if (tab === 'recommendations') {
+        recs.classList.remove('hidden');
+        bRecs.className = 'px-5 py-2.5 rounded-2xl text-xs font-semibold bg-[#164E4A] text-[#F7F3EA] shadow-md transition-all';
+      } else if (tab === 'profile') {
+        prof.classList.remove('hidden');
+        bProf.className = 'px-5 py-2.5 rounded-2xl text-xs font-semibold bg-[#164E4A] text-[#F7F3EA] shadow-md transition-all';
+      } else if (tab === 'privacy') {
+        priv.classList.remove('hidden');
+        bPriv.className = 'px-5 py-2.5 rounded-2xl text-xs font-semibold bg-[#164E4A] text-[#F7F3EA] shadow-md transition-all';
+      }
+    }
+
+    // ----------------------------------------------------
+    // BACKGROUND ANIMATION CLARITY CONTROLLER
+    // ----------------------------------------------------
+    const clarities = [
+      { id: 'clear', labelUr: 'اینیمیشن: واضح (82%)', labelEn: 'Animation: Clear (82%)', overlayClass: 'bg-[#F7F3EA]/18' },
+      { id: 'ultra', labelUr: 'اینیمیشن: مکمل صاف (95%)', labelEn: 'Animation: Ultra Clear (95%)', overlayClass: 'bg-[#F7F3EA]/5' },
+      { id: 'soft', labelUr: 'اینیمیشن: معتدل (65%)', labelEn: 'Animation: Soft (65%)', overlayClass: 'bg-[#F7F3EA]/35' }
+    ];
+    let currentClarityIdx = 0;
+
+    function cycleClarity() {
+      currentClarityIdx = (currentClarityIdx + 1) % clarities.length;
+      const c = clarities[currentClarityIdx];
+      const overlay = document.getElementById('canvas-overlay');
+      if (overlay) {
+        overlay.className = 'absolute inset-0 pointer-events-none transition-all duration-300 ' + c.overlayClass;
+      }
+      updateClarityLabel();
+    }
+
+    function updateClarityLabel() {
+      const c = clarities[currentClarityIdx];
+      const lbl = document.getElementById('clarity-label');
+      const floatLbl = document.getElementById('float-clarity-label');
+      const text = currentLang === 'ur' ? c.labelUr : c.labelEn;
+      if (lbl) lbl.textContent = text;
+      if (floatLbl) floatLbl.textContent = text;
+    }
+
+    function toggleLanguage() {
+      currentLang = currentLang === 'ur' ? 'en' : 'ur';
+      const html = document.documentElement;
+      const btnLang = document.getElementById('btn-lang');
+
+      updateClarityLabel();
+
+      if (currentLang === 'en') {
+        html.dir = 'ltr';
+        html.lang = 'en';
+        btnLang.textContent = 'اردو';
+        document.getElementById('banner-notice').textContent = 'Gulistan Private Matchmaking • Live Background Animation Active';
+        document.getElementById('label-role').textContent = 'Active Experience:';
+        document.getElementById('btn-role-visitor').textContent = 'Visitor';
+        document.getElementById('btn-role-customer').textContent = 'Customer';
+        document.getElementById('hero-title').textContent = 'Dignity, Discretion & Bespoke Matchmaking';
+        document.getElementById('hero-subtitle').textContent = 'A sanctuary of privacy and traditional discernment for distinguished families seeking meaningful marital unions.';
+        document.getElementById('hero-btn-primary').innerHTML = '<span>View Customer Portal</span> <span class="text-[#B69A62]">→</span>';
+        document.getElementById('hero-btn-secondary').textContent = 'Explore Our Process';
+        document.getElementById('arch-title').textContent = 'Where Dignity Meets Human Discernment';
+        document.getElementById('arch-desc').textContent = 'Every profile is carefully vetted through personal consultation. No swiping, no algorithmic noise, and absolute confidentiality.';
+      } else {
+        html.dir = 'rtl';
+        html.lang = 'ur';
+        btnLang.textContent = 'English';
+        document.getElementById('banner-notice').textContent = 'گلستان باوقار نجی رشتہ داری پلیٹ فارم • لائیو پس منظر اینیمیشن فعال ہے';
+        document.getElementById('label-role').textContent = 'فعال تجربہ:';
+        document.getElementById('btn-role-visitor').textContent = 'عام وزیٹر (Visitor)';
+        document.getElementById('btn-role-customer').textContent = 'صارف (Customer)';
+        document.getElementById('hero-title').textContent = 'خاندانی وقار، روایت اور بااعتماد نجی رشتے';
+        document.getElementById('hero-subtitle').textContent = 'ایک نجی پلیٹ فارم جہاں شائستہ اور تصدیق شدہ خاندانی رشتوں کا انتخاب روایتی احترام اور مکمل رازداری کے ساتھ کیا جاتا ہے۔';
+        document.getElementById('hero-btn-primary').innerHTML = '<span>امیدوار پورٹل دیکھیں</span> <span class="text-[#B69A62]">←</span>';
+        document.getElementById('hero-btn-secondary').textContent = 'طریقہ کار دریافت کریں';
+        document.getElementById('arch-title').textContent = 'جہاں وقار، خلوص اور انسانی بصیرت یکجا ہوتی ہے';
+        document.getElementById('arch-desc').textContent = 'ہر پروفائل کی ندیم صاحب کے زیرِ نگرانی ذاتی تصدیق اور خاندانی مشاورت کی جاتی ہے۔ کوئی الگورتھم شور نہیں، نہ ہی کوئی غیر ضروری نمائش۔';
+      }
+    }
+  </script>
+
+  <!-- FLOATING BOTTOM CLARITY CONTROLLER -->
+  <div class="fixed bottom-5 end-5 z-40">
+    <button onclick="cycleClarity()" class="flex items-center gap-2 rounded-full border border-[#B69A62]/60 bg-[#103B39]/90 px-3.5 py-1.5 text-xs font-medium text-[#F7F3EA] shadow-xl backdrop-blur-md transition-all hover:bg-[#164E4A] hover:border-[#B69A62] cursor-pointer" title="پس منظر اینیمیشن شفافیت تبدیل کریں / Toggle Background Animation Clarity">
+      <span class="h-2 w-2 rounded-full bg-[#B69A62] animate-pulse"></span>
+      <span id="float-clarity-label">اینیمیشن: واضح (82%)</span>
+    </button>
+  </div>
+  </script>
+</body>
+</html>

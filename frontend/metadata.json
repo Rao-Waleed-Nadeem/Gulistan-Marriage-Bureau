@@ -1,0 +1,6 @@
+{
+  "name": "Gulistan Marriage Bureau",
+  "description": "Premium Pakistani marriage bureau and bespoke matchmaking platform with distinct portals for Nadeem (matchmaker), Customers, and System Admin.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

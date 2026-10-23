@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+@theme {
+  --color-teal-deep: #164E4A;
+  --color-teal-midnight: #103B39;
+  --color-ivory-warm: #F7F3EA;
+  --color-porcelain: #FFFEFA;
+  --color-gold-champagne: #B69A62;
+  --color-sage-pale: #DCE6DE;
+  --color-teal-muted: #6D9189;
+  --color-ink: #252E2C;
+  --color-text-secondary: #68716D;
+  --color-border-subtle: #E7E2D8;
+  --color-status-success: #287653;
+  --color-status-warning: #9A641B;
+  --color-status-error: #B23C42;
+
+  --font-serif: 'Cormorant Garamond', 'Noto Nastaliq Urdu', Georgia, serif;
+  --font-sans: 'Inter', 'Noto Sans Arabic', 'Noto Nastaliq Urdu', Tahoma, sans-serif;
+  --font-urdu: 'Noto Nastaliq Urdu', 'Noto Sans Arabic', Tahoma, sans-serif;
+}
+
+/* RTL and Typography support */
+[dir="rtl"] {
+  font-family: 'Noto Sans Arabic', 'Noto Nastaliq Urdu', Tahoma, sans-serif;
+}
+
+[dir="rtl"] .font-serif,
+[dir="rtl"] h1, [dir="rtl"] h2, [dir="rtl"] h3 {
+  font-family: 'Noto Nastaliq Urdu', 'Noto Sans Arabic', serif;
+  line-height: 1.8;
+}
+
+/* Custom Architectural Arch & Mask Styles */
+.arch-top {
+  border-top-left-radius: 9999px;
+  border-top-right-radius: 9999px;
+}
+
+.arch-full {
+  border-radius: 120px 120px 24px 24px;
+}
+
+.subtle-gold-border {
+  border: 1px solid rgba(182, 154, 98, 0.35);
+}
+
+.gold-glow {
+  box-shadow: 0 4px 24px -2px rgba(182, 154, 98, 0.15);
+}
+
+.porcelain-card {
+  background-color: rgba(255, 254, 250, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(231, 226, 216, 0.75);
+  box-shadow: 0 4px 20px -2px rgba(22, 78, 74, 0.08);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F7F3EA;
+}
+::-webkit-scrollbar-thumb {
+  background: #6D9189;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #164E4A;
+}

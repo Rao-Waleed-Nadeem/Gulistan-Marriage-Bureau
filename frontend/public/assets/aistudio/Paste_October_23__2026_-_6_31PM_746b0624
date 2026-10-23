@@ -1,0 +1,1708 @@
+# GULISTAN MARRIAGE BUREAU — COMPLETE FRONTEND REDESIGN MASTER PROMPT
+
+## 1. YOUR ROLE AND MISSION
+
+You are an elite multidisciplinary digital product team consisting of:
+
+- A world-class luxury digital brand designer.
+- A senior UI/UX and product designer.
+- An expert frontend architect and React/TypeScript engineer.
+- A motion designer specializing in sophisticated, cinematic interface animation.
+- A bilingual product designer specializing in Urdu RTL and English LTR experiences.
+- An accessibility and responsive-design specialist.
+- A product strategist experienced in private, high-trust matchmaking platforms.
+
+Your task is to redesign and build the complete frontend of **Gulistan Marriage Bureau**, a premium, modern matchmaking brand and marriage-bureau management platform based in Pakistan, serving customers locally and potentially internationally.
+
+This is a complete product-design and frontend implementation task. It is NOT simply a landing-page design exercise.
+
+The final result must be a working, navigable, responsive, high-fidelity frontend prototype with meaningful interactions, polished transitions, realistic sample data, and distinct experiences for three stakeholder groups:
+
+1. **Admin** — the system administrator and owner of administrative permissions.
+2. **Nadeem** — the primary matchmaker and operational user who manages profiles, matching, customer communication, external matchmakers, and business finances.
+3. **Customers / Profilers** — people who register their own profiles or have profiles managed on their behalf, maintain marriage preferences, manage permitted information, and receive authorized matchmaking recommendations.
+
+You are not familiar with this project by default. Therefore, the following requirements define the product and must guide every design and implementation decision.
+
+### The main objective
+
+Build a website that feels like a premium international matchmaking service while remaining exceptionally simple for everyday users, particularly Nadeem, who primarily works from an Android phone and should not need technical expertise to operate it.
+
+The brand must communicate:
+
+- Trust and discretion.
+- Dignity and respect for families.
+- Premium craftsmanship.
+- Warmth and human connection.
+- Modernity and technological competence.
+- Simplicity without looking basic.
+- Luxury without unnecessary extravagance.
+- Cultural relevance without looking old-fashioned.
+
+The experience should feel closer to a beautifully designed premium hospitality, architecture, or private-concierge brand than a conventional marriage bureau or an ordinary administration template.
+
+**Luxury is the foundation. Simplicity is the discipline. Motion is the craftsmanship. Trust is the product.**
+
+---
+
+# 2. SOURCE MATERIAL AND DESIGN REFERENCE
+
+Before writing code, inspect all provided project material.
+
+Use these sources in this order:
+
+1. The supplied reference image, `frame_0001.jpg`, from the Gulistan frames ZIP.
+2. The Software Requirements Specification for Gulistan Marriage Bureau.
+3. The project overview, including the previously discussed product strategy, design directions, language policy, and usability requirements.
+4. This master prompt, which defines the new visual direction and the required frontend deliverable.
+
+Do not blindly reproduce an earlier design if it conflicts with this brief.
+
+## 2.1 The primary reference image
+
+The first image is a stylized architectural garden passage with layered arches, botanical foliage, a luminous ivory interior, deep blue-teal shadows, and restrained golden architectural ornament.
+
+Treat this image as the primary visual identity reference.
+
+Extract and translate its visual language into a reusable website design system:
+
+- Architectural arches become subtle framing devices, editorial masks, decorative borders, and occasional image shapes.
+- The garden becomes a metaphor for growth, new beginnings, connection, and a carefully nurtured journey.
+- Deep teal provides brand depth and visual authority.
+- Warm ivory provides space, clarity, and softness.
+- Champagne gold provides carefully controlled highlights and premium details.
+- Botanical shapes become subtle supporting motifs, not repetitive decorations.
+- Layered architectural depth inspires restrained shadows, overlapping surfaces, dimensional cards, and refined transitions.
+- The luminous center of the reference inspires hopeful, welcoming visual compositions.
+
+The result must feel inspired by the reference, not like an exact copy of an illustration.
+
+Do not use literal arches around every card. Do not fill every screen with flowers, leaves, or ornamental borders. Avoid stereotypical wedding imagery, excessive paisley, ornate calligraphy as decoration, and generic Islamic-pattern backgrounds.
+
+The design should be culturally respectful and sophisticated, with architectural inspiration used selectively.
+
+## 2.2 The video restriction
+
+The ZIP contains a sequence of frames intended for a future animated landing-page visual.
+
+**Do not use the supplied frame sequence as a full-screen video or major animated hero background in this phase.**
+
+A video will be created and integrated into the website later.
+
+For now:
+
+- Use the first reference frame as a static image, crop, or visual guide where appropriate.
+- Use gradients, CSS shapes, layered surfaces, image masks, and small decorative elements to build the interface.
+- If the reference image is used directly, make sure it is correctly cropped and responsive.
+- Create a clean, clearly marked placeholder for the future landing-page video.
+- Do not play all 300 frames as a video.
+- Do not create a substitute cinematic scroll-driven video effect.
+- Do not make a video essential for understanding the brand or using the site.
+
+The current frontend must look complete and premium without the future video.
+
+---
+
+# 3. BRAND IDENTITY AND ART DIRECTION
+
+## 3.1 Brand personality
+
+Gulistan should feel like a private, trusted matchmaking concierge with a beautifully designed digital platform.
+
+The emotional tone should be:
+
+- Calm rather than loud.
+- Refined rather than flashy.
+- Welcoming rather than clinical.
+- Professional rather than bureaucratic.
+- Modern rather than traditional.
+- Human rather than algorithmic.
+- Exclusive in presentation, but accessible and easy to use.
+
+Avoid the visual language of dating apps that emphasize swiping, gamification, public popularity, likes, follower counts, or casual romantic entertainment.
+
+Gulistan is a family-oriented matchmaking service. Privacy, thoughtful introductions, dignity, and informed decisions matter more than engagement tricks.
+
+## 3.2 Primary palette: Gulistan Botanical Luxury
+
+Use the following initial design tokens, refining them only when necessary to improve contrast and visual consistency.
+
+| Token | Hex | Purpose |
+|---|---|---|
+| Deep Botanical Teal | `#164E4A` | Primary brand color, important actions, navigation accents |
+| Midnight Teal | `#103B39` | Dark surfaces, premium hero sections, footer |
+| Warm Ivory | `#F7F3EA` | Main page backgrounds |
+| Soft Porcelain | `#FFFEFA` | Cards, forms, panels, elevated surfaces |
+| Champagne Gold | `#B69A62` | Fine borders, decorative highlights, selected details |
+| Pale Sage | `#DCE6DE` | Soft supporting surfaces |
+| Muted Teal | `#6D9189` | Secondary accents and decorative depth |
+| Ink | `#252E2C` | Primary text |
+| Secondary Text | `#68716D` | Supporting text |
+| Border | `#E7E2D8` | Subtle separators and field borders |
+| Success | `#287653` | Successful operations |
+| Warning | `#9A641B` | Caution and pending states |
+| Error | `#B23C42` | Errors and destructive actions |
+
+Gold must remain an accent. Do not make gold the default color for primary buttons, long text, or large interface areas.
+
+Use high-contrast teal buttons with clear text.
+
+Avoid excessive gradients, saturated emerald green, bright yellow gold, pink wedding palettes, generic purple AI gradients, and heavy black-and-gold luxury clichés.
+
+A small number of restrained gradients is acceptable when they add depth.
+
+## 3.3 Typography
+
+Create a premium editorial hierarchy with highly readable supporting typography.
+
+Recommended direction:
+
+- English display headings: an elegant contemporary serif such as Cormorant Garamond or an equivalent refined serif.
+- English interface text: Inter, Manrope, or a similarly clear sans-serif.
+- Urdu: a high-quality Urdu-capable font such as Noto Nastaliq Urdu for suitable headings and editorial moments, and a readable Urdu-capable font for controls, forms, and dense operational interfaces.
+
+Verify actual font availability, licensing, and Urdu glyph coverage before selecting the final implementation.
+
+Typography must work correctly across all browsers and devices.
+
+Guidelines:
+
+- Display headings can be expressive and spacious.
+- Body text must prioritize readability.
+- Operational forms must not use overly decorative typography.
+- Use consistent line heights and carefully controlled letter spacing.
+- Never apply English-style letter spacing to Urdu text.
+- Do not force Urdu into an inappropriate Latin typeface.
+- Avoid tiny text and unnecessarily thin fonts.
+- Allow headings to wrap naturally on mobile devices.
+
+## 3.4 Visual materials and surfaces
+
+Use:
+
+- Warm neutral backgrounds.
+- Restrained shadows.
+- Fine borders.
+- Layered cards with clear visual hierarchy.
+- Generous but practical whitespace.
+- Subtle depth between background, content, and overlays.
+- Rounded corners used consistently, generally between 10 and 22 pixels depending on the component.
+- Large, confident hero typography.
+- Well-composed image crops.
+- Small gold separators or line details.
+- Clear contrast between public marketing pages and internal application workspaces.
+
+Avoid:
+
+- Excessive glassmorphism.
+- Frosted glass on every component.
+- Heavy black shadows.
+- Huge empty spaces in dashboards.
+- Excessive pill-shaped controls.
+- Overly rounded generic SaaS cards.
+- Dense spreadsheet interfaces as the default presentation.
+- Decoration that competes with the actual content.
+
+The design should feel deliberately art-directed, not assembled from an unmodified component library.
+
+---
+
+# 4. DESIGN PHILOSOPHY: LUXURY WITH USABILITY
+
+The frontend must satisfy two distinct needs.
+
+**Public-facing experience:** emotionally compelling, elegant, aspirational, brand-led, and reassuring.
+
+**Operational experience:** fast, clear, organized, forgiving, and exceptionally easy to use.
+
+Do not impose the public website's editorial complexity on Nadeem's workspace. Do not make the public website look like an internal management dashboard.
+
+Use one consistent brand identity with different interface densities and interaction patterns for different tasks.
+
+## 4.1 Progressive disclosure
+
+Show essential information first and reveal additional information only when needed.
+
+For example:
+
+- Show a candidate's most important details first.
+- Place extended family information in expandable sections.
+- Group profile fields into clear stages.
+- Display advanced search criteria in a collapsible panel.
+- Show detailed matching explanations when a user requests them.
+- Keep sensitive information hidden unless the current user is authorized to view it.
+
+## 4.2 Clear language
+
+Prefer action labels such as:
+
+- Add New Profile.
+- Find a Suitable Match.
+- Review Recommendation.
+- Save Profile.
+- Continue Registration.
+- Share with Approval.
+- Schedule Follow-up.
+- Record Payment.
+
+Avoid vague labels such as "Explore," "Magic," "Discover More," or "Optimize" when a more direct action label is appropriate.
+
+## 4.3 Accessibility
+
+Target WCAG 2.2 AA where practical.
+
+Implement:
+
+- Visible keyboard focus.
+- Accessible names for icon buttons.
+- Sufficient color contrast.
+- Proper heading structure.
+- Semantic buttons and forms.
+- Accessible modal behavior.
+- Keyboard navigation.
+- Clear validation messages.
+- Reduced-motion support.
+- Screen-reader-friendly language and state announcements.
+- Touch targets approximately 44 by 44 CSS pixels or larger.
+- No essential information communicated through color alone.
+
+Luxury must never compromise accessibility.
+
+---
+
+# 5. THREE DISTINCT USER EXPERIENCES
+
+Implement a consistent application shell with role-specific navigation, permissions in the prototype, and separate dashboards.
+
+Create a role-selection and demo-entry screen so that a reviewer can explore all three experiences without a backend.
+
+The prototype must clearly label demonstration accounts and sample records as demo data.
+
+Never imply that a demo role selector is secure authentication. In a production system, the server must determine the authenticated user's role and permissions.
+
+## 5.1 Admin portal
+
+The admin experience is English-only.
+
+The administrator needs a professional, restrained, information-rich interface for system oversight.
+
+Required screens:
+
+1. Admin dashboard.
+2. User and account management.
+3. Role and permission overview.
+4. Profile management and status monitoring.
+5. Pending registration overview.
+6. Matchmaker directory oversight.
+7. Financial overview and reports.
+8. Audit activity.
+9. System settings and controlled vocabularies.
+10. Language and interface configuration.
+11. Data-quality and operational overview.
+
+The dashboard should show useful summaries, not arbitrary decorative statistics.
+
+Examples:
+
+- Active profiles.
+- Pending approvals.
+- Inactive profiles.
+- Recent administrative activity.
+- Profile creation trends.
+- Data completeness.
+- Matchmaking activity.
+- Operational alerts.
+
+Use tables where they are genuinely useful, with search, sorting, filtering, pagination, and row actions. On mobile, transform tables into usable stacked rows or cards.
+
+Sensitive administrative actions should use confirmation dialogs.
+
+Include empty, loading, error, and populated states.
+
+## 5.2 Nadeem's matchmaker workspace
+
+This is the most important operational experience.
+
+Design for a person who primarily uses an Android phone and has limited technical literacy.
+
+Nadeem's interface should default to Urdu, with a persistent option to switch to English.
+
+The default screen must make the next useful action obvious.
+
+Main dashboard actions:
+
+- Add New Profile.
+- Find a Suitable Match.
+- Review New Registrations.
+- Continue Follow-ups.
+- Manage Customers.
+- Manage Matchmakers.
+- Record a Payment.
+- Review Financial Balances.
+
+Use large, descriptive action cards with labels and icons.
+
+Show a small number of genuinely useful summaries:
+
+- Profiles awaiting review.
+- Follow-ups due today.
+- Recent profile updates.
+- Matches awaiting a decision.
+- Recent introductions.
+- Outstanding payments, if the current role is authorized to see them.
+
+Avoid excessive charts and complicated data visualization.
+
+### Nadeem's navigation
+
+Desktop navigation may use a refined sidebar.
+
+Mobile navigation should use a bottom navigation bar for the most frequent sections, supported by a clearly labeled menu or secondary navigation for less frequent tasks.
+
+Suggested main sections:
+
+- Home.
+- Profiles.
+- Find Matches.
+- Follow-ups.
+- More.
+
+Do not attempt to place every feature in the bottom navigation.
+
+### Profile creation
+
+Build a guided, multi-step profile workflow instead of a long, intimidating form.
+
+Suggested steps:
+
+1. Personal Information.
+2. Education and Work.
+3. Family Details.
+4. Property and Household.
+5. Photographs and Consent.
+6. Marriage Preferences.
+7. Review and Save.
+
+Show progress, the current step, and a clear next action.
+
+Requirements:
+
+- Save progress in the frontend demo.
+- Support previous and next steps.
+- Validate required fields.
+- Show errors next to relevant fields.
+- Support optional, unknown, and not-disclosed values.
+- Display a final review before saving.
+- Make corrections easy.
+- Show a confirmation screen after successful demo submission.
+- Do not force every optional field to be completed.
+
+### Family records
+
+Support detailed records for each sibling, not merely a total sibling count.
+
+A sibling record may include:
+
+- Name, when appropriate.
+- Age or date-of-birth information, if supplied.
+- Occupation.
+- Marital status.
+- Marriage details.
+- Number of children and relevant details, where applicable.
+- Additional relevant information that is authorized and necessary.
+
+Allow the user to add, edit, and remove sibling entries.
+
+Parents' status and occupations should be recorded separately.
+
+Use repeatable sections and expandable details to keep the form manageable.
+
+### Property and home information
+
+Property data includes ownership status, land, house, approximate value, and household information where relevant.
+
+Design separate, clearly labeled fields rather than combining everything into a single text box.
+
+Support a flexible land-area input experience.
+
+For example, if a user enters 25 marla and the selected conversion convention defines 20 marla as one kanal, the interface should display the equivalent as 1 kanal and 5 marla.
+
+The unit system and conversion convention must be configurable. Do not assume all regional units or local conventions are universally identical.
+
+Support the appropriate units and conversion display for marla, kanal, square feet, and other configured units.
+
+Never silently change the original entered value.
+
+### Search and matching
+
+Create an intuitive, fast profile search interface with:
+
+- A prominent search field.
+- Quick filters.
+- Expandable advanced filters.
+- Clear selected-filter chips.
+- A reset-filters action.
+- Result counts.
+- Profile cards.
+- Sorting.
+- Useful empty states.
+- A comparison or shortlist capability where appropriate.
+
+Relevant filters include age, gender, marital status, religion, aqeedah, caste/biradari, education, occupation, income, location, family background, property, and other approved preferences.
+
+The interface must distinguish:
+
+- Mandatory criteria.
+- Preferred criteria.
+- Acceptable ranges.
+- Unknown information.
+- Information that has not been disclosed.
+
+For the prototype, allow users to select these classifications at runtime. Do not permanently assume that every criterion is mandatory.
+
+Show why a suggested candidate matches, which criteria are satisfied, and which information is missing or unverified.
+
+Use illustrative matching scores only when they are clearly labeled as demo values.
+
+Never imply that a matching score is the probability of a successful marriage.
+
+### Match review and controlled sharing
+
+Build a dedicated match-review screen.
+
+Include:
+
+- The requesting profile.
+- The proposed candidate.
+- A concise compatibility summary.
+- Criteria-by-criteria explanations.
+- Missing or unverified information.
+- A decision area.
+- Approve, reject, and defer actions.
+- A separate sharing approval.
+
+When preparing a WhatsApp message, let Nadeem choose exactly which fields may be disclosed.
+
+Show the final message preview before opening WhatsApp.
+
+Support English and Urdu message templates.
+
+The interface must never imply that opening WhatsApp means a message has been delivered or sent.
+
+In the frontend demo, simulate the workflow and use safe sample data. Do not claim to implement secure profile links, server-side authorization, or actual WhatsApp delivery unless the relevant backend integration exists.
+
+### Follow-ups
+
+Provide a clear follow-up workspace with:
+
+- Due today.
+- Upcoming.
+- Overdue.
+- Completed.
+- Introduction status.
+- Notes.
+- Next action.
+- Date and time.
+- Related customer or match case.
+
+Use practical filters and a simple timeline or activity history.
+
+### External matchmakers and finances
+
+Create separate workspaces for:
+
+- External matchmaker directory.
+- Profile-source attribution.
+- Matchmaker detail pages.
+- Payments and receipts.
+- Commissions and referral fees.
+- Amounts payable.
+- Amounts receivable.
+- Outstanding balances.
+- Financial activity history.
+
+Clearly distinguish money owed to an external matchmaker from money owed by that matchmaker.
+
+Use Pakistani rupee formatting for the default demo, with a clearly defined currency and locale.
+
+Provide filters and a clean transaction-entry form.
+
+Never fabricate financial activity as though it were real business data.
+
+## 5.3 Customer / Profiler portal
+
+Customers need a welcoming, discreet, reassuring experience.
+
+Their default language should be their chosen language, Urdu or English.
+
+Do not expose Nadeem's internal notes, matchmaker commissions, internal financial information, administrative actions, or other customers' private details.
+
+Required screens:
+
+1. Customer welcome and dashboard.
+2. Registration and account onboarding.
+3. Multi-step profile creation.
+4. My Profile.
+5. Edit Profile.
+6. My Marriage Preferences.
+7. Authorized Recommendations.
+8. Match Recommendation Details.
+9. Introduction Requests or History.
+10. Photograph and privacy settings.
+11. Consent and sharing preferences.
+12. Account settings.
+13. Correction, deactivation, and deletion request screens.
+14. Help and support.
+
+### Customer home screen
+
+Provide a calm, personal welcome with a concise status summary.
+
+Examples:
+
+- Complete your profile.
+- Your profile is awaiting review.
+- Your profile has been reviewed.
+- Update your marriage preferences.
+- A new recommendation is available.
+- An introduction request has been updated.
+
+These are example states for the demo, not guaranteed production workflows.
+
+### Customer registration
+
+Use a guided registration process with clear progress indicators.
+
+Explain why sensitive information is requested when applicable.
+
+Allow customers to save progress and return later.
+
+Keep optional fields optional.
+
+Do not force customers to disclose salary, property details, sensitive religious information, or family circumstances if those details are not required by the approved policy.
+
+### Customer recommendations
+
+Do not create unrestricted public browsing of all profiles.
+
+Show only sample recommendations that are explicitly authorized for the demo experience.
+
+A recommendation card may contain a profile identifier, approved display details, a concise match explanation, and a clear action.
+
+Private photographs and contact details must remain hidden unless an authorized workflow permits disclosure.
+
+### Customer privacy
+
+Create an understandable privacy center where customers can review their consent choices, photograph-sharing permissions, and requests for correction or deactivation.
+
+A visually polished privacy center is essential to the brand.
+
+---
+
+# 6. PUBLIC WEBSITE AND LANDING PAGE
+
+Build a complete premium public-facing website that introduces Gulistan and guides visitors toward registration or contacting the bureau.
+
+It must feel emotionally engaging without looking like a traditional wedding website or a dating application.
+
+## 6.1 Navigation
+
+Create a refined responsive header containing:
+
+- Gulistan brand mark.
+- Home.
+- Our Approach.
+- How It Works.
+- Privacy and Trust.
+- Contact.
+- Language selector.
+- A clear primary action such as Register Your Profile.
+- A secondary Sign In action.
+
+The header should have excellent spacing, a refined visual hierarchy, and an appropriate mobile menu.
+
+It may transition from transparent to a warm ivory surface after the user scrolls a small distance, but this must be subtle and must not become a major scroll animation.
+
+## 6.2 Hero section
+
+Create an elegant, high-impact hero.
+
+Suggested English headline:
+
+**A more thoughtful beginning.**
+
+Supporting text:
+
+“Meaningful introductions, thoughtfully managed. A trusted matchmaking experience built around your preferences, your privacy, and your family's peace of mind.”
+
+Primary CTA: Register Your Profile.
+
+Secondary CTA: How It Works.
+
+Use the supplied garden-arch reference as inspiration for the hero composition.
+
+The hero should include:
+
+- A beautifully typeset heading.
+- Concise supporting text.
+- Two clear calls to action.
+- A refined architectural visual composition.
+- Subtle decorative botanical details.
+- Carefully controlled entrance animations.
+- A placeholder for the future video asset.
+
+The hero must be beautiful at desktop and mobile widths.
+
+Do not use autoplay video, a full-screen video substitute, a massive animated background, or a complicated scroll-triggered sequence.
+
+The future video placeholder should have a clear component boundary so the asset can be integrated later without redesigning the entire hero.
+
+## 6.3 Trust and introduction section
+
+Create a premium section explaining the bureau's approach.
+
+Possible themes:
+
+- Personal attention.
+- Thoughtful matching.
+- Respect for family preferences.
+- Controlled information sharing.
+- Human-reviewed introductions.
+
+Avoid unsupported numerical claims, fabricated success rates, false testimonials, invented awards, and unverified guarantees.
+
+## 6.4 How it works
+
+Use a refined four-step visual sequence:
+
+1. Share your profile.
+2. Define your preferences.
+3. Review suitable recommendations.
+4. Proceed with a thoughtful introduction.
+
+Use subtle line details, elegant numbers, and restrained transitions.
+
+## 6.5 Privacy and trust
+
+Create a clear privacy-focused section that communicates the intended principles of the service.
+
+Explain that profile visibility and sharing should be controlled and that recommendations are reviewed through the bureau's workflow.
+
+Do not claim that the prototype already has production-grade encryption, secure storage, or verified privacy compliance.
+
+## 6.6 Registration invitation
+
+Create a visually distinctive CTA section that encourages customers to begin their profile.
+
+Use a premium composition, clear language, and a straightforward action.
+
+## 6.7 Footer
+
+Include:
+
+- Brand mark and short description.
+- Navigation links.
+- Contact placeholders.
+- Privacy policy.
+- Terms of service.
+- Language selection.
+- Copyright line.
+
+Use clearly marked placeholders for any missing business contact information.
+
+Do not invent phone numbers, email addresses, addresses, or social media profiles.
+
+## 6.8 Additional public pages
+
+Build:
+
+- Our Approach.
+- How It Works.
+- Privacy Policy placeholder.
+- Terms placeholder.
+- Contact.
+- Registration.
+- Sign In.
+
+Ensure the public site has complete navigation and that every CTA leads to a relevant screen.
+
+---
+
+# 7. MOTION DESIGN SYSTEM
+
+Animation is one of the defining characteristics of this redesign.
+
+The website must feel sophisticated, fluid, carefully choreographed, and premium.
+
+However, the motion must support clarity rather than compete with it.
+
+**We want rich UI animation, not excessive scroll animation.**
+
+## 7.1 Motion reference libraries
+
+Study the motion principles and interaction patterns of the following resources when appropriate:
+
+- Framer Motion documentation: https://motion.dev/
+- GSAP: https://gsap.com/
+- Motion One / Web Animations API patterns where suitable.
+- React Bits: https://reactbits.dev/
+- Lottie: https://lottiefiles.com/
+- Awwwards: https://www.awwwards.com/
+
+These are references for quality and technique, not instructions to copy another site's identity.
+
+Prefer one primary animation system. For a React frontend, Motion for React (formerly Framer Motion) is a strong default for component-level transitions and orchestration. Use GSAP selectively if a particular animation genuinely benefits from it.
+
+Do not install multiple animation libraries without a clear reason.
+
+Verify the current APIs, package names, and compatibility before implementing them.
+
+## 7.2 Required animation categories
+
+Implement a cohesive motion language with the following categories.
+
+### A. Page entrance
+
+When a page opens:
+
+- Fade in the page content.
+- Slide key content upward slightly.
+- Stagger the appearance of major sections or cards.
+- Introduce headings with a refined text reveal.
+- Let the content settle quickly into a stable state.
+
+Use small distances and smooth easing.
+
+Typical duration: approximately 250–650 ms, depending on the interaction.
+
+Do not delay the user's ability to interact with the page while decorative animation plays.
+
+### B. Text animation
+
+Use tasteful text reveals for selected headings:
+
+- Fade and translate.
+- Line-by-line reveals for major editorial headings.
+- Gentle opacity transitions.
+- Small staggered entrances.
+
+Avoid continuously animating text, excessive letter-by-letter effects, or motion that makes Urdu difficult to read.
+
+### C. Cards
+
+Cards should feel responsive and tactile.
+
+Implement:
+
+- Gentle entrance staggering.
+- Subtle hover elevation on desktop.
+- Border-color transitions.
+- Small image zoom effects where appropriate.
+- Smooth expansion of card details.
+- Clear selected and active states.
+
+Do not tilt every card or apply exaggerated 3D effects across the application.
+
+### D. Buttons
+
+Buttons should have refined interactive feedback:
+
+- Smooth color transitions.
+- A small hover lift where appropriate.
+- Subtle press compression.
+- Clear focus rings.
+- Loading indicators.
+- Success-state feedback.
+
+Use no more than a few carefully chosen effects per button.
+
+### E. Forms and controls
+
+Implement:
+
+- Smooth focus transitions.
+- Clear validation-state transitions.
+- Animated progress indicators.
+- Smooth step changes in multi-step forms.
+- Expand/collapse transitions.
+- Checkbox and radio selection feedback.
+- A subtle success confirmation after saving.
+- Reduced-motion alternatives.
+
+Form animation must never move fields so dramatically that users lose their place.
+
+### F. Dialogs and drawers
+
+Dialogs, side panels, and mobile menus should:
+
+- Fade in.
+- Scale slightly or translate a short distance.
+- Use an appropriate backdrop transition.
+- Close predictably.
+- Support keyboard interaction.
+- Respect focus management and reduced-motion preferences.
+
+### G. Navigation
+
+Use subtle transitions for:
+
+- Active navigation indicators.
+- Dropdown menus.
+- Sidebar expansion.
+- Mobile bottom navigation.
+- Tab changes.
+- Language switching.
+
+Avoid elaborate animated navigation that slows frequent operational tasks.
+
+### H. Image motion
+
+Where appropriate, use:
+
+- Gentle image scaling.
+- Soft mask reveals.
+- Subtle parallax limited to a small decorative element.
+- Refined image transitions.
+- Low-amplitude floating elements in selected decorative compositions.
+
+Keep photographs static in most administrative screens so users can review profiles comfortably.
+
+### I. Data and status transitions
+
+Use motion for:
+
+- A new record appearing.
+- A status changing.
+- A follow-up being marked complete.
+- A filter being applied.
+- A shortlist being updated.
+- A transaction being saved.
+- A recommendation being approved.
+
+Prefer concise feedback over full-page celebrations.
+
+## 7.3 Motion principles
+
+Create reusable motion presets, for example:
+
+- `fadeIn`
+- `fadeUp`
+- `staggerChildren`
+- `softScale`
+- `slideIn`
+- `expandCollapse`
+- `modalEnter`
+- `pageTransition`
+- `successFeedback`
+
+These names are illustrative; implement the appropriate equivalents in the chosen animation system.
+
+Use consistent durations, easing, distances, and stagger intervals.
+
+Use transform and opacity where possible to avoid expensive layout recalculation.
+
+Avoid unnecessary animation loops, continuous floating across every section, excessive blur filters, and animations that cause layout shifts.
+
+## 7.4 Scroll-animation restriction
+
+This is a strict requirement.
+
+Do not create:
+
+- Full-screen scroll hijacking.
+- Long pinned scrolling sequences.
+- Large parallax journeys.
+- Scroll-controlled video simulation.
+- Multi-screen animated storytelling.
+- Excessive section-by-section scroll reveals.
+- Animations that force users to wait before reading content.
+
+Ordinary page scrolling must remain natural.
+
+A small number of subtle viewport-triggered reveals is acceptable, but page content should be visible immediately when reduced motion is enabled.
+
+## 7.5 Reduced motion
+
+Support `prefers-reduced-motion`.
+
+When reduced motion is enabled:
+
+- Disable unnecessary movement and parallax.
+- Replace complex reveals with simple fades or immediate visibility.
+- Avoid continuous loops.
+- Keep all interactions functional.
+
+The site must never depend on animation to communicate a status or action.
+
+---
+
+# 8. BILINGUAL EXPERIENCE: ENGLISH AND URDU
+
+Bilingual functionality is a core product requirement, not a future enhancement.
+
+Implement complete English and Urdu UI localization throughout the frontend.
+
+## 8.1 Language behavior
+
+- Admin: English-only interface.
+- Nadeem: Urdu by default, with an option to switch to English.
+- Customers: Urdu or English, chosen during onboarding or through a persistent language selector.
+
+Remember the chosen language in the prototype using an appropriate local persistence mechanism.
+
+Profile data must remain separate from interface translations.
+
+Never automatically translate a person's name or silently rewrite family-provided information.
+
+## 8.2 True RTL support
+
+When Urdu is selected:
+
+- Set the document direction to RTL.
+- Mirror the layout where appropriate.
+- Reverse navigation and horizontal alignment appropriately.
+- Align form labels and fields correctly.
+- Use correct RTL spacing and icon positioning.
+- Ensure breadcrumbs, drawers, menus, and progress indicators behave correctly.
+- Keep numbers, phone numbers, currency, and technical identifiers readable.
+- Prevent Urdu text from colliding with icons or field controls.
+- Test mixed Urdu and English text.
+
+Do not implement Urdu by merely translating labels while leaving the entire layout in LTR.
+
+## 8.3 Localization architecture
+
+Create a proper localization structure.
+
+Use translation dictionaries or a suitable i18n library.
+
+Do not scatter hard-coded language conditionals throughout the application.
+
+All user-facing strings, validation messages, navigation labels, button labels, empty states, modal text, and status labels should be localized.
+
+Implement RTL-aware layout utilities or logical CSS properties such as `margin-inline-start`, `padding-inline-end`, and `text-align: start`.
+
+Avoid blindly mirroring icons whose meaning should not change.
+
+## 8.4 Urdu content quality
+
+Use natural, respectful Urdu suitable for a Pakistani marriage-bureau context.
+
+Suggested interface labels:
+
+- نیا پروفائل شامل کریں
+- مناسب رشتہ تلاش کریں
+- پروفائل کا جائزہ لیں
+- میری ترجیحات
+- تجویز کا جائزہ لیں
+- واٹس ایپ پر شیئر کریں
+- محفوظ کریں
+- اگلا مرحلہ
+- پچھلا مرحلہ
+
+Have all translated copy reviewed for clarity and consistency.
+
+Do not use machine-translated placeholder Urdu across the interface.
+
+---
+
+# 9. COMPLETE FRONTEND SCREEN INVENTORY
+
+Implement the following screens as part of one cohesive application.
+
+## Public and onboarding
+
+1. Public landing page.
+2. Our Approach.
+3. How It Works.
+4. Privacy page.
+5. Contact page.
+6. Registration choice.
+7. Customer registration.
+8. Sign-in screen.
+9. Demo role selection.
+10. Unauthorized or not-found screen.
+
+## Admin
+
+11. Admin dashboard.
+12. User management.
+13. Roles and permissions.
+14. Profile oversight.
+15. Pending registrations.
+16. Matchmaker oversight.
+17. Financial overview.
+18. Reports.
+19. Audit activity.
+20. System settings.
+
+## Nadeem
+
+21. Matchmaker dashboard.
+22. Profile directory.
+23. Profile detail.
+24. Create profile.
+25. Edit profile.
+26. Family and sibling editor.
+27. Property and household editor.
+28. Photograph and consent step.
+29. Marriage preferences editor.
+30. Profile review and save.
+31. Advanced profile search.
+32. Search results.
+33. Candidate comparison or shortlist.
+34. Match review.
+35. Recommendation approval.
+36. Controlled sharing.
+37. WhatsApp message preview.
+38. Introduction history.
+39. Follow-up dashboard.
+40. Follow-up detail.
+41. External matchmaker directory.
+42. Matchmaker detail.
+43. Financial ledger.
+44. Add transaction.
+45. Outstanding balances.
+46. Business reports.
+47. Profile-source history.
+48. Settings and language preferences.
+
+## Customer / Profiler
+
+49. Customer dashboard.
+50. Registration wizard.
+51. My Profile.
+52. Edit Profile.
+53. My Preferences.
+54. Preference editor.
+55. Authorized recommendations.
+56. Recommendation detail.
+57. Introduction history.
+58. Photograph settings.
+59. Privacy and consent center.
+60. Account settings.
+61. Support and contact.
+62. Correction, deactivation, or deletion request.
+
+This is a screen inventory, not a requirement to create 62 unrelated page templates. Use shared components, related routes, and sensible nested layouts.
+
+Every screen must be accessible through a logical navigation path.
+
+If the environment cannot support every screen in one implementation pass, establish the design system and complete the principal journeys first, then implement the remaining screens using the same architecture. Do not replace missing screens with nonfunctional placeholder buttons.
+
+---
+
+# 10. PROFILE CARD DESIGN
+
+Create a distinctive, reusable profile card that communicates useful information without revealing too much.
+
+The card should have:
+
+- A well-composed photograph or neutral placeholder.
+- A profile reference number.
+- An approved display name or privacy-conscious identifier.
+- Age, where authorized.
+- Education.
+- Occupation.
+- Location.
+- Marital status.
+- Selected relevant family details.
+- Verification or completeness indicators.
+- A concise match explanation when appropriate.
+- Clear action buttons.
+
+Avoid presenting every possible field on the card.
+
+Use expandable details or a full profile page for additional information.
+
+Provide privacy-aware visual states:
+
+- Pending.
+- Approved.
+- Inactive.
+- Restricted.
+- Awaiting verification.
+- Authorized for introduction.
+
+Status labels must use both text and visual indicators.
+
+Do not use actual personal information. All demonstration profiles must be synthetic and clearly marked as sample records.
+
+Use fictional names, fictional phone numbers, and appropriate placeholder photographs or illustrations.
+
+Never use identifiable private photographs from real customers.
+
+---
+
+# 11. DATA MODEL AND SAMPLE CONTENT
+
+Use the supplied SRS as the source of truth for the profile fields and business workflows.
+
+The frontend should accommodate:
+
+### Personal information
+
+- Name.
+- Gender.
+- Age or date of birth, when supplied.
+- Marital status.
+- Religion.
+- Aqeedah.
+- Caste or biradari.
+- Education.
+- Height.
+- Occupation.
+- Job title.
+- Salary or income.
+- Hometown.
+- Current residence.
+- Special qualities.
+- Hobbies.
+
+### Family information
+
+- Number of siblings.
+- Individual sibling records.
+- Sibling occupations.
+- Sibling marital statuses.
+- Sibling marriage details.
+- Children and relevant details where applicable.
+- Parents' status.
+- Father's occupation.
+- Mother's occupation.
+
+### Property and household
+
+- Property ownership.
+- Property type.
+- Land or property area.
+- Approximate property value.
+- Currency.
+- Home size.
+- Household arrangements.
+- Other relevant authorized information.
+
+### Preferences
+
+- Preferred age range.
+- Relevant gender preference.
+- Religion.
+- Aqeedah.
+- Caste or biradari.
+- Marital status.
+- Height.
+- Education.
+- Occupation.
+- Income.
+- Location.
+- Family expectations.
+- Property or household expectations.
+- Lifestyle.
+- Special qualities.
+- Marriage arrangements.
+- Relocation preferences.
+- Work-after-marriage preferences.
+
+Each preference must support a runtime classification such as mandatory, preferred, acceptable range, unknown, or not disclosed.
+
+Do not assume that the user's own profile facts are identical to their desired spouse preferences.
+
+### Administrative and operational information
+
+- Unique profile identifier.
+- Profile creation and update dates.
+- Profile status.
+- Profile source.
+- Matchmaker attribution.
+- Contact information.
+- Preferred contact method.
+- Preferred language.
+- Photograph references.
+- Consent state.
+- Verification state.
+- Match history.
+- Sharing approvals.
+- Follow-ups.
+- Financial entries where applicable.
+
+For the frontend demo, create a coherent set of synthetic records that demonstrates these workflows.
+
+Do not hard-code unrelated example data into every individual component. Use a centralized mock-data layer so the prototype behaves consistently.
+
+---
+
+# 12. TECHNICAL IMPLEMENTATION
+
+Build the actual frontend in the environment provided by Google AI Studio.
+
+Preferred stack, if supported by the environment:
+
+- React.
+- TypeScript.
+- Vite or the environment's established React setup.
+- Tailwind CSS or a well-organized CSS design system.
+- Motion for React for component animation.
+- React Router or an equivalent routing solution.
+- React Hook Form and Zod, or an equivalent form and validation approach.
+- Lucide React or another consistent icon library.
+- An appropriate localization library or a well-structured custom i18n layer.
+
+Do not blindly replace the environment's existing stack if it already has a working foundation. Inspect the current project first and adapt the implementation appropriately.
+
+## 12.1 Architecture
+
+Use a clear, maintainable structure with reusable components.
+
+Suggested organization:
+
+- `app/` — application setup and routing.
+- `components/ui/` — reusable design-system components.
+- `components/layout/` — headers, sidebars, navigation, footers.
+- `components/profile/` — profile cards and profile sections.
+- `components/forms/` — reusable field and form components.
+- `components/matching/` — matching summaries and recommendation interfaces.
+- `components/motion/` — reusable animation wrappers and presets.
+- `features/admin/` — admin screens.
+- `features/matchmaker/` — Nadeem's workspace.
+- `features/customer/` — customer screens.
+- `features/public/` — public website.
+- `i18n/` — translations and direction handling.
+- `data/` — centralized mock data.
+- `types/` — shared TypeScript types.
+- `utils/` — formatting, unit conversion, filtering, and validation.
+
+This is a suggested structure, not an instruction to create unnecessary folders.
+
+Use reusable components rather than duplicating entire layouts.
+
+## 12.2 Routing
+
+Implement actual route navigation.
+
+Suggested route groups:
+
+- `/` — public landing page.
+- `/approach`
+- `/how-it-works`
+- `/privacy`
+- `/contact`
+- `/register`
+- `/login`
+- `/demo` — role selection.
+- `/admin/*`
+- `/matchmaker/*`
+- `/customer/*`
+
+The final paths may vary, but the role boundaries must remain clear.
+
+Do not build a single giant component containing all screens and nested conditionals.
+
+## 12.3 Functional prototype behavior
+
+The frontend must do more than look interactive.
+
+Implement working:
+
+- Navigation.
+- Language switching.
+- RTL/LTR switching.
+- Search and filters.
+- Profile cards and detail views.
+- Multi-step forms.
+- Field validation.
+- Add/edit/remove sibling entries.
+- Dynamic unit conversion.
+- Runtime preference classification.
+- Shortlisting.
+- Recommendation approval and rejection.
+- Follow-up status changes.
+- Transaction entry.
+- Table sorting and filtering where appropriate.
+- Modals and drawers.
+- Notifications.
+- Confirmation dialogs.
+- Empty states.
+- Loading states.
+- Demo data updates.
+- Save and cancel actions.
+
+Use centralized local mock data and appropriate browser persistence for the prototype where supported.
+
+The user must be able to complete realistic journeys from beginning to end.
+
+Example journey:
+
+Demo role selection → Nadeem dashboard → Create profile → Add family details → Set preferences → Review profile → Save → Search → Review a candidate → Approve a recommendation → Select disclosure fields → Preview a WhatsApp message.
+
+Another journey:
+
+Public landing page → Customer registration → Complete profile → Set preferences → View profile status → Open an authorized sample recommendation → Review privacy settings.
+
+Another journey:
+
+Admin dashboard → Review pending records → Inspect user permissions → View audit activity.
+
+All journeys should function without requiring a live backend.
+
+## 12.4 Demo authentication
+
+Implement a clearly identified demo-access mechanism for reviewing each role.
+
+It may simulate sign-in and role switching.
+
+Do not represent demo authentication as production security.
+
+Clearly separate demonstration behavior from real authentication and server-side authorization.
+
+## 12.5 No fake backend claims
+
+The present scope is frontend development.
+
+Do not pretend to implement:
+
+- Secure production authentication.
+- Database persistence.
+- Private object storage.
+- Enforceable server-side permissions.
+- Real profile-sharing authorization.
+- Actual message delivery.
+- Production audit logging.
+- Real payment processing.
+
+Instead, implement believable frontend simulations using synthetic data and clearly document where backend integration will be required.
+
+Never place secret keys or administrative credentials in browser code.
+
+## 12.6 Performance
+
+Optimize the interface for everyday Android phones and slower networks.
+
+Use:
+
+- Lazy loading where appropriate.
+- Efficient component rendering.
+- Responsive images.
+- Reasonable animation complexity.
+- Pagination or virtualization where needed.
+- Reusable layout components.
+- Minimal unnecessary dependencies.
+
+The intended system must eventually support at least 100,000 active profiles, but the frontend prototype should demonstrate scalable search and pagination patterns rather than loading thousands of records into the browser.
+
+Do not claim production-scale performance has been verified without actual testing.
+
+---
+
+# 13. RESPONSIVE DESIGN
+
+Design and verify the interface at the following approximate widths:
+
+- Small mobile: 320–375 px.
+- Standard mobile: 390–430 px.
+- Tablet: 768 px.
+- Laptop: 1024–1280 px.
+- Desktop: 1440 px and above.
+
+Use mobile-first design.
+
+On mobile:
+
+- Keep primary actions easy to reach.
+- Avoid horizontal scrolling.
+- Use readable text.
+- Keep forms comfortable to complete.
+- Use a bottom navigation bar for Nadeem's core workflows.
+- Ensure the language selector remains accessible.
+- Use full-width buttons where appropriate.
+- Transform complex tables into mobile-friendly layouts.
+- Ensure modals fit the available viewport.
+- Keep sensitive details from being accidentally exposed in crowded layouts.
+
+On desktop:
+
+- Use deliberate content widths.
+- Avoid stretching long text across excessively wide screens.
+- Use appropriate sidebars and multi-column forms.
+- Give dashboards a clear visual hierarchy.
+- Preserve generous whitespace without wasting the available area.
+
+Test Urdu and English independently at each important breakpoint.
+
+---
+
+# 14. MICROINTERACTIONS AND POLISH
+
+Pay special attention to details that distinguish a premium product from an ordinary template.
+
+Implement:
+
+- Consistent icon sizes and stroke weights.
+- Carefully aligned form labels.
+- Clear input placeholders.
+- Helpful supporting text.
+- Refined dropdown menus.
+- Search-field focus states.
+- Filter-chip interactions.
+- Smooth tab changes.
+- Loading skeletons where appropriate.
+- Elegant empty states.
+- Useful error messages.
+- Save confirmations.
+- Subtle status changes.
+- Well-designed modal transitions.
+- Clear keyboard focus.
+- Consistent spacing.
+- Thoughtful image cropping.
+- Proper number, date, and currency formatting.
+- A consistent system for disabled controls.
+
+Every visible control must have a meaningful behavior.
+
+Do not create buttons that look functional but do nothing.
+
+Do not use alert boxes as the primary feedback system. Prefer integrated notifications, inline feedback, or well-designed dialogs.
+
+---
+
+# 15. CONTENT AND COPYWRITING
+
+Write polished, natural, trustworthy copy for the public website and concise, helpful interface copy for the operational application.
+
+The public brand voice should be:
+
+- Warm.
+- Respectful.
+- Assured.
+- Discreet.
+- Human.
+- Professional.
+
+Avoid:
+
+- Overpromising.
+- Excessive marketing adjectives.
+- Guaranteed compatibility.
+- Guaranteed marriage success.
+- Fabricated testimonials.
+- False claims of verification.
+- Artificial scarcity.
+- Dating-app terminology that does not suit the service.
+
+Operational copy should prioritize clarity and action.
+
+Use realistic synthetic profile data, not lorem ipsum.
+
+The demo must feel like a believable working product.
+
+Clearly distinguish sample data from real customer information.
+
+---
+
+# 16. DESIGN QUALITY GATES
+
+Before considering the frontend complete, review the implementation against the following criteria.
+
+## Visual quality
+
+- Does the reference image clearly influence the visual identity?
+- Does the design feel luxurious and contemporary?
+- Are ivory, botanical teal, and champagne gold balanced correctly?
+- Is the public website visually distinctive?
+- Does the application feel like one coherent product?
+- Are cards, forms, tables, buttons, and dialogs consistently designed?
+- Is there a clear typographic hierarchy?
+- Does the design avoid the conventional marriage-bureau aesthetic?
+
+## User experience
+
+- Can Nadeem find the primary actions immediately?
+- Can he complete a profile without feeling overwhelmed?
+- Can he search and inspect candidates efficiently?
+- Is the matching explanation understandable?
+- Is the sharing workflow explicit?
+- Can customers understand their profile status?
+- Is the admin experience appropriately separate?
+- Are important actions reversible or confirmed when appropriate?
+
+## Animation
+
+- Are entrance transitions polished and restrained?
+- Do buttons and cards feel responsive?
+- Are form transitions smooth?
+- Are page transitions fast?
+- Is ordinary scrolling natural?
+- Are there no large scroll-driven animation sequences?
+- Does reduced-motion mode work?
+- Does animation preserve responsiveness?
+
+## Bilingual behavior
+
+- Is the English layout correct?
+- Is the Urdu layout genuinely RTL?
+- Are Urdu fonts readable?
+- Are navigation, forms, icons, and drawers correctly mirrored?
+- Are all important strings translated?
+- Are mixed-language values readable?
+
+## Functionality
+
+- Does every primary navigation item work?
+- Do forms validate correctly?
+- Does adding a sibling create a visible entry?
+- Does unit conversion work correctly?
+- Can filters be changed and cleared?
+- Can a recommendation be approved or rejected?
+- Can a message be previewed?
+- Can a transaction be added to the demo data?
+- Can users switch between demo roles?
+- Are loading, error, empty, and success states present?
+
+## Technical quality
+
+- Does the application compile and run?
+- Are there avoidable console errors?
+- Are routes valid?
+- Are components reusable?
+- Is the mock data centralized?
+- Are there unnecessary dependencies?
+- Does the interface remain usable on mobile?
+- Is sensitive demo data clearly fictional?
+- Are backend limitations documented honestly?
+
+---
+
+# 17. IMPLEMENTATION PROCESS
+
+Do not attempt to solve everything by creating a single oversized, unstructured page.
+
+Work in the following sequence.
+
+### Phase 1 — Inspect and establish the foundation
+
+Inspect the supplied files, image, and current project environment.
+
+Define the design tokens, typography, layout system, routing structure, and component conventions.
+
+Create the application shell and responsive foundations.
+
+### Phase 2 — Build the brand and public website
+
+Implement the header, landing page, hero, trust sections, process section, CTA, footer, and public navigation.
+
+Use the static architectural reference image and reserve a clear placeholder for the future video.
+
+### Phase 3 — Build the reusable component library
+
+Implement buttons, inputs, cards, status badges, dialogs, navigation, tabs, tables, notifications, loading states, and motion presets.
+
+### Phase 4 — Build Nadeem's primary workflows
+
+Implement the dashboard, profile wizard, family editor, preferences, search, match review, controlled sharing, and follow-ups.
+
+Prioritize mobile usability and the most common tasks.
+
+### Phase 5 — Build the customer portal
+
+Implement registration, profile management, preferences, authorized recommendations, introduction history, and privacy settings.
+
+### Phase 6 — Build the admin portal
+
+Implement administrative dashboards, user management, profile oversight, financial overview, reports, and audit activity.
+
+### Phase 7 — Integrate localization and motion
+
+Verify all primary screens in English and Urdu.
+
+Check RTL behavior, text wrapping, transitions, reduced-motion support, and responsive layouts.
+
+### Phase 8 — Test and refine
+
+Run the application.
+
+Fix errors and incomplete interactions.
+
+Test the primary journeys at mobile and desktop sizes.
+
+Review the visual consistency of all three stakeholder experiences.
+
+Do not stop after creating the landing page.
+
+---
+
+# 18. FINAL DELIVERABLE
+
+Deliver a complete, runnable frontend prototype that includes:
+
+1. A distinctive luxury brand identity based on the supplied reference image.
+2. A polished public website.
+3. A complete, navigable admin experience.
+4. A complete, navigable Nadeem matchmaker workspace.
+5. A complete, navigable customer / profiler portal.
+6. English and Urdu interfaces with correct LTR and RTL behavior.
+7. A consistent motion-design system.
+8. Functional forms and realistic frontend workflows.
+9. Centralized synthetic demo data.
+10. Responsive mobile, tablet, and desktop layouts.
+11. Reusable components and maintainable architecture.
+12. Clearly identified placeholders for future backend and video integration.
+
+The final application must be more than a visual concept. It must be an interactive frontend prototype that a product owner can explore, demonstrate, and evaluate with real users.
+
+If the environment supports a live preview, ensure it runs and that the main navigation and demo journeys work.
+
+At completion, provide a concise implementation report stating:
+
+- Which screens and workflows were implemented.
+- Which language and RTL features were implemented.
+- Which animation patterns were implemented.
+- Which interactions were tested.
+- Any known limitations.
+- Which backend integrations remain unimplemented.
+
+Do not claim that features work unless they were actually implemented and tested.
+
+---
+
+# 19. NON-NEGOTIABLE FINAL DESIGN DIRECTION
+
+Keep the following principles in mind throughout the implementation:
+
+**Luxury, not traditional.**
+
+Do not build a conventional wedding website, a generic dating app, or a standard admin template.
+
+**Rich UI, not visual clutter.**
+
+Create depth through typography, composition, surfaces, imagery, and careful detailing.
+
+**Rich interaction, not excessive movement.**
+
+Use beautiful fades, short slides, staggered entrances, elegant text reveals, tactile buttons, and refined component transitions. Avoid major scroll-animation sequences.
+
+**Simple operation, not oversimplification.**
+
+Nadeem must be able to complete important tasks comfortably. Complexity should be organized behind clear steps, sections, and progressive disclosure.
+
+**Bilingual by design, not by translation alone.**
+
+English and Urdu must each feel intentionally designed, with correct LTR and RTL behavior.
+
+**Privacy by design, not decorative assurances.**
+
+Show privacy-aware interfaces and controlled sharing flows without pretending frontend visuals alone provide security.
+
+**One coherent brand, three distinct experiences.**
+
+The admin, Nadeem, and customer portals must share the same visual identity while providing different navigation, information density, and workflows.
+
+**The supplied reference image is the creative foundation.**
+
+Use its architectural elegance, garden-inspired depth, botanical teal, warm ivory, and restrained gold as the visual DNA of Gulistan.
+
+**The future landing-page video is out of scope for this iteration.**
+
+Design the hero so that the video can be integrated later, but make the website exceptional without it.
+
+The final result should feel like a thoughtfully art-directed, premium international matchmaking product that happens to be exceptionally easy to use.
+
+Do not settle for the first acceptable design. Refine the details, test the journeys, improve the motion, and maintain a consistently high standard across every screen.
