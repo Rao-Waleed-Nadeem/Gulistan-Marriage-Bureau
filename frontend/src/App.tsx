@@ -242,6 +242,20 @@ export default function App() {
                 matchmakers={matchmakers}
                 transactions={transactions}
                 language={language}
+                activeTab={
+                  activeNav === 'profiles'
+                    ? 'profiles'
+                    : activeNav === 'search'
+                    ? 'search'
+                    : activeNav === 'followups'
+                    ? 'followups'
+                    : activeNav === 'finances'
+                    ? 'finances'
+                    : 'overview'
+                }
+                onTabChange={(tab) => {
+                  setActiveNav(tab === 'overview' ? 'dashboard' : tab);
+                }}
                 onNavigateToWizard={() => {
                   setActiveNav('create-profile');
                   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -255,12 +269,36 @@ export default function App() {
 
         {/* CUSTOMER / PROFILER PORTAL */}
         {currentRole === 'customer' && (
-          <CustomerPortal
-            currentProfile={profiles[0]} // Dr. Fatima Tariq
-            recommendations={recommendations}
-            candidateProfiles={profiles}
-            language={language}
-          />
+          <>
+            {activeNav === 'create-profile' ? (
+              <ProfileWizard
+                language={language}
+                onSaveProfile={handleSaveProfile}
+                onCancel={() => setActiveNav('dashboard')}
+              />
+            ) : (
+              <CustomerPortal
+                currentProfile={profiles[0]} // Dr. Fatima Tariq
+                recommendations={recommendations}
+                candidateProfiles={profiles}
+                language={language}
+                activeTab={
+                  activeNav === 'preferences'
+                    ? 'preferences'
+                    : activeNav === 'privacy-center' || activeNav === 'privacy'
+                    ? 'privacy'
+                    : activeNav === 'my-profile'
+                    ? 'my-profile'
+                    : 'recommendations'
+                }
+                onTabChange={(tab) => {
+                  if (tab === 'privacy') setActiveNav('privacy-center');
+                  else if (tab === 'recommendations') setActiveNav('dashboard');
+                  else setActiveNav(tab);
+                }}
+              />
+            )}
+          </>
         )}
 
         {/* SYSTEM ADMINISTRATOR PORTAL */}
@@ -270,6 +308,23 @@ export default function App() {
             auditLogs={auditLogs}
             matchmakers={matchmakers}
             transactions={transactions}
+            activeTab={
+              activeNav === 'profiles-audit'
+                ? 'profiles'
+                : activeNav === 'audit-logs'
+                ? 'audit'
+                : activeNav === 'system-settings'
+                ? 'settings'
+                : activeNav === 'users'
+                ? 'users'
+                : 'dashboard'
+            }
+            onTabChange={(tab) => {
+              if (tab === 'profiles') setActiveNav('profiles-audit');
+              else if (tab === 'audit') setActiveNav('audit-logs');
+              else if (tab === 'settings') setActiveNav('system-settings');
+              else setActiveNav('dashboard');
+            }}
             onUpdateProfileStatus={handleUpdateProfileStatus}
           />
         )}

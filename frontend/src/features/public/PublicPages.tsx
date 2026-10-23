@@ -42,14 +42,14 @@ export const OurApproach: React.FC<PublicPageProps> = ({ language, onNavigate })
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
         <div className="glass-card glass-card-interactive p-8 space-y-3">
           <h3 className="font-serif text-2xl font-bold text-[#182848]">Family Discretion</h3>
-          <p className="text-xs sm:text-sm text-[#252E2C]/80 leading-relaxed font-normal">
+          <p className="text-sm sm:text-base text-[#252E2C] leading-relaxed font-normal">
             Your daughter's or son's profile will never sit on an open public forum. Proposals are presented confidentially to vetted families only.
           </p>
         </div>
 
         <div className="glass-card glass-card-interactive p-8 space-y-3">
           <h3 className="font-serif text-2xl font-bold text-[#182848]">Verified Backgrounds</h3>
-          <p className="text-xs sm:text-sm text-[#252E2C]/80 leading-relaxed font-normal">
+          <p className="text-sm sm:text-base text-[#252E2C] leading-relaxed font-normal">
             We confirm educational degrees, professional standing, and ancestral roots before recommending a candidate.
           </p>
         </div>
@@ -58,7 +58,7 @@ export const OurApproach: React.FC<PublicPageProps> = ({ language, onNavigate })
       <div className="text-center pt-6">
         <button
           onClick={() => onNavigate('register')}
-          className="rounded-full bg-[#182848] px-8 py-3.5 text-xs font-semibold text-[#F7F3EA] shadow-xl hover:bg-[#283848] border border-[#B69A62]/35 transition-all cursor-pointer"
+          className="rounded-full bg-[#182848] px-8 py-3.5 sm:py-4 text-sm font-semibold text-[#F7F3EA] shadow-xl hover:bg-[#283848] border border-[#B69A62]/35 transition-all cursor-pointer"
         >
           {t.heroCtaPrimary}
         </button>
@@ -109,7 +109,7 @@ export const HowItWorksPage: React.FC<PublicPageProps> = ({ language, onNavigate
             <span className="font-serif text-4xl font-bold text-[#B69A62] shrink-0">{item.num}</span>
             <div className="space-y-1.5">
               <h3 className="font-serif text-2xl font-bold text-[#182848]">{item.title}</h3>
-              <p className="text-xs sm:text-sm text-[#252E2C]/80 leading-relaxed font-normal">{item.desc}</p>
+              <p className="text-sm sm:text-base text-[#252E2C] leading-relaxed font-normal">{item.desc}</p>
             </div>
           </div>
         ))}
@@ -118,7 +118,7 @@ export const HowItWorksPage: React.FC<PublicPageProps> = ({ language, onNavigate
       <div className="text-center pt-6">
         <button
           onClick={() => onNavigate('register')}
-          className="rounded-full bg-[#182848] px-8 py-3.5 text-xs font-semibold text-[#F7F3EA] shadow-xl hover:bg-[#283848] border border-[#B69A62]/35 transition-all cursor-pointer"
+          className="rounded-full bg-[#182848] px-8 py-3.5 sm:py-4 text-sm font-semibold text-[#F7F3EA] shadow-xl hover:bg-[#283848] border border-[#B69A62]/35 transition-all cursor-pointer"
         >
           Begin Registration
         </button>
@@ -136,26 +136,26 @@ export const PrivacyPolicyPage: React.FC<PublicPageProps> = () => {
           <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#182848] mt-1">
             Privacy, Dignity & Data Protection Principles
           </h1>
-          <p className="text-xs text-[#68716D] mt-1 font-medium">Effective Date: October 2026 • Gulistan Marriage Bureau</p>
+          <p className="text-sm text-[#68716D] mt-1 font-medium">Effective Date: October 2026 • Gulistan Marriage Bureau</p>
         </div>
 
-        <div className="prose prose-sm max-w-none text-xs sm:text-sm text-[#252E2C] space-y-6 leading-relaxed">
+        <div className="prose prose-sm max-w-none text-sm sm:text-base text-[#252E2C] space-y-6 leading-relaxed">
           <section className="space-y-2">
-            <h3 className="font-serif text-xl font-bold text-[#182848]">1. The Principle of Family Sanctity</h3>
+            <h3 className="font-serif text-xl sm:text-2xl font-bold text-[#182848]">1. The Principle of Family Sanctity</h3>
             <p>
               Gulistan Marriage Bureau treats every client portfolio with the highest standard of familial honor. We do not operate an open, searchable public dating directory. Information is shared only with vetted prospects through matchmaker intermediation.
             </p>
           </section>
 
           <section className="space-y-2">
-            <h3 className="font-serif text-xl font-bold text-[#182848]">2. Controlled Disclosures (WhatsApp Proposals)</h3>
+            <h3 className="font-serif text-xl sm:text-2xl font-bold text-[#182848]">2. Controlled Disclosures (WhatsApp Proposals)</h3>
             <p>
               Whenever a proposal is dispatched to a prospective candidate, the candidate or matchmaker explicitly chooses which fields are visible. Salary, residential address, and phone numbers may be withheld until initial parental assent is received.
             </p>
           </section>
 
           <section className="space-y-2">
-            <h3 className="font-serif text-xl font-bold text-[#182848]">3. Right to Correction, Deactivation & Deletion</h3>
+            <h3 className="font-serif text-xl sm:text-2xl font-bold text-[#182848]">3. Right to Correction, Deactivation & Deletion</h3>
             <p>
               Any registered candidate or family representative may request data corrections, portfolio deactivation, or permanent deletion by submitting a request through their dedicated Customer Portal.
             </p>
@@ -174,25 +174,25 @@ export const ContactPage: React.FC<PublicPageProps> = () => {
         <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#182848] drop-shadow-[0_1px_1px_rgba(247,243,234,0.9)]">
           Contact Gulistan Bureau
         </h1>
-        <p className="text-xs sm:text-sm text-[#252E2C] font-medium leading-relaxed">
+        <p className="text-sm sm:text-base text-[#252E2C] font-medium leading-relaxed">
           Consultations in Lahore and Islamabad are scheduled strictly by appointment to guarantee absolute privacy for every family.
         </p>
       </div>
 
       <div className="glass-panel p-8 sm:p-10 space-y-5 max-w-xl mx-auto shadow-xl border border-white/60">
         <div>
-          <label className="block text-xs font-semibold text-[#182848] mb-1.5">Your Full Name</label>
-          <input type="text" placeholder="e.g. Tariq Mehmood" className="glass-input w-full p-3 text-xs" />
+          <label className="block text-sm font-semibold text-[#182848] mb-1.5">Your Full Name</label>
+          <input type="text" placeholder="e.g. Tariq Mehmood" className="glass-input w-full p-3 text-sm" />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-[#182848] mb-1.5">Contact Phone / WhatsApp</label>
-          <input type="text" placeholder="+92 300 0000000" className="glass-input w-full p-3 text-xs" />
+          <label className="block text-sm font-semibold text-[#182848] mb-1.5">Contact Phone / WhatsApp</label>
+          <input type="text" placeholder="+92 300 0000000" className="glass-input w-full p-3 text-sm" />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-[#182848] mb-1.5">Preferred City of Meeting</label>
-          <select className="glass-input w-full p-3 text-xs">
+          <label className="block text-sm font-semibold text-[#182848] mb-1.5">Preferred City of Meeting</label>
+          <select className="glass-input w-full p-3 text-sm">
             <option>Lahore Office (Gulberg / DHA)</option>
             <option>Islamabad Office (F-7)</option>
             <option>Confidential Video Consultation</option>
@@ -200,13 +200,13 @@ export const ContactPage: React.FC<PublicPageProps> = () => {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-[#182848] mb-1.5">Inquiry Details</label>
-          <textarea rows={3} placeholder="Tell us about the candidate profile..." className="glass-input w-full p-3 text-xs" />
+          <label className="block text-sm font-semibold text-[#182848] mb-1.5">Inquiry Details</label>
+          <textarea rows={3} placeholder="Tell us about the candidate profile..." className="glass-input w-full p-3 text-sm" />
         </div>
 
         <button
           onClick={() => alert('Consultation request received! Our senior matchmaker will connect with you via telephone.')}
-          className="w-full rounded-full bg-[#182848] py-3.5 text-xs font-semibold text-[#F7F3EA] shadow-xl hover:bg-[#283848] border border-[#B69A62]/35 transition-all cursor-pointer"
+          className="w-full rounded-full bg-[#182848] py-3.5 sm:py-4 text-sm font-semibold text-[#F7F3EA] shadow-xl hover:bg-[#283848] border border-[#B69A62]/35 transition-all cursor-pointer"
         >
           Request Confidential Appointment
         </button>

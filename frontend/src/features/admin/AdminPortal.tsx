@@ -22,6 +22,8 @@ interface AdminPortalProps {
   auditLogs: AuditLogItem[];
   matchmakers: ExternalMatchmaker[];
   transactions: FinancialTransaction[];
+  activeTab?: 'dashboard' | 'profiles' | 'users' | 'audit' | 'settings';
+  onTabChange?: (tab: 'dashboard' | 'profiles' | 'users' | 'audit' | 'settings') => void;
   onUpdateProfileStatus: (id: string, newStatus: any) => void;
 }
 
@@ -30,9 +32,28 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   auditLogs,
   matchmakers,
   transactions,
+  activeTab: activeTabProp,
+  onTabChange,
   onUpdateProfileStatus,
 }) => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'profiles' | 'users' | 'audit' | 'settings'>('dashboard');
+  const [internalTab, setInternalTab] = useState<'dashboard' | 'profiles' | 'users' | 'audit' | 'settings'>(
+    activeTabProp || 'dashboard'
+  );
+
+  React.useEffect(() => {
+    if (activeTabProp) {
+      setInternalTab(activeTabProp);
+    }
+  }, [activeTabProp]);
+
+  const activeTab = activeTabProp || internalTab;
+
+  const setActiveTab = (tab: 'dashboard' | 'profiles' | 'users' | 'audit' | 'settings') => {
+    setInternalTab(tab);
+    if (onTabChange) {
+      onTabChange(tab);
+    }
+  };
   const [profileSearch, setProfileSearch] = useState('');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
 

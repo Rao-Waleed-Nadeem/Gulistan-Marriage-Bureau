@@ -40,6 +40,8 @@ interface NadeemDashboardProps {
   matchmakers: ExternalMatchmaker[];
   transactions: FinancialTransaction[];
   language: Language;
+  activeTab?: 'overview' | 'profiles' | 'search' | 'followups' | 'finances';
+  onTabChange?: (tab: 'overview' | 'profiles' | 'search' | 'followups' | 'finances') => void;
   onNavigateToWizard: () => void;
   onUpdateFollowUpStatus: (id: string, status: 'pending' | 'completed') => void;
   onAddTransaction: (tx: FinancialTransaction) => void;
@@ -52,6 +54,8 @@ export const NadeemDashboard: React.FC<NadeemDashboardProps> = ({
   matchmakers,
   transactions,
   language,
+  activeTab: activeTabProp,
+  onTabChange,
   onNavigateToWizard,
   onUpdateFollowUpStatus,
   onAddTransaction,
@@ -59,7 +63,24 @@ export const NadeemDashboard: React.FC<NadeemDashboardProps> = ({
   const t = translations[language];
 
   // Active view tab inside Nadeem workspace
-  const [activeTab, setActiveTab] = useState<'overview' | 'profiles' | 'search' | 'followups' | 'finances'>('overview');
+  const [internalTab, setInternalTab] = useState<'overview' | 'profiles' | 'search' | 'followups' | 'finances'>(
+    activeTabProp || 'overview'
+  );
+
+  React.useEffect(() => {
+    if (activeTabProp) {
+      setInternalTab(activeTabProp);
+    }
+  }, [activeTabProp]);
+
+  const activeTab = activeTabProp || internalTab;
+
+  const setActiveTab = (tab: 'overview' | 'profiles' | 'search' | 'followups' | 'finances') => {
+    setInternalTab(tab);
+    if (onTabChange) {
+      onTabChange(tab);
+    }
+  };
   
   // Search and Filter state
   const [searchQuery, setSearchQuery] = useState('');

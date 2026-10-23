@@ -101,7 +101,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <h3 className="font-serif text-2xl font-bold text-[#182848] mb-3">
               {language === 'ur' ? 'مکمل رازداری و حفاظت' : 'Uncompromising Privacy'}
             </h3>
-            <p className="text-xs sm:text-sm text-[#252E2C]/80 leading-relaxed font-normal">
+            <p className="text-sm sm:text-base text-[#252E2C] leading-relaxed font-normal">
               {language === 'ur'
                 ? 'امید واروں کی تصاویر اور خاندانی نمبرز عام نہیں کیے جاتے۔ معلومات صرف باہمی رضامندی اور میچ میکر کی تصدیق کے بعد شیئر ہوتی ہیں۔'
                 : 'Photographs, current compensation, and direct family contact numbers are strictly guarded and disclosed exclusively with your explicit authorization.'}
@@ -115,7 +115,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <h3 className="font-serif text-2xl font-bold text-[#182848] mb-3">
               {language === 'ur' ? 'انفرادی توجہ و رہنمائی' : 'Personal Matchmaker Care'}
             </h3>
-            <p className="text-xs sm:text-sm text-[#252E2C]/80 leading-relaxed font-normal">
+            <p className="text-sm sm:text-base text-[#252E2C] leading-relaxed font-normal">
               {language === 'ur'
                 ? 'ندیم صاحب اور ان کی ٹیم ہر خاندان سے تفصیلی رابطہ کر کے تعلیمی، خاندانی اور اخلاقی معیارات کا ذاتی طور پر جائزہ لیتے ہیں۔'
                 : 'Nadeem Ahmed and our experienced consultants personally review every profile, understanding nuance, family temperament, and spiritual harmony.'}
@@ -129,7 +129,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <h3 className="font-serif text-2xl font-bold text-[#182848] mb-3">
               {language === 'ur' ? 'مصدقہ خاندانی کوائف' : 'Verified Family Credentials'}
             </h3>
-            <p className="text-xs sm:text-sm text-[#252E2C]/80 leading-relaxed font-normal">
+            <p className="text-sm sm:text-base text-[#252E2C] leading-relaxed font-normal">
               {language === 'ur'
                 ? 'تعلیمی اسناد، پیشے کی سچائی، رہائشی اسٹیٹس اور خاندانی وقار کی آزادانہ تصدیق بیورو کے ضوابط کا لازمی حصہ ہے۔'
                 : 'Educational pedigrees, professional affiliations, and family backgrounds are thoroughly verified prior to arranging formal introductions.'}
@@ -193,7 +193,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   <h4 className="font-serif text-xl font-bold text-[#F7F3EA]">
                     {language === 'ur' ? st.titleUr : st.titleEn}
                   </h4>
-                  <p className="text-xs text-[#88A8A8]/80 leading-relaxed font-normal">
+                  <p className="text-sm text-[#D8C8A8] leading-relaxed font-normal">
                     {language === 'ur' ? st.descUr : st.descEn}
                   </p>
                 </div>
@@ -212,14 +212,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <h3 className="font-serif text-3xl sm:text-4xl font-bold text-[#182848] drop-shadow-[0_1px_1px_rgba(247,243,234,0.9)]">
             Experience All Three Stakeholder Workspaces
           </h3>
-          <p className="text-xs sm:text-sm text-[#252E2C]/80 max-w-xl mx-auto leading-relaxed font-medium">
+          <p className="text-sm sm:text-base text-[#252E2C] max-w-2xl mx-auto leading-relaxed font-medium">
             Switch between Nadeem (lead matchmaker operational desk), Candidates (client portal), and Admin (system oversight) to evaluate the end-to-end frontend experience.
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
             <button
               onClick={() => onSelectRole('nadeem')}
-              className="rounded-full bg-[#182848] px-6 py-3 text-xs font-semibold text-[#F7F3EA] shadow-md hover:bg-[#283848] transition-all flex items-center gap-2 border border-[#B69A62]/30 cursor-pointer"
+              className="rounded-full bg-[#182848] px-6 py-3.5 text-sm font-semibold text-[#F7F3EA] shadow-md hover:bg-[#283848] transition-all flex items-center gap-2 border border-[#B69A62]/30 cursor-pointer"
             >
               <span>{t.roleNadeem}</span>
               <ChevronRight className="w-4 h-4 text-[#B69A62]" />
@@ -227,7 +227,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
             <button
               onClick={() => onSelectRole('customer')}
-              className="rounded-full border border-[#B69A62]/40 bg-white/10 hover:bg-white/20 backdrop-blur-md px-6 py-3 text-xs font-semibold text-[#182848] shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+              className="rounded-full border border-[#B69A62]/40 bg-white/20 hover:bg-white/30 backdrop-blur-md px-6 py-3.5 text-sm font-semibold text-[#182848] shadow-xs transition-all flex items-center gap-2 cursor-pointer"
             >
               <span>{t.roleCustomer}</span>
               <ChevronRight className="w-4 h-4 text-[#B69A62]" />
@@ -235,7 +235,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
             <button
               onClick={() => onSelectRole('admin')}
-              className="rounded-full border border-white/20 bg-white/10 hover:bg-white/20 backdrop-blur-md px-6 py-3 text-xs font-semibold text-[#252E2C] transition-all flex items-center gap-2 cursor-pointer"
+              className="rounded-full border border-[#182848]/20 bg-white/20 hover:bg-white/30 backdrop-blur-md px-6 py-3.5 text-sm font-semibold text-[#182848] transition-all flex items-center gap-2 cursor-pointer"
             >
               <span>{t.roleAdmin}</span>
               <ChevronRight className="w-4 h-4 text-[#B69A62]" />

@@ -301,31 +301,32 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
             return (
               <div key={st.num} className="flex items-center flex-1 last:flex-none">
                 <button
+                  type="button"
                   onClick={() => {
                     if (st.num < currentStep || validateStep(currentStep)) {
                       setCurrentStep(st.num);
                     }
                   }}
-                  className={`flex flex-col items-center group focus:outline-none`}
+                  className={`flex flex-col items-center group focus:outline-none cursor-pointer`}
                 >
                   <div
-                    className={`flex h-10 w-10 items-center justify-center rounded-2xl border text-xs font-semibold transition-all ${
+                    className={`flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-2xl border text-sm font-semibold transition-all ${
                       isActive
-                        ? 'border-[#182848] bg-[#182848] text-[#F7F3EA] shadow-md ring-4 ring-[#182848]/10'
+                        ? 'border-[#182848] bg-[#182848] text-[#F7F3EA] shadow-md ring-4 ring-[#182848]/15 scale-105'
                         : isCompleted
-                        ? 'border-emerald-600 bg-emerald-50/80 text-emerald-700'
-                        : 'border-white/15 bg-white/10 backdrop-blur-md text-[#68716D]'
+                        ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
+                        : 'border-[#182848]/15 bg-white/40 text-[#68716D]'
                     }`}
                   >
-                    {isCompleted ? <CheckCircle className="w-5 h-5" /> : <Icon className="w-4 h-4" />}
+                    {isCompleted ? <CheckCircle className="w-5 h-5" /> : <Icon className="w-4 h-4 sm:w-5 sm:h-5" />}
                   </div>
                   <span
-                    className={`mt-1.5 text-[11px] whitespace-nowrap transition-all duration-300 ${
+                    className={`mt-2 whitespace-nowrap transition-all duration-300 ${
                       isActive 
-                        ? 'px-3 py-1 rounded-full bg-[#182848] text-[#F7F3EA] font-bold shadow-md border border-[#B69A62]/40 tracking-wide scale-105' 
+                        ? 'px-3.5 py-1.5 rounded-full bg-[#182848] text-[#F7F3EA] text-xs sm:text-sm font-semibold shadow-md border border-[#B69A62]/50 tracking-wide ring-2 ring-[#B69A62]/20' 
                         : isCompleted 
-                        ? 'text-emerald-800 font-medium px-1' 
-                        : 'text-[#68716D] font-medium px-1'
+                        ? 'text-emerald-800 font-medium text-xs sm:text-sm px-1.5' 
+                        : 'text-[#68716D] font-medium text-xs sm:text-sm px-1.5 opacity-80'
                     }`}
                   >
                     {st.title}
@@ -361,7 +362,7 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
               {t.stepPersonal}
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-sm">
               <div>
                 <label className="block font-semibold text-[#182848] mb-1">
                   {t.fullName} *
@@ -489,7 +490,7 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
               {t.stepEducation}
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-sm">
               <div>
                 <label className="block font-semibold text-[#182848] mb-1">{t.education} *</label>
                 <input
@@ -558,7 +559,7 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
             </h3>
 
             {/* Parents */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/20">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-sm bg-white/30 backdrop-blur-md p-5 rounded-2xl border border-white/50">
               <div>
                 <label className="block font-semibold text-[#182848] mb-1">{t.fatherStatus}</label>
                 <select
@@ -722,7 +723,7 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
               {t.stepProperty}
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-sm">
               <div>
                 <label className="block font-semibold text-[#182848] mb-1">{t.propertyOwnership}</label>
                 <select

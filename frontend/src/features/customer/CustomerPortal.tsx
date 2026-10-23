@@ -23,6 +23,8 @@ interface CustomerPortalProps {
   recommendations: MatchRecommendation[];
   candidateProfiles: ProfileRecord[];
   language: Language;
+  activeTab?: 'recommendations' | 'my-profile' | 'preferences' | 'privacy';
+  onTabChange?: (tab: 'recommendations' | 'my-profile' | 'preferences' | 'privacy') => void;
 }
 
 export const CustomerPortal: React.FC<CustomerPortalProps> = ({
@@ -30,9 +32,28 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
   recommendations,
   candidateProfiles,
   language,
+  activeTab: activeTabProp,
+  onTabChange,
 }) => {
   const t = translations[language];
-  const [activeTab, setActiveTab] = useState<'recommendations' | 'my-profile' | 'preferences' | 'privacy'>('recommendations');
+  const [internalTab, setInternalTab] = useState<'recommendations' | 'my-profile' | 'preferences' | 'privacy'>(
+    activeTabProp || 'recommendations'
+  );
+
+  React.useEffect(() => {
+    if (activeTabProp) {
+      setInternalTab(activeTabProp);
+    }
+  }, [activeTabProp]);
+
+  const activeTab = activeTabProp || internalTab;
+
+  const setActiveTab = (tab: 'recommendations' | 'my-profile' | 'preferences' | 'privacy') => {
+    setInternalTab(tab);
+    if (onTabChange) {
+      onTabChange(tab);
+    }
+  };
   const [selectedCandidate, setSelectedCandidate] = useState<ProfileRecord | null>(null);
 
   // Privacy toggles

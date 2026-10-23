@@ -134,43 +134,43 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
               <h3 className="font-serif text-xl sm:text-2xl font-bold text-[#182848] leading-snug">
                 {profile.displayName}
               </h3>
-              <div className="text-xs text-[#68716D] font-medium" dir="ltr">
+              <div className="text-sm text-[#182848] font-semibold" dir="ltr">
                 <span>{profile.age} yrs</span> • <span>{profile.height}</span>
               </div>
             </div>
 
-            <p className="text-xs text-[#68716D] mb-3 font-medium">
+            <p className="text-sm text-[#486878] mb-3 font-medium">
               <span className="text-[#182848] font-semibold">{profile.caste}</span> ({profile.subCaste || profile.aqeedah})
               <span className="mx-1.5">•</span>
               <span>{profile.maritalStatus === 'never_married' ? (language === 'ur' ? 'غیر شادی شدہ' : 'Never Married') : profile.maritalStatus}</span>
             </p>
 
             {/* Key Attribute Pills */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-[#252E2C] mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-[#252E2C] mb-4">
               <div className="flex items-center gap-2 truncate">
-                <GraduationCap className="w-3.5 h-3.5 text-[#486878] shrink-0" />
+                <GraduationCap className="w-4 h-4 text-[#486878] shrink-0" />
                 <span className="truncate" title={profile.education}>{profile.education}</span>
               </div>
               <div className="flex items-center gap-2 truncate">
-                <Briefcase className="w-3.5 h-3.5 text-[#486878] shrink-0" />
+                <Briefcase className="w-4 h-4 text-[#486878] shrink-0" />
                 <span className="truncate" title={profile.occupation}>{profile.occupation}</span>
               </div>
               <div className="flex items-center gap-2 truncate">
-                <MapPin className="w-3.5 h-3.5 text-[#486878] shrink-0" />
+                <MapPin className="w-4 h-4 text-[#486878] shrink-0" />
                 <span className="truncate">{profile.currentCity} ({profile.residenceArea})</span>
               </div>
               <div className="flex items-center gap-2 truncate">
-                <Home className="w-3.5 h-3.5 text-[#486878] shrink-0" />
+                <Home className="w-4 h-4 text-[#486878] shrink-0" />
                 <span>
                   {language === 'ur' ? landConversion.formattedUrdu : landConversion.formattedEn}
-                  <span className="text-[#68716D] text-[11px]"> ({profile.property.propertyType})</span>
+                  <span className="text-[#68716D] text-xs"> ({profile.property.propertyType})</span>
                 </span>
               </div>
             </div>
 
             {/* Sibling Overview Line */}
-            <div className="flex items-center gap-2 text-xs text-[#68716D] bg-[#F7F3EA] rounded-xl px-3 py-1.5 border border-[#E7E2D8]">
-              <Users className="w-3.5 h-3.5 text-[#182848] shrink-0" />
+            <div className="flex items-center gap-2 text-sm text-[#252E2C] bg-[#F7F3EA] rounded-xl px-3.5 py-2 border border-[#E7E2D8]">
+              <Users className="w-4 h-4 text-[#182848] shrink-0" />
               <span>
                 {language === 'ur'
                   ? `${profile.siblings.length} بہن بھائی (${profile.siblings.filter(s => s.relation === 'brother').length} بھائی، ${profile.siblings.filter(s => s.relation === 'sister').length} بہنیں)`
