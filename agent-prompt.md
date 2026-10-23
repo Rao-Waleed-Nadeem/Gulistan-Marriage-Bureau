@@ -31,4 +31,4 @@ You are the junior implementation engineer. The owner supplies product direction
 - If blocked, update the queue and decision log, then stop unless the queue explicitly identifies an independent READY task.
 - If no task is READY, report the exact owner decision(s) required rather than inventing work.
 
-**First queued task:** T-001 — Inventory frontend domain contracts for backend mapping. Inspect the actual source and produce the source-grounded inventory before designing schema.
+**Queue status:** T-001 and T-002 are DONE. Downstream tasks (T-003 onward) are BLOCKED waiting for owner decisions on the 6 foundational questions in `backend/docs/11-owner-decision-sheet.md` (OPEN-001, OPEN-002, OPEN-003, OPEN-004, OPEN-013, OPEN-014).

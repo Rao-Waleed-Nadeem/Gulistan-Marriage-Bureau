@@ -27,6 +27,7 @@ On every invocation, the agent must choose the first eligible READY task, execut
 8. [AI agent operating contract](08-ai-agent-contract.md)
 9. [Open decisions and decision log](09-open-decisions.md)
 10. [Frontend domain inventory](10-frontend-domain-inventory.md) — source-grounded inventory of candidate models, repeating siblings, land conversions, preferences, matching, disclosures, and ledger semantics created under T-001.
+11. [Minimum owner decision sheet](11-owner-decision-sheet.md) — plain-language decision options for authentication, staff hierarchy, intake workflow, consent proof, hosting budget, and cloud jurisdiction created under T-002.
 
 ## Authority and conflict resolution
 

@@ -50,19 +50,19 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 **Completion record:** Completed on 2026-10-24. Generated `backend/docs/10-frontend-domain-inventory.md` backed by source inspection of `frontend/src/types/index.ts`, `ProfileWizard.tsx`, `units.ts`, `matchmaker.ts`, `whatsapp.ts`, `finance.ts`, and `mockData.ts`. Checks: `tsc --noEmit` (0 errors), `npm test` (7/7 passed), `vite build` (1.84s). Verified commit `b06502c`.
 
 ### T-002 — Prepare minimum owner decision sheet
-**Status:** READY  
+**Status:** DONE  
 **Priority:** P0  
 **Dependencies:** T-001  
 **Blocking decisions:** OPEN-001, OPEN-002, OPEN-003, OPEN-004, OPEN-013, OPEN-014  
 **Scope:** Present authentication options, staff scope, registration model, consent authority, hosting/provider budget and data jurisdiction in plain language. The agent must not choose for the owner.
 
 **Acceptance criteria**
-- [ ] Options and consequences are understandable to a non-specialist.
-- [ ] Each question links to its OPEN decision ID.
-- [ ] Only explicit owner choices can be recorded as DECIDED.
-- [ ] Related documentation stays consistent.
+- [x] Options and consequences are understandable to a non-specialist.
+- [x] Each question links to its OPEN decision ID.
+- [x] Only explicit owner choices can be recorded as DECIDED.
+- [x] Related documentation stays consistent.
 
-**Completion record:** Waiting for owner decisions.
+**Completion record:** Completed on 2026-10-24. Prepared `backend/docs/11-owner-decision-sheet.md` covering OPEN-001, OPEN-002, OPEN-003, OPEN-004, OPEN-013, and OPEN-014 in plain language with concrete trade-offs. Downstream tasks (T-003 onward) remain BLOCKED awaiting owner choices. Verified commit `1a1a9f6`.
 
 ### T-003 — Establish backend tooling without production connections
 **Status:** BLOCKED  
@@ -231,3 +231,4 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 |---|---|---|---|---|
 | 2026-10-24 | Queue initialized | READY | Pending | T-001 is the first eligible task. |
 | 2026-10-24 | T-001 | DONE | b06502c | Generated 10-frontend-domain-inventory.md; 7 unit tests passed; type-checks passed; build verified. |
+| 2026-10-24 | T-002 | DONE | 1a1a9f6 | Prepared 11-owner-decision-sheet.md covering 6 key open decisions; downstream tasks blocked pending choices. |
