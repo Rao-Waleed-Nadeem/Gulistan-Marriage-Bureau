@@ -50,7 +50,7 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 **Completion record:** Pending.
 
 ### T-002 — Prepare minimum owner decision sheet
-**Status:** BLOCKED  
+**Status:** READY  
 **Priority:** P0  
 **Dependencies:** T-001  
 **Blocking decisions:** OPEN-001, OPEN-002, OPEN-003, OPEN-004, OPEN-013, OPEN-014  
