@@ -7,6 +7,10 @@ dist/
 */dist/
 build/
 */build/
+.vite/
+*/.vite/
+coverage/
+*/coverage/
 
 # Local Environment Variables & Secrets
 .env
