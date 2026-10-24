@@ -236,7 +236,7 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 - [x] Step-by-step staging and production deployment runbook documented.
 - [x] Automated tests and validation checks passing with zero secret leakage.
 
-**Completion record:** Completed on 2026-10-24. Implemented `backend/scripts/deploy-migrations.js` providing automated migration discovery, SHA-256 checksum calculation, dry-run simulation, and live transactional execution against PostgreSQL/Supabase. Implemented `backend/scripts/smoke-test.js` providing non-destructive configuration sanity checks, RLS table verification, private candidate photo bucket verification, and diagnostic reporting with CLI exit codes. Produced `15-staging-deployment-runbook.md` with end-to-end instructions for project setup, migrations, smoke-testing, and frontend hosting. Added `deploy:migrations` and `smoke:test` scripts to `backend/package.json`. Verified via 7 new automated tests in `backend/tests/deployment_smoke.test.js` (58 passed total in backend) and 77 frontend tests (135 passed total across codebase). Verified commit `PENDING_COMMIT_SHA`.
+**Completion record:** Completed on 2026-10-24. Implemented `backend/scripts/deploy-migrations.js` providing automated migration discovery, SHA-256 checksum calculation, dry-run simulation, and live transactional execution against PostgreSQL/Supabase. Implemented `backend/scripts/smoke-test.js` providing non-destructive configuration sanity checks, RLS table verification, private candidate photo bucket verification, and diagnostic reporting with CLI exit codes. Produced `15-staging-deployment-runbook.md` with end-to-end instructions for project setup, migrations, smoke-testing, and frontend hosting. Added `deploy:migrations` and `smoke:test` scripts to `backend/package.json`. Verified via 7 new automated tests in `backend/tests/deployment_smoke.test.js` (58 passed total in backend) and 77 frontend tests (135 passed total across codebase). Verified commit `0730f8c`.
 
 ## Task history
 
@@ -256,4 +256,4 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-10-24 | T-011 | DONE | 013a1dc | CRM follow-ups engine, overdue calculation, idempotency, and matchmaker attribution verified. |
 | 2026-10-24 | T-012 | DONE | 3bf3434 | Auditable financial ledger (Migration 00002), PKR integer precision, and traceable reversals verified. |
 | 2026-10-24 | T-013 | DONE | 3900913 | Security, scale (100k profiles), backup restore drill, and release readiness review verified. |
-| 2026-10-24 | T-014 | DONE | PENDING | Staging deployment automation, migration deployment runner, and smoke-test harness verified. |
+| 2026-10-24 | T-014 | DONE | 0730f8c | Staging deployment automation, migration deployment runner, and smoke-test harness verified. |
