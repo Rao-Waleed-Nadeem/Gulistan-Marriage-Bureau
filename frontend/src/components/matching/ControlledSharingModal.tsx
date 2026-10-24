@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { ProfileRecord, Language } from '../../types';
 import { translations } from '../../i18n/translations';
 import { DisclosureOptions, generateWhatsAppMessage } from '../../utils/whatsapp';
+import { authorizeDisclosure, generateAuthorizedWhatsAppDraft } from '../../lib/disclosure';
+import { getCurrentSession } from '../../lib/auth';
 import { X, Share2, Copy, Check, ShieldCheck, AlertCircle } from 'lucide-react';
 
 interface ControlledSharingModalProps {
@@ -43,6 +45,20 @@ export const ControlledSharingModal: React.FC<ControlledSharingModalProps> = ({
 
   if (!isOpen) return null;
 
+  const session = getCurrentSession();
+  const staffSession = (session && session.isAuthenticated && session.role === 'nadeem') ? session : {
+    user: { id: 'usr-nadeem', email: 'nadeem@gulistan.pk', displayName: 'Nadeem Ahmed', role: 'nadeem' as const, preferredLanguage: language },
+    role: 'nadeem' as const,
+    token: 'demo-staff-token',
+    expiresAt: Date.now() + 3600000,
+    isAuthenticated: true,
+  };
+
+  const disclosureResult = authorizeDisclosure(candidate, options, staffSession);
+  const draft = disclosureResult.snapshot
+    ? generateAuthorizedWhatsAppDraft(disclosureResult.snapshot, messageLang)
+    : null;
+
   const candidateData = {
     id: candidate.id,
     name: candidate.fullName,
@@ -60,7 +76,7 @@ export const ControlledSharingModal: React.FC<ControlledSharingModalProps> = ({
     contactNumber: candidate.contactPhone,
   };
 
-  const previewMessage = generateWhatsAppMessage(candidateData, options, messageLang);
+  const previewMessage = draft ? draft.messageText : generateWhatsAppMessage(candidateData, options, messageLang);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(previewMessage);
@@ -194,6 +210,17 @@ export const ControlledSharingModal: React.FC<ControlledSharingModalProps> = ({
                 </button>
               </div>
             </div>
+
+            {disclosureResult.snapshot && disclosureResult.snapshot.withheldReasons.length > 0 && (
+              <div className="mb-2 p-2 rounded-xl bg-amber-500/10 border border-amber-300/30 text-[11px] text-amber-900 flex items-center gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                <span>
+                  {language === 'ur'
+                    ? 'پرائیویسی گارڈ: رازداری کے اصولوں (OPEN-005) کے تحت مکمل نام اور فون نمبر باہمی تعارف کی باقاعدہ منظوری تک مقفل ہیں۔'
+                    : 'Privacy Guard: Under OPEN-005, legal name and direct phone numbers remain guarded until mutual introduction authorization.'}
+                </span>
+              </div>
+            )}
 
             {/* Simulated WhatsApp Chat Bubble */}
             <div

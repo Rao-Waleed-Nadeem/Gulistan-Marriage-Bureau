@@ -31,4 +31,4 @@ You are the junior implementation engineer. The owner supplies product direction
 - If blocked, update the queue and decision log, then stop unless the queue explicitly identifies an independent READY task.
 - If no task is READY, report the exact owner decision(s) required rather than inventing work.
 
-**Queue status:** T-001 through T-009 are DONE. T-010 (Controlled disclosure and WhatsApp draft generation) is READY for execution.
+**Queue status:** T-001 through T-010 are DONE. T-011 (Follow-ups and external matchmaker attribution) is READY for execution.

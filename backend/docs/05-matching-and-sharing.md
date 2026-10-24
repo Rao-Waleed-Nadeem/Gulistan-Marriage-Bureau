@@ -111,3 +111,16 @@ Implemented in `frontend/src/lib/matching.ts` and tested via `src/lib/matching.t
   - Review states: `pending_review`, `approved_by_nadeem`, `deferred`, `rejected`.
   - `recordMatchDecision` prevents approving ineligible matches where mandatory criteria failed (`CANNOT_APPROVE_INELIGIBLE_MATCH`) and requires authorized matchmaker credentials.
 
+## 5.11 Implemented Controlled Disclosure & WhatsApp Proposal Engine (T-010)
+
+Implemented in `frontend/src/lib/disclosure.ts`, wired into `frontend/src/components/matching/ControlledSharingModal.tsx`, and tested via `frontend/src/lib/disclosure.test.ts` (10 tests) and `backend/tests/controlled_disclosure.test.js` (4 tests):
+- **Server Authorization of Every Field:** Client checkbox selections are treated solely as a request. Every disclosed field is validated against caller role (`canAccessRole(session, 'nadeem')`), profile status (`active` or `introduction_authorized`), and explicit candidate consent.
+- **OPEN-005 Invariant (Human-Gated Introduction):**
+  - For `active` profiles (pre-introduction): full legal name is withheld and replaced with display pseudonym (`LEGAL_NAME_LOCKED_PENDING_INTRODUCTION`). Direct candidate phone number is withheld and replaced with the Bureau Concierge office contact (`+92 300 0000000`) (`DIRECT_CONTACT_LOCKED_PENDING_INTRODUCTION`).
+  - For `introduction_authorized` profiles: direct phone and legal names are unlocked once mutual consent and matchmaker authorization exist.
+- **Client Payload Injection Prevention:** Disclosed data is assembled strictly from trusted repository attributes. Any attacker-injected fields or tampered values are completely ignored.
+- **Photo Consent & 48-Hour Grant (OPEN-006):** Photographs require explicit `photoPermissionGranted`. When approved, a 48-hour signed grant token is issued (`DEFAULT_SHARE_GRANT_EXPIRY_MS`). Instant revocation is enforced via `validateShareGrant`.
+- **Urdu & English Cultural Drafts:** Produces respectful, localized proposals with Islamic greetings, bulleted attributes, custom note sanitization, and dignity closing disclaimer ("آپ کے خاندان کا وقار اور رازداری ہماری اولین ترجیح ہے").
+- **Audit Minimization (Section 3.7):** Audit payload (`createDisclosureAuditRecord`) records only operational telemetry (`grantId`, `authorizedFields`, `expiresAt`). Full message bodies, raw phone numbers, candidate legal names, photo URLs, and bearer tokens are strictly omitted.
+
+

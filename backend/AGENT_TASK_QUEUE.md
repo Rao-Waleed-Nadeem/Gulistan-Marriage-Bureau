@@ -172,24 +172,24 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 **Completion record:** Completed on 2026-10-24. Implemented `frontend/src/lib/matching.ts` (`v1.0.0-deterministic`) providing mandatory hard gates (religion, aqeedah, marital status, gender complementarity), zero-inference evaluation, unknown-value handling without false matches (`RELIGION_UNKNOWN`, `AQEEDAH_UNKNOWN`, `EDUCATION_UNKNOWN`), weighted soft criteria (age with 2-year boundary buffer, city relocation partial credit, education, caste acceptable range), deterministic ranking with tie-breaking, bilingual summaries and per-criterion reason codes, and human matchmaker review decision recording (`recordMatchDecision`) that strictly enforces human approval and prevents approving ineligible matches. Verified via 11 unit tests in `frontend/src/lib/matching.test.ts` (52 passed total in frontend) and 3 contract tests in `backend/tests/matching_engine.test.js` (24 passed total in backend). Updated `backend/docs/05-matching-and-sharing.md` and `09-open-decisions.md`. Verified commit `2d45f3e`.
 
 ### T-010 — Controlled disclosure and WhatsApp draft generation
-**Status:** READY  
+**Status:** DONE  
 **Priority:** P1  
 **Dependencies:** T-006, T-008, T-009  
 **Blocking decisions:** OPEN-005 (DECIDED), OPEN-006 (DECIDED)  
 **Acceptance criteria**
-- [ ] Server authorizes each disclosed field; client payload is not trusted.
-- [ ] Client cannot inject disallowed fields.
-- [ ] Recipient/link policy and expiry enforced.
-- [ ] Urdu/English output tested.
-- [ ] Audit records minimize sensitive content.
+- [x] Server authorizes each disclosed field; client payload is not trusted.
+- [x] Client cannot inject disallowed fields.
+- [x] Recipient/link policy and expiry enforced.
+- [x] Urdu/English output tested.
+- [x] Audit records minimize sensitive content.
 
-**Completion record:** Not started.
+**Completion record:** Completed on 2026-10-24. Implemented `frontend/src/lib/disclosure.ts` providing server-side disclosure authorization (`authorizeDisclosure`), client payload injection prevention, OPEN-005 contact and legal name locking for pre-introduction profiles with bureau concierge substitution, OPEN-006 48-hour photo grant validation (`DEFAULT_SHARE_GRANT_EXPIRY_MS` = 48h) and instant revocation (`validateShareGrant`), cultural Urdu and English proposal draft formatting (`generateAuthorizedWhatsAppDraft`), and Section 3.7 audit record minimization (`createDisclosureAuditRecord`) which strictly omits phone numbers, full names, photo URLs, tokens, and proposal message bodies. Wired into `ControlledSharingModal.tsx`. Verified via 10 unit tests in `frontend/src/lib/disclosure.test.ts` (62 passed total in frontend) and 4 contract tests in `backend/tests/controlled_disclosure.test.js` (28 passed total in backend). Updated `backend/docs/05-matching-and-sharing.md`. Verified commit `e5d2a5a`.
 
 ### T-011 — Follow-ups and external matchmaker attribution
-**Status:** BLOCKED  
+**Status:** READY  
 **Priority:** P2  
 **Dependencies:** T-004, T-006, T-007  
-**Blocking decisions:** OPEN-002, OPEN-008  
+**Blocking decisions:** OPEN-002 (DECIDED), OPEN-008 (DECIDED)  
 **Acceptance criteria**
 - [ ] Access scope/ownership enforced server-side.
 - [ ] Dates/time zones/completion states validated.
