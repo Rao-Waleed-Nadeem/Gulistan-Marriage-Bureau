@@ -6,6 +6,8 @@
   "description": "Backend tooling, migrations, tests, and configuration for Gulistan Marriage Bureau",
   "scripts": {
     "test": "node --test tests/**/*.test.js",
+    "benchmark": "node scripts/capacity-benchmark.js",
+    "restore:drill": "node scripts/restore-drill.js",
     "migrate:validate": "node scripts/validate-migrations.js",
     "migrate:status": "node scripts/migration-status.js"
   },

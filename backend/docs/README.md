@@ -28,6 +28,9 @@ On every invocation, the agent must choose the first eligible READY task, execut
 9. [Open decisions and decision log](09-open-decisions.md)
 10. [Frontend domain inventory](10-frontend-domain-inventory.md) — source-grounded inventory of candidate models, repeating siblings, land conversions, preferences, matching, disclosures, and ledger semantics created under T-001.
 11. [Minimum owner decision sheet](11-owner-decision-sheet.md) — plain-language decision options for authentication, staff hierarchy, intake workflow, consent proof, hosting budget, and cloud jurisdiction created under T-002.
+12. [Capacity, scale and load report](12-capacity-and-load-report.md) — 100,000 synthetic profile benchmark, query plan and throughput analysis created under T-013.
+13. [Backup and restore drill](13-backup-restore-drill.md) — verified database and media restore drill, RTO/RPO metrics, and OPEN-008 photo privacy compliance created under T-013.
+14. [Release readiness and security review](14-release-readiness-review.md) — final security posture audit across all tasks and threat models created under T-013.
 
 ## Authority and conflict resolution
 

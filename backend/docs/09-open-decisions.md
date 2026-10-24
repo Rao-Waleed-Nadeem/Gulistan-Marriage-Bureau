@@ -26,7 +26,7 @@ Do not silently invent answers to these questions. Keep this file updated as the
 | OPEN-013 | Production hosting budget | DECIDED | Free Dev Tier to Managed Pro ($25/mo) at Launch (Option A): $0 during development; ~$25/mo at production launch for daily backups and private photo storage. |
 | OPEN-014 | Data jurisdiction/legal review | DECIDED | Middle East (me-central-1) or Singapore (ap-southeast-1) (Option A): Lowest network latency (40-70ms) to Pakistan with enterprise SOC 2 compliance. |
 | OPEN-015 | AI processing | OPEN | If enabled, which data may be sent to which provider, what notice/consent is needed, and what retention applies? |
-| OPEN-016 | PWA/offline behavior | OPEN | Confirm whether offline profile access is prohibited (recommended for sensitive data) and which non-sensitive screens may cache. |
+| OPEN-016 | PWA/offline behavior | DECIDED | Strictly prohibit offline caching/storage of sensitive candidate profiles, photos, and financial transactions. Candidate data must only exist in runtime memory and must never be persisted to IndexedDB, LocalStorage, or CacheStorage. Only the static app shell (HTML/CSS/JS bundles and public marketing copy) may be cached for offline presentation. |
 
 ## 9.2 Safe defaults while decisions are open
 
@@ -69,3 +69,4 @@ Per explicit owner directive ("choose yourself and read agent-prompt.md and foll
 8. **OPEN-006 & OPEN-008 (Photo Sharing & Retention):** Time-limited signed bearer URLs (48-hour default expiry) delivered via WhatsApp; instant revocation; immediate photo purge upon consent withdrawal; 1-year archive for inactive profiles; permanent immutable audit and ledger trails.
 9. **OPEN-007 (Lifecycle State Machine):** Approved 6-state taxonomy (`pending_review`, `approved`, `active`, `introduction_authorized`, `inactive`, `restricted`) with enforced transition graph.
 10. **OPEN-010 (Matchmaker Finance Semantics):** Double-entry bureau convention: 'payable' is a liability (bureau owes partner), 'receivable' is an asset (partner owes bureau), net balance = receivable - payable, append-only traceable adjustments.
+11. **OPEN-016 (PWA & Offline Profile Storage):** Strict offline storage prohibition (Option A). Candidate profiles, photographs, phone numbers, and financial transaction records must NEVER be cached or persisted offline in browser IndexedDB, LocalStorage, or CacheStorage. Only the static application shell (HTML, CSS, JS, branding assets, and public marketing content) is permitted to be cached offline by service workers. This guarantees that private candidate records are never exposed on shared family devices or stolen hardware.

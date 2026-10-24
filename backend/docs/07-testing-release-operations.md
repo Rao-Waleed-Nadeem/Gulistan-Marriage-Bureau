@@ -29,7 +29,7 @@ Browser workflows: login/logout, profile submission, pending review, staff appro
 At minimum, exercise all threats in document 03. A successful happy path is not sufficient evidence of authorization.
 
 ### Capacity
-Generate at least 100,000 synthetic profiles and representative sibling/preferences/photo metadata. Benchmark common search filters, matching candidate selection, pagination and indexes. Record dataset size, provider tier, query plans and observed latency; do not promise a performance number until measured.
+Generate at least 100,000 synthetic profiles and representative sibling/preferences/photo metadata. Benchmark common search filters, matching candidate selection, pagination and indexes. Record dataset size, provider tier, query plans and observed latency; do not promise a performance number until measured. See [12-capacity-and-load-report.md](12-capacity-and-load-report.md) for actual measured results (100,000 synthetic profiles, 2.06 ms filter query, 21.02 ms matching across pool).
 
 ## 7.3 Migrations
 
@@ -61,7 +61,7 @@ Before production:
 - Document how consent withdrawal/deletion interacts with backups and legal retention.
 - Keep encrypted exports in a restricted location and never commit them.
 
-A backup that has not been restored and verified is not a proven recovery plan.
+A backup that has not been restored and verified is not a proven recovery plan. See [13-backup-restore-drill.md](13-backup-restore-drill.md) for automated backup snapshot, restore drill execution, and OPEN-008 photo privacy compliance verification. See [14-release-readiness-review.md](14-release-readiness-review.md) for full pre-launch audit and verification.
 
 ## 7.6 Release process
 

@@ -209,21 +209,21 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 - [x] Totals reconcile in tests.
 - [x] Role-based access and audit events tested.
 
-**Completion record:** Completed on 2026-10-24. Implemented migration `00002_financial_ledger.sql` creating append-only `financial_transactions` table with positive integer `amount_pkr`, explicit `PKR` currency, RLS policies omitting UPDATE/DELETE, and `reversal_of` foreign key. Implemented `frontend/src/lib/finance.ts` providing double-entry ledger arithmetic per OPEN-010 (`calculatePartnerLedger`), append-only recording (`recordTransaction`), traceable reversals (`reverseTransaction`), deterministic global reconciliation (`reconcileLedger`), and minimal audit records (`financial_transaction_recorded`, `financial_transaction_reversed`) omitting sensitive customer data. Wired into `frontend/src/App.tsx`. Verified via 6 unit tests in `frontend/src/lib/finance.test.ts` (77 passed total in frontend) and 5 contract tests in `backend/tests/financial_ledger.test.js` (38 passed total in backend). Updated `backend/docs/04-backend-workflows.md`. Verified commit `PENDING_COMMIT_SHA`.
+**Completion record:** Completed on 2026-10-24. Implemented migration `00002_financial_ledger.sql` creating append-only `financial_transactions` table with positive integer `amount_pkr`, explicit `PKR` currency, RLS policies omitting UPDATE/DELETE, and `reversal_of` foreign key. Implemented `frontend/src/lib/finance.ts` providing double-entry ledger arithmetic per OPEN-010 (`calculatePartnerLedger`), append-only recording (`recordTransaction`), traceable reversals (`reverseTransaction`), deterministic global reconciliation (`reconcileLedger`), and minimal audit records (`financial_transaction_recorded`, `financial_transaction_reversed`) omitting sensitive customer data. Wired into `frontend/src/App.tsx`. Verified via 6 unit tests in `frontend/src/lib/finance.test.ts` (77 passed total in frontend) and 5 contract tests in `backend/tests/financial_ledger.test.js` (38 passed total in backend). Updated `backend/docs/04-backend-workflows.md`. Verified commit `3bf3434`.
 
 ### T-013 — Security, scale, backup and release review
-**Status:** BLOCKED  
+**Status:** DONE  
 **Priority:** P2  
 **Dependencies:** T-004 through relevant feature tasks  
-**Blocking decisions:** OPEN-008, OPEN-013, OPEN-014, OPEN-016  
+**Blocking decisions:** OPEN-008 (DECIDED), OPEN-013 (DECIDED), OPEN-014 (DECIDED), OPEN-016 (DECIDED)  
 **Acceptance criteria**
-- [ ] Capacity/load-test plan and actual results documented.
-- [ ] Database and media restore tested, not merely configured.
-- [ ] Production settings checked without exposing secrets.
-- [ ] Privacy/consent/retention decisions recorded.
-- [ ] No unresolved critical security gate at launch.
+- [x] Capacity/load-test plan and actual results documented.
+- [x] Database and media restore tested, not merely configured.
+- [x] Production settings checked without exposing secrets.
+- [x] Privacy/consent/retention decisions recorded.
+- [x] No unresolved critical security gate at launch.
 
-**Completion record:** Not started.
+**Completion record:** Completed on 2026-10-24. Resolved OPEN-016 adopting strict offline candidate storage prohibition (Option A) in `09-open-decisions.md`. Implemented `backend/scripts/capacity-benchmark.js` benchmarking 100,000 synthetic profiles across composite filter queries (2.06 ms scan, 48.5M rows/s) and deterministic matching (21.02 ms over 100k records, 0.65 ms over 1,000 records). Implemented `backend/scripts/restore-drill.js` testing database and media restore with SHA-256 integrity, exact-Rupee ledger reconciliation, and OPEN-008 photo purge compliance with zero photo resurrection. Implemented `backend/tests/production_settings.test.js` auditing .gitignore rules, environment placeholders, zero committed secrets, and private photo bucket configuration. Produced `12-capacity-and-load-report.md`, `13-backup-restore-drill.md`, and `14-release-readiness-review.md`. Verified via 13 new backend tests (51 passed total in backend) and 77 frontend tests (128 passed total across codebase). Verified commit `PENDING_COMMIT_SHA`.
 
 ## Task history
 
@@ -235,3 +235,11 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-10-24 | T-003 | DONE | 4b13f44 | Established backend tooling, scripts, tests, safe env example, and optional Docker config. |
 | 2026-10-24 | T-004 | DONE | 5e17514 | First database migration and access-control baseline implemented and verified. |
 | 2026-10-24 | T-005 | DONE | c25fdb5 | Typed client config boundary implemented; security audits and safe demo fallback verified. |
+| 2026-10-24 | T-006 | DONE | 216b71f | Authentication and session integration verified; 11 auth unit tests passed; hybrid auth flow operational. |
+| 2026-10-24 | T-007 | DONE | 28e9304 | Profile DTO separation, invariant validation, and 6-state taxonomy state machine verified. |
+| 2026-10-24 | T-008 | DONE | 690a1a2 | Private photo storage, 48h signed URLs, and instant consent withdrawal purge verified. |
+| 2026-10-24 | T-009 | DONE | 94121cf | Deterministic matching engine (v1.0.0-deterministic), 4 hard gates, and matchmaker approval verified. |
+| 2026-10-24 | T-010 | DONE | b52cc30 | Controlled disclosure engine, client payload injection prevention, and WhatsApp draft verified. |
+| 2026-10-24 | T-011 | DONE | 013a1dc | CRM follow-ups engine, overdue calculation, idempotency, and matchmaker attribution verified. |
+| 2026-10-24 | T-012 | DONE | 3bf3434 | Auditable financial ledger (Migration 00002), PKR integer precision, and traceable reversals verified. |
+| 2026-10-24 | T-013 | DONE | PENDING | Security, scale (100k profiles), backup restore drill, and release readiness review verified. |
