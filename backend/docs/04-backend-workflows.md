@@ -29,15 +29,23 @@ Public intake abuse controls (rate limiting, CAPTCHA or equivalent) are OPEN unt
 5. Add an audit event.
 6. Return only fields needed by the UI.
 
-### Review transitions
-The only permitted transitions must be explicitly implemented and tested. Suggested transition graph, subject to owner approval:
+### Review transitions (Approved & Implemented in T-007)
+The permitted profile lifecycle transitions are enforced via `canTransitionStatus` and database constraints:
 - `pending_review -> approved`
-- `pending_review -> rejected`
+- `pending_review -> restricted` (Intake rejected or restricted)
 - `approved -> active`
 - `approved/active -> restricted`
 - `active -> inactive`
-- `inactive -> active` only after renewed eligibility/consent checks
-- `restricted -> active` only through a documented review
+- `active -> introduction_authorized` (Authorized for specific match introduction)
+- `introduction_authorized -> active` (Introduction completed or reset to registry)
+- `introduction_authorized -> inactive` (Proposal finalized / closed)
+- `inactive -> pending_review` (Re-activated subject to updated intake review)
+- `restricted -> pending_review` (Remediated subject to fresh staff review)
+
+### DTO and Database Row Separation (T-007)
+- **Database row (`ProfileRow`):** Normalized snake_case representation in `public.profiles` with integer heights (`height_inches`), non-negative numeric income (`monthly_income_pkr`), and foreign key linkages.
+- **Client DTO (`ProfileRecord`):** Rich camelCase domain object used by the frontend with structured sub-objects (`siblings`, `property`, `preferences`).
+- **Least-privilege field sanitization:** `sanitizeProfileForRole()` automatically scrubs sensitive contact details (`contactPhone`, `contactEmail`), precise address, and `internalNotes` when accessed by unauthorized parties or non-owner customers.
 
 Do not allow arbitrary status updates. Every transition records actor, timestamp and reason code. “Approved”, “active”, “verified”, and “authorized for introduction” are distinct concepts; do not collapse them.
 

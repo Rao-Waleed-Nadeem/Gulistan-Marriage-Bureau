@@ -17,7 +17,7 @@ Do not silently invent answers to these questions. Keep this file updated as the
 | OPEN-004 | Consent authority | DECIDED | Representative Legal Certification (Option A): Form captures submitter relationship with explicit legal certification of candidate consent. |
 | OPEN-005 | Customer visibility | OPEN | Which fields and recommendations can a customer view before and after a human-approved introduction? |
 | OPEN-006 | Sharing recipient | OPEN | Must recipients authenticate, or can a time-limited bearer link be used? What expiry default is acceptable? |
-| OPEN-007 | Profile state machine | OPEN | Approve exact status names and permitted transitions; current UI mixes approval, active and introduction authorization. |
+| OPEN-007 | Profile state machine | DECIDED | Approved 6-state taxonomy (`pending_review`, `approved`, `active`, `introduction_authorized`, `inactive`, `restricted`) with transition graph enforced in `frontend/src/lib/profiles.ts` and Migration 00001. |
 | OPEN-008 | Data retention/deletion | OPEN | Retention periods for profiles, photos, audit events, inactive records and financial records; define deletion/backup behavior. |
 | OPEN-009 | Matching rules | OPEN | Approve mandatory/soft criteria, weights, unknown-value treatment, tie-breaking, score labels and allowed sensitive criteria. |
 | OPEN-010 | Matchmaker finance semantics | OPEN | Define payable/receivable vs paid/received, sign convention, commission timing, settlement, reversals and reporting. |

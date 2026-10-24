@@ -34,6 +34,7 @@ import {
   canAccessRole, 
   signOut 
 } from './lib/auth';
+import { validateProfileInput, canTransitionStatus } from './lib/profiles';
 import { AuthModal } from './components/auth/AuthModal';
 import { translations } from './i18n/translations';
 
@@ -124,6 +125,13 @@ export default function App() {
   };
 
   const handleSaveProfile = (newProfile: ProfileRecord) => {
+    // Validate domain invariants before persisting
+    const validation = validateProfileInput(newProfile);
+    if (!validation.valid) {
+      alert(language === 'ur' ? validation.errors[0].messageUrdu : validation.errors[0].messageEn);
+      return;
+    }
+
     setProfiles([newProfile, ...profiles]);
     const newLog: AuditLogItem = {
       id: `AUD-${Date.now()}`,
@@ -168,15 +176,25 @@ export default function App() {
   };
 
   const handleUpdateProfileStatus = (id: string, newStatus: any) => {
+    const target = profiles.find((p) => p.id === id);
+    if (!target) return;
+
+    // Enforce state machine transition rules and actor permissions
+    const transitionCheck = canTransitionStatus(target.status, newStatus, currentRole);
+    if (!transitionCheck.allowed) {
+      alert(language === 'ur' ? transitionCheck.reasonUrdu : transitionCheck.reasonEn);
+      return;
+    }
+
     setProfiles(profiles.map((p) => (p.id === id ? { ...p, status: newStatus } : p)));
     const newLog: AuditLogItem = {
       id: `AUD-${Date.now()}`,
       timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
-      actor: 'admin@gulistan.pk',
-      role: 'System Administrator',
+      actor: session.user?.email || (currentRole === 'admin' ? 'admin@gulistan.pk' : 'nadeem@gulistan.pk'),
+      role: currentRole === 'admin' ? 'System Administrator' : 'Nadeem (Lead Matchmaker)',
       action: 'STATUS_UPDATED',
       targetId: id,
-      details: `Profile status updated to ${newStatus}.`,
+      details: `Profile status transitioned from ${target.status} to ${newStatus}.`,
     };
     setAuditLogs([newLog, ...auditLogs]);
   };

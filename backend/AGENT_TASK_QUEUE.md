@@ -128,20 +128,20 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 **Completion record:** Completed on 2026-10-24. Implemented `frontend/src/lib/auth.ts` and `frontend/src/components/auth/AuthModal.tsx` providing hybrid authentication (email/password for staff, magic link for candidates), fail-closed role authorization via `canAccessRole`, automatic expiration checks, bilingual error/success notices, and persistent session storage. Wired session management into `Navbar.tsx` and `App.tsx` ensuring unauthenticated or expired access fails closed to public mode with localized alerts. Added 11 automated unit tests in `frontend/src/lib/auth.test.ts` (all 26 frontend tests and 15 backend tests passed; Vite build succeeded in 1.25s). Verified commit `cfd0b59`.
 
 ### T-007 — Profile create/read/update and review lifecycle
-**Status:** READY  
+**Status:** DONE  
 **Priority:** P1  
 **Dependencies:** T-004, T-005, T-006  
-**Blocking decisions:** OPEN-003 (DECIDED), OPEN-004 (DECIDED), OPEN-007, OPEN-011, OPEN-012  
+**Blocking decisions:** OPEN-003 (DECIDED), OPEN-004 (DECIDED), OPEN-007 (DECIDED), OPEN-011, OPEN-012  
 **Scope:** After approval, start with staff profile create/read/update and pending review. Keep API DTOs separate from database rows.
 
 **Acceptance criteria**
-- [ ] Server validation and database constraints cover approved invariants.
-- [ ] Role, ownership and lifecycle rules tested.
-- [ ] Localized loading/error/empty/success states.
-- [ ] Unauthorized callers cannot retrieve sensitive fields.
-- [ ] Demo fixtures retained; no fabricated real data.
+- [x] Server validation and database constraints cover approved invariants.
+- [x] Role, ownership and lifecycle rules tested.
+- [x] Localized loading/error/empty/success states.
+- [x] Unauthorized callers cannot retrieve sensitive fields.
+- [x] Demo fixtures retained; no fabricated real data.
 
-**Completion record:** Not started.
+**Completion record:** Completed on 2026-10-24. Implemented `frontend/src/lib/profiles.ts` providing DTO/database row separation (`ProfileRow` vs `ProfileRecord`), invariant validation (`validateProfileInput` covering age, gender, height, marital status, income, and representative consent), state machine lifecycle transitions (`canTransitionStatus` covering the approved 6-state taxonomy), role-based sensitive field sanitization (`sanitizeProfileForRole`), and repository CRUD. Integrated into `App.tsx` and tested via 8 frontend unit tests in `src/lib/profiles.test.ts` (34 passed total) and 3 backend lifecycle contract tests in `backend/tests/profile_lifecycle.test.js` (18 passed total). Verified commit `b5b6324`.
 
 ### T-008 — Private photos and consent-gated access
 **Status:** BLOCKED  

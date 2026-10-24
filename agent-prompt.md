@@ -31,4 +31,4 @@ You are the junior implementation engineer. The owner supplies product direction
 - If blocked, update the queue and decision log, then stop unless the queue explicitly identifies an independent READY task.
 - If no task is READY, report the exact owner decision(s) required rather than inventing work.
 
-**Queue status:** T-001 through T-006 are DONE. T-007 (Profile create/read/update and review lifecycle) is READY for execution.
+**Queue status:** T-001 through T-007 are DONE. T-008 (Private photos and consent-gated access) is the next task in the queue.
