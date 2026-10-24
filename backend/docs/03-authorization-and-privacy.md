@@ -96,3 +96,12 @@ Audit events should include actor, action code, target ID/type, UTC timestamp, o
 - Admin/staff actions are not auditable.
 
 No real customer data may be used until the relevant security tests pass and the owner has approved the pilot.
+
+## 3.9 Client session and access control integration (T-006)
+
+The frontend authentication boundary is implemented in `frontend/src/lib/auth.ts`:
+- **Hybrid authentication:** Staff members authenticate with email and password (`signInWithPassword`). Families and candidate stakeholders authenticate via passwordless magic links (`sendMagicLink`).
+- **Fail closed enforcement:** UI state alone never grants permissions. Any protected role navigation (`admin`, `nadeem`, `customer`) is evaluated by `canAccessRole(session, targetRole)`. If the session is missing, unauthenticated, or has expired (`Date.now() > expiresAt`), access is immediately denied and the application fails closed to `public`.
+- **Bilingual modal:** Authentication flows provide full bilingual support in English and Urdu with explicit validation for email format, required credentials, and helpful error messaging.
+- **Demo mode isolation:** When running without provisioned backend credentials, demo presets allow rapid local exploration with synthetic test personas while still enforcing authentic session creation, timestamp expiration, and fail-closed permission checks. Real backend credentials are never simulated with customer data.
+- **Explicit sign out:** `signOut()` immediately clears the active session and session storage, notifying all registered listeners and reverting the interface to the public unauthenticated state.

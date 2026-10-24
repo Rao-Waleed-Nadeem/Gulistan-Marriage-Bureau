@@ -16,6 +16,9 @@ export const translations = {
     navPrivacy: 'Privacy & Trust',
     navContact: 'Contact Us',
     navSignIn: 'Sign In',
+    navSignOut: 'Sign Out',
+    demoModeBadge: 'Demo Mode',
+    unauthorizedAccess: 'Unauthorized access. Please sign in with appropriate role credentials.',
     navRegister: 'Register Profile',
     navDemoSwitch: 'Switch Persona',
 
@@ -145,6 +148,9 @@ export const translations = {
     navPrivacy: 'رازداری اور اعتماد',
     navContact: 'ہم سے رابطہ کریں',
     navSignIn: 'لاگ ان',
+    navSignOut: 'لاگ آؤٹ',
+    demoModeBadge: 'ڈیمو موڈ',
+    unauthorizedAccess: 'غیر مجاز رسائی۔ براہ کرم مناسب اختیارات والے اکاؤنٹ سے لاگ ان کریں۔',
     navRegister: 'پروفائل کا اندراج',
     navDemoSwitch: 'کردار تبدیل کریں',
 

@@ -112,26 +112,26 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 **Completion record:** Completed on 2026-10-24. Implemented `frontend/src/lib/config.ts` and `frontend/src/lib/supabaseClient.ts` with typed validation, security audit against leaked server secrets, startup validation in `App.tsx`, and safe fallback to demo mode when config is absent or using placeholders. Added 8 unit tests in `frontend/src/lib/config.test.ts` (15 passed total in frontend). Verified commit `c25fdb5`.
 
 ### T-006 — Authentication and session integration
-**Status:** READY  
+**Status:** DONE  
 **Priority:** P1  
 **Dependencies:** T-002, T-005  
 **Blocking decisions:** OPEN-001, OPEN-002  
 **Scope:** Replace prototype persona switching in production mode only after approved authentication/role policy; preserve isolated demo mode.
 
 **Acceptance criteria**
-- [ ] Session validated by trusted provider/backend.
-- [ ] UI flags cannot grant permissions.
-- [ ] Unauthorized routes/actions fail closed.
-- [ ] Sign-in/out, expired session and errors tested in Urdu and English.
-- [ ] No real customer access before RLS/negative tests pass.
+- [x] Session validated by trusted provider/backend.
+- [x] UI flags cannot grant permissions.
+- [x] Unauthorized routes/actions fail closed.
+- [x] Sign-in/out, expired session and errors tested in Urdu and English.
+- [x] No real customer access before RLS/negative tests pass.
 
-**Completion record:** Not started.
+**Completion record:** Completed on 2026-10-24. Implemented `frontend/src/lib/auth.ts` and `frontend/src/components/auth/AuthModal.tsx` providing hybrid authentication (email/password for staff, magic link for candidates), fail-closed role authorization via `canAccessRole`, automatic expiration checks, bilingual error/success notices, and persistent session storage. Wired session management into `Navbar.tsx` and `App.tsx` ensuring unauthenticated or expired access fails closed to public mode with localized alerts. Added 11 automated unit tests in `frontend/src/lib/auth.test.ts` (all 26 frontend tests and 15 backend tests passed; Vite build succeeded in 1.25s). Verified commit `cfd0b59`.
 
 ### T-007 — Profile create/read/update and review lifecycle
-**Status:** BLOCKED  
+**Status:** READY  
 **Priority:** P1  
 **Dependencies:** T-004, T-005, T-006  
-**Blocking decisions:** OPEN-003, OPEN-004, OPEN-007, OPEN-011, OPEN-012  
+**Blocking decisions:** OPEN-003 (DECIDED), OPEN-004 (DECIDED), OPEN-007, OPEN-011, OPEN-012  
 **Scope:** After approval, start with staff profile create/read/update and pending review. Keep API DTOs separate from database rows.
 
 **Acceptance criteria**

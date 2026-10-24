@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Role, Language } from '../../types';
 import { translations } from '../../i18n/translations';
-import { Globe, Shield, User, Users, Menu, X, Check, ChevronDown } from 'lucide-react';
+import { Globe, Shield, User, Users, Menu, X, Check, ChevronDown, LogIn, LogOut } from 'lucide-react';
+import { getClientConfig } from '../../lib/config';
 
 interface NavbarProps {
   currentRole: Role;
@@ -10,6 +11,10 @@ interface NavbarProps {
   onToggleLanguage: (lang: Language) => void;
   activeNav: string;
   onNavigate: (section: string) => void;
+  onOpenAuthModal?: () => void;
+  isAuthenticated?: boolean;
+  userEmail?: string | null;
+  onSignOut?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -19,11 +24,17 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleLanguage,
   activeNav,
   onNavigate,
+  onOpenAuthModal,
+  isAuthenticated = false,
+  userEmail = null,
+  onSignOut,
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const t = translations[language];
+  const clientConfig = getClientConfig();
+  const isDemoMode = clientConfig.mode === 'demo';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -222,6 +233,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               {currentRole === 'admin' && <Shield className="w-4 h-4 text-[#B69A62]" />}
               {currentRole === 'public' && <Globe className="w-4 h-4 text-[#B69A62]" />}
               <span className="hidden sm:inline max-w-[120px] truncate">{roleLabels[currentRole]}</span>
+              {isDemoMode && (
+                <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-[#B69A62]/20 text-[#182848] font-bold">
+                  {t.demoModeBadge || 'Demo'}
+                </span>
+              )}
               <ChevronDown className="w-3.5 h-3.5 text-[#B69A62]" />
             </button>
 
@@ -264,6 +280,29 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <span className="text-[#B69A62]">{language === 'en' ? 'اردو' : 'EN'}</span>
           </button>
+
+          {/* Authentication Action Trigger */}
+          {!isAuthenticated ? (
+            <button
+              type="button"
+              onClick={onOpenAuthModal}
+              className="inline-flex items-center gap-1.5 rounded-full bg-[#182848] hover:bg-[#283848] text-[#F7F3EA] border border-[#B69A62]/30 px-3.5 py-2 text-xs sm:text-sm font-semibold transition-all shadow-xs cursor-pointer whitespace-nowrap"
+              title={t.navSignIn}
+            >
+              <LogIn className="w-3.5 h-3.5 text-[#B69A62]" />
+              <span>{t.navSignIn}</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onSignOut}
+              className="inline-flex items-center gap-1.5 rounded-full bg-red-950/20 hover:bg-red-950/35 border border-red-500/30 px-3 py-2 text-xs sm:text-sm font-semibold text-red-700 hover:text-red-800 transition-all shadow-xs cursor-pointer whitespace-nowrap"
+              title={userEmail ? `${userEmail} (${t.navSignOut})` : t.navSignOut}
+            >
+              <LogOut className="w-3.5 h-3.5 text-red-600" />
+              <span className="hidden sm:inline">{t.navSignOut}</span>
+            </button>
+          )}
 
           {/* Primary Action Button */}
           <div className="hidden sm:flex items-center">
@@ -412,6 +451,35 @@ export const Navbar: React.FC<NavbarProps> = ({
                 ))}
               </>
             )}
+
+            {/* Mobile Auth Button */}
+            <div className="pt-3 mt-1 border-t border-[#182848]/15">
+              {!isAuthenticated ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    onOpenAuthModal?.();
+                  }}
+                  className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#182848] py-3 text-sm font-semibold text-[#F7F3EA] shadow-md border border-[#B69A62]/30 cursor-pointer"
+                >
+                  <LogIn className="w-4 h-4 text-[#B69A62]" />
+                  <span>{t.navSignIn}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    onSignOut?.();
+                  }}
+                  className="w-full flex items-center justify-center gap-2 rounded-2xl bg-red-950/15 hover:bg-red-950/25 py-3 text-sm font-semibold text-red-700 border border-red-500/30 cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4 text-red-600" />
+                  <span>{t.navSignOut}</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

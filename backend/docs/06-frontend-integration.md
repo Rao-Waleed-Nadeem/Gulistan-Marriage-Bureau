@@ -31,8 +31,8 @@ Keep DTOs separate from database rows where field names or nested relationships 
 
 ## 6.4 Suggested migration sequence
 
-1. Add backend client/config and a connection health check without changing existing user flows.
-2. Add auth/session state and remove the demo persona switcher from production mode. The switcher may remain only behind an explicit development/demo flag.
+1. [DONE - T-005] Add backend client/config and a connection health check without changing existing user flows (`src/lib/config.ts`, `src/lib/supabaseClient.ts`).
+2. [DONE - T-006] Add auth/session state, fail-closed role gating, bilingual auth modal (`src/lib/auth.ts`, `src/components/auth/AuthModal.tsx`), and preserve isolated demo mode with clear labeling.
 3. Add profile read/search using RLS and safe DTOs.
 4. Add staff profile create/update and pending registration review.
 5. Add photo upload/access through private storage.

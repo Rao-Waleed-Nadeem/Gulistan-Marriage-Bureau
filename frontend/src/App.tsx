@@ -27,11 +27,22 @@ import { CustomerPortal } from './features/customer/CustomerPortal';
 import { AdminPortal } from './features/admin/AdminPortal';
 import { ScrollAnimationBackground } from './components/ui/ScrollAnimationBackground';
 import { getClientConfig } from './lib/config';
+import { 
+  AuthSession, 
+  getCurrentSession, 
+  subscribeToAuthChanges, 
+  canAccessRole, 
+  signOut 
+} from './lib/auth';
+import { AuthModal } from './components/auth/AuthModal';
+import { translations } from './i18n/translations';
 
 export default function App() {
   const [currentRole, setCurrentRole] = useState<Role>('public');
   const [language, setLanguage] = useState<Language>('ur');
   const [activeNav, setActiveNav] = useState<string>('home');
+  const [session, setSession] = useState<AuthSession>(getCurrentSession());
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // Application Data States
   const [profiles, setProfiles] = useState<ProfileRecord[]>(INITIAL_PROFILES);
@@ -46,14 +57,34 @@ export default function App() {
     getClientConfig();
   }, []);
 
+  // Listen to authentication session changes and fail closed if session becomes invalid
+  useEffect(() => {
+    const unsubscribe = subscribeToAuthChanges((newSession) => {
+      setSession(newSession);
+      if (currentRole !== 'public' && !canAccessRole(newSession, currentRole)) {
+        setCurrentRole('public');
+        setActiveNav('home');
+      }
+    });
+    return unsubscribe;
+  }, [currentRole]);
+
   // Synchronize document direction and font attributes with language
   useEffect(() => {
     document.documentElement.dir = language === 'ur' ? 'rtl' : 'ltr';
     document.documentElement.lang = language;
   }, [language]);
 
-  // When switching to Admin, force English per prompt requirement 5.1 ("The admin experience is English-only")
+  // Gated role selection with fail-closed access control
   const handleSelectRole = (role: Role) => {
+    if (role !== 'public') {
+      if (!canAccessRole(session, role)) {
+        const t = translations[language];
+        alert(t.unauthorizedAccess);
+        setIsAuthModalOpen(true);
+        return;
+      }
+    }
     setCurrentRole(role);
     if (role === 'admin') {
       setLanguage('en');
@@ -62,6 +93,24 @@ export default function App() {
       setLanguage('ur');
     }
     setActiveNav(role === 'public' ? 'home' : 'dashboard');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    setCurrentRole('public');
+    setActiveNav('home');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleAuthSuccess = (role: Role) => {
+    setCurrentRole(role);
+    if (role === 'admin') {
+      setLanguage('en');
+    } else if (role === 'nadeem') {
+      setLanguage('ur');
+    }
+    setActiveNav('dashboard');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -145,9 +194,17 @@ export default function App() {
         onToggleLanguage={handleToggleLanguage}
         activeNav={activeNav}
         onNavigate={(sec) => {
+          if (sec === 'login') {
+            setIsAuthModalOpen(true);
+            return;
+          }
           setActiveNav(sec);
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        isAuthenticated={session.isAuthenticated}
+        userEmail={session.user?.email}
+        onSignOut={handleSignOut}
       />
 
       {/* Main Routed Content Area with top clearance for floating capsule navigation */}
@@ -202,28 +259,20 @@ export default function App() {
             )}
             {activeNav === 'login' && (
               <div className="max-w-md mx-auto my-16 p-8 porcelain-card rounded-3xl text-center space-y-4">
-                <h3 className="font-serif text-2xl font-bold text-[#182848]">Gulistan Sign In</h3>
+                <h3 className="font-serif text-2xl font-bold text-[#182848]">
+                  {language === 'ur' ? 'محفوظ اکاؤنٹ لاگ ان' : 'Secure Account Sign In'}
+                </h3>
                 <p className="text-xs text-[#68716D]">
-                  Select your intended stakeholder experience to explore the platform:
+                  {language === 'ur'
+                    ? 'بیورو کے محفوظ پورٹل تک رسائی کے لیے اپنے تصدیق شدہ اکاؤنٹ سے لاگ ان کریں۔'
+                    : 'Sign in with your verified credentials to access your designated bureau workspace.'}
                 </p>
-                <div className="space-y-2 pt-2">
+                <div className="pt-2">
                   <button
-                    onClick={() => handleSelectRole('nadeem')}
-                    className="w-full py-3 px-4 rounded-xl bg-[#182848] text-white text-xs font-semibold hover:bg-[#283848] transition-colors"
+                    onClick={() => setIsAuthModalOpen(true)}
+                    className="w-full py-3 px-4 rounded-xl bg-[#182848] text-white text-sm font-semibold hover:bg-[#283848] transition-colors shadow-md cursor-pointer"
                   >
-                    Enter as Nadeem (Lead Matchmaker)
-                  </button>
-                  <button
-                    onClick={() => handleSelectRole('customer')}
-                    className="w-full py-3 px-4 rounded-xl border border-[#182848] text-[#182848] text-xs font-semibold hover:bg-[#182848]/5 transition-colors"
-                  >
-                    Enter as Candidate / Customer
-                  </button>
-                  <button
-                    onClick={() => handleSelectRole('admin')}
-                    className="w-full py-3 px-4 rounded-xl border border-[#E7E2D8] text-[#252E2C] text-xs font-semibold"
-                  >
-                    Enter as System Administrator
+                    {language === 'ur' ? 'لاگ ان ونڈو کھولیں' : 'Open Sign In Dialog'}
                   </button>
                 </div>
               </div>
@@ -344,6 +393,14 @@ export default function App() {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
         onSelectRole={handleSelectRole}
+      />
+
+      {/* Universal Floating Authentication Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        language={language}
+        onSuccessRole={handleAuthSuccess}
       />
     </div>
   );
