@@ -34,7 +34,7 @@ import {
   canAccessRole, 
   signOut 
 } from './lib/auth';
-import { validateProfileInput, canTransitionStatus } from './lib/profiles';
+import { validateProfileInput, canTransitionStatus, enrichPropertyDetails } from './lib/profiles';
 import { completeFollowUp } from './lib/followUps';
 import { recordTransaction } from './lib/finance';
 import { AuthModal } from './components/auth/AuthModal';
@@ -134,7 +134,12 @@ export default function App() {
       return;
     }
 
-    setProfiles([newProfile, ...profiles]);
+    const enrichedProfile = newProfile.property ? {
+      ...newProfile,
+      property: enrichPropertyDetails(newProfile.property),
+    } : newProfile;
+
+    setProfiles([enrichedProfile, ...profiles]);
     const newLog: AuditLogItem = {
       id: `AUD-${Date.now()}`,
       timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),

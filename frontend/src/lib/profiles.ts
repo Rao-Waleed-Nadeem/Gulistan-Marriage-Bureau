@@ -12,10 +12,11 @@
  * 5. Safe Demo Mode: Operates offline on synthetic fixtures with local mutation support.
  */
 
-import { ProfileRecord, ProfileStatus, Role, Gender, MaritalStatus } from '../types';
+import { ProfileRecord, ProfileStatus, Role, Gender, MaritalStatus, SiblingRecord, PropertyDetails } from '../types';
 import { AuthSession, canAccessRole } from './auth';
 import { getClientConfig } from './config';
 import { INITIAL_PROFILES } from '../data/mockData';
+import { convertMarlaToKanal } from '../utils/units';
 
 /**
  * Database Row Model representing `public.profiles` table in PostgreSQL.
@@ -250,6 +251,84 @@ export function profileDTOToRow(
 }
 
 /**
+ * Validates an individual sibling entry per OPEN-011.
+ */
+export function validateSiblingRecord(sibling: Partial<SiblingRecord>): ValidationError[] {
+  const errors: ValidationError[] = [];
+
+  if (!sibling.relation || !['brother', 'sister'].includes(sibling.relation)) {
+    errors.push({
+      field: 'sibling.relation',
+      code: 'INVALID_SIBLING_RELATION',
+      messageEn: 'Sibling relation must be brother or sister.',
+      messageUrdu: 'بہن بھائی کے رشتے کا درست انتخاب لازمی ہے۔',
+    });
+  }
+
+  if (sibling.age !== undefined && (isNaN(sibling.age) || sibling.age < 0 || sibling.age > 120)) {
+    errors.push({
+      field: 'sibling.age',
+      code: 'INVALID_SIBLING_AGE',
+      messageEn: 'Sibling age must be between 0 and 120.',
+      messageUrdu: 'بہن بھائی کی عمر ۰ سے ۱۲۰ سال کے درمیان ہونی چاہیے۔',
+    });
+  }
+
+  if (sibling.childrenCount !== undefined && (isNaN(sibling.childrenCount) || sibling.childrenCount < 0)) {
+    errors.push({
+      field: 'sibling.childrenCount',
+      code: 'INVALID_CHILDREN_COUNT',
+      messageEn: 'Children count cannot be negative.',
+      messageUrdu: 'بچوں کی تعداد منفی نہیں ہو سکتی۔',
+    });
+  }
+
+  return errors;
+}
+
+/**
+ * Validates property holdings and land units per OPEN-011.
+ */
+export function validatePropertyDetails(property: Partial<PropertyDetails>): ValidationError[] {
+  const errors: ValidationError[] = [];
+
+  if (property.areaMarlas !== undefined && (isNaN(property.areaMarlas) || property.areaMarlas < 0)) {
+    errors.push({
+      field: 'property.areaMarlas',
+      code: 'INVALID_PROPERTY_AREA',
+      messageEn: 'Property area in marlas must be a non-negative number.',
+      messageUrdu: 'پراپرٹی کا رقبہ مرلوں میں درست اور مثبت ہونا چاہیے۔',
+    });
+  }
+
+  if (property.approxValuePKR !== undefined && (isNaN(property.approxValuePKR) || property.approxValuePKR < 0)) {
+    errors.push({
+      field: 'property.approxValuePKR',
+      code: 'INVALID_PROPERTY_VALUE',
+      messageEn: 'Property estimated value cannot be negative.',
+      messageUrdu: 'پراپرٹی کی تخمینی مالیت منفی نہیں ہو سکتی۔',
+    });
+  }
+
+  return errors;
+}
+
+/**
+ * Enriches property details with formatted Kanal strings per OPEN-011 (20 Marla = 1 Kanal).
+ */
+export function enrichPropertyDetails(property: PropertyDetails): PropertyDetails {
+  if (property.areaMarlas !== undefined && property.areaMarlas >= 0) {
+    const conversion = convertMarlaToKanal(property.areaMarlas);
+    return {
+      ...property,
+      areaKanalDisplay: conversion.formattedEn,
+      areaKanalDisplayUrdu: conversion.formattedUrdu,
+    };
+  }
+  return property;
+}
+
+/**
  * Validates candidate profile inputs against database constraints and business invariants.
  */
 export function validateProfileInput(data: Partial<ProfileRecord>): ProfileValidationResult {
@@ -403,6 +482,25 @@ export function validateProfileInput(data: Partial<ProfileRecord>): ProfileValid
     });
   }
 
+  // Sibling records (OPEN-011)
+  if (data.siblings && Array.isArray(data.siblings)) {
+    data.siblings.forEach((sib, idx) => {
+      const sibErrors = validateSiblingRecord(sib);
+      sibErrors.forEach((err) => {
+        errors.push({
+          ...err,
+          field: `siblings[${idx}].${err.field.replace('sibling.', '')}`,
+        });
+      });
+    });
+  }
+
+  // Property details (OPEN-011)
+  if (data.property) {
+    const propErrors = validatePropertyDetails(data.property);
+    errors.push(...propErrors);
+  }
+
   return {
     valid: errors.length === 0,
     errors,
@@ -473,6 +571,16 @@ export function sanitizeProfileForRole(
     internalNotes: undefined,
     familyBackgroundNotes: '[Disclosed upon authorized introduction]',
     residenceArea: profile.currentCity, // only disclose city, not precise neighborhood
+    siblings: profile.siblings ? profile.siblings.map((s) => ({
+      ...s,
+      name: undefined, // scrub sibling real name for third parties per OPEN-011
+      marriageDetails: undefined, // scrub specific spouse family details
+    })) : [],
+    property: profile.property ? {
+      ...profile.property,
+      approxValuePKR: undefined, // scrub monetary net worth for third parties per OPEN-011
+      locality: '[Disclosed upon introduction]',
+    } : profile.property,
   };
 }
 

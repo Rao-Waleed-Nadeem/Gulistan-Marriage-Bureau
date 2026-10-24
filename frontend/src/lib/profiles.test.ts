@@ -4,6 +4,9 @@ import {
   parseHeightToInches,
   formatInchesToHeight,
   validateProfileInput,
+  validateSiblingRecord,
+  validatePropertyDetails,
+  enrichPropertyDetails,
   canTransitionStatus,
   sanitizeProfileForRole,
   profileDTOToRow,
@@ -213,4 +216,101 @@ test('updateProfileStatus enforces transition validation on repository records',
   const illegalRes = await updateProfileStatus('GLS-404', 'pending_review', staffSession);
   assert.equal(illegalRes.success, false);
   assert.equal(illegalRes.error?.code, 'INVALID_TRANSITION');
+});
+
+test('validateSiblingRecord enforces valid Pakistani matrimonial sibling invariants (OPEN-011)', () => {
+  // Valid sibling
+  const validSib = validateSiblingRecord({
+    relation: 'brother',
+    age: 26,
+    maritalStatus: 'married',
+    occupation: 'Doctor',
+    childrenCount: 1,
+  });
+  assert.equal(validSib.length, 0);
+
+  // Invalid relation
+  const invalidRel = validateSiblingRecord({ relation: 'cousin' as any });
+  assert.ok(invalidRel.some((e) => e.code === 'INVALID_SIBLING_RELATION'));
+
+  // Negative children count
+  const negChildren = validateSiblingRecord({ relation: 'sister', childrenCount: -2 });
+  assert.ok(negChildren.some((e) => e.code === 'INVALID_CHILDREN_COUNT'));
+
+  // Invalid age
+  const invalidAge = validateSiblingRecord({ relation: 'brother', age: 150 });
+  assert.ok(invalidAge.some((e) => e.code === 'INVALID_SIBLING_AGE'));
+});
+
+test('validatePropertyDetails and enrichPropertyDetails handle Pakistani land units (OPEN-011)', () => {
+  // Valid property
+  const validProp = validatePropertyDetails({
+    ownership: 'owned',
+    propertyType: 'house',
+    areaMarlas: 10,
+    approxValuePKR: 35000000,
+  });
+  assert.equal(validProp.length, 0);
+
+  // Negative marlas
+  const negMarlas = validatePropertyDetails({ areaMarlas: -5 });
+  assert.ok(negMarlas.some((e) => e.code === 'INVALID_PROPERTY_AREA'));
+
+  // Negative PKR value
+  const negVal = validatePropertyDetails({ approxValuePKR: -100000 });
+  assert.ok(negVal.some((e) => e.code === 'INVALID_PROPERTY_VALUE'));
+
+  // enrichPropertyDetails converts 25 Marlas to 1 Kanal, 5 Marla (20 Marla = 1 Kanal)
+  const enriched = enrichPropertyDetails({
+    ownership: 'owned',
+    propertyType: 'house',
+    areaMarlas: 25,
+    city: 'Lahore',
+    locality: 'DHA Phase 5',
+    householdArrangement: 'independent',
+  });
+  assert.equal(enriched.areaKanalDisplay, '1 Kanal, 5 Marla');
+  assert.equal(enriched.areaKanalDisplayUrdu, '1 کنال، 5 مرلہ');
+});
+
+test('sanitizeProfileForRole scrubs sibling real names and exact property values for third parties (OPEN-011)', () => {
+  const fullProfile: ProfileRecord = {
+    ...sampleValidDTO,
+    id: 'GLS-TEST-1',
+    fullName: 'Hamza Tariq',
+    displayName: 'Hamza T.',
+    siblings: [
+      {
+        id: 'sib-1',
+        relation: 'brother',
+        name: 'Bilal Tariq',
+        maritalStatus: 'married',
+        occupation: 'Software Engineer',
+        marriageDetails: 'Married into Arain family in Faisalabad',
+      },
+    ],
+    property: {
+      ownership: 'owned',
+      propertyType: 'house',
+      areaMarlas: 10,
+      approxValuePKR: 45000000,
+      city: 'Lahore',
+      locality: 'Johar Town Block G',
+      householdArrangement: 'independent',
+    },
+  } as ProfileRecord;
+
+  // Staff sees everything
+  const staffView = sanitizeProfileForRole(fullProfile, 'nadeem');
+  assert.equal(staffView.siblings[0].name, 'Bilal Tariq');
+  assert.equal(staffView.property.approxValuePKR, 45000000);
+  assert.equal(staffView.property.locality, 'Johar Town Block G');
+
+  // Third-party customer has sensitive details scrubbed
+  const publicView = sanitizeProfileForRole(fullProfile, 'customer', false);
+  assert.equal(publicView.siblings[0].name, undefined); // Real sibling name scrubbed
+  assert.equal(publicView.siblings[0].marriageDetails, undefined); // In-law details scrubbed
+  assert.equal(publicView.siblings[0].relation, 'brother'); // Relation preserved
+  assert.equal(publicView.property.approxValuePKR, undefined); // Exact net worth scrubbed
+  assert.equal(publicView.property.locality, '[Disclosed upon introduction]');
 });

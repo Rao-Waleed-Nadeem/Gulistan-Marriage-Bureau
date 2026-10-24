@@ -238,6 +238,19 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 
 **Completion record:** Completed on 2026-10-24. Implemented `backend/scripts/deploy-migrations.js` providing automated migration discovery, SHA-256 checksum calculation, dry-run simulation, and live transactional execution against PostgreSQL/Supabase. Implemented `backend/scripts/smoke-test.js` providing non-destructive configuration sanity checks, RLS table verification, private candidate photo bucket verification, and diagnostic reporting with CLI exit codes. Produced `15-staging-deployment-runbook.md` with end-to-end instructions for project setup, migrations, smoke-testing, and frontend hosting. Added `deploy:migrations` and `smoke:test` scripts to `backend/package.json`. Verified via 7 new automated tests in `backend/tests/deployment_smoke.test.js` (58 passed total in backend) and 77 frontend tests (135 passed total across codebase). Verified commit `0730f8c`.
 
+### T-015 — Sibling profiles and structured property holdings integration
+**Status:** DONE  
+**Priority:** P2  
+**Dependencies:** T-001, T-004, T-007  
+**Blocking decision:** OPEN-011 (DECIDED)  
+**Acceptance criteria**
+- [x] Sibling invariants (relation, age, marital status, children count) validated.
+- [x] Property details and Pakistani land unit conversion (20 Marla = 1 Kanal) validated and enriched.
+- [x] Third-party field sanitization locks sibling real names and exact property values until introduction authorization.
+- [x] Automated frontend unit tests and backend contract tests pass.
+
+**Completion record:** Completed on 2026-10-24. Resolved OPEN-011 adopting Pakistani matrimonial conventions for sibling structures and land metrics (20 Marla = 1 Kanal) in `09-open-decisions.md`. Implemented `validateSiblingRecord`, `validatePropertyDetails`, and `enrichPropertyDetails` in `frontend/src/lib/profiles.ts`. Integrated validation and enrichment into `handleSaveProfile` in `frontend/src/App.tsx`. Updated `sanitizeProfileForRole` to scrub sibling real names, spouse family details, and exact property PKR values for third-party viewers. Verified via 3 new frontend unit tests in `src/lib/profiles.test.ts` (80 passed total in frontend) and 4 new backend contract tests in `backend/tests/family_property.test.js` (62 passed total in backend; 142 total passing tests across codebase). Verified commit `PENDING_COMMIT_SHA`.
+
 ## Task history
 
 | Date | Task | Outcome | Commit | Notes |
@@ -257,3 +270,4 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-10-24 | T-012 | DONE | 3bf3434 | Auditable financial ledger (Migration 00002), PKR integer precision, and traceable reversals verified. |
 | 2026-10-24 | T-013 | DONE | 3900913 | Security, scale (100k profiles), backup restore drill, and release readiness review verified. |
 | 2026-10-24 | T-014 | DONE | 0730f8c | Staging deployment automation, migration deployment runner, and smoke-test harness verified. |
+| 2026-10-24 | T-015 | DONE | PENDING | Sibling profiles and structured property holdings integration (OPEN-011) verified. |

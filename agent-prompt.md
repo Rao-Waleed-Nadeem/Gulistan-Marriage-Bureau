@@ -31,4 +31,4 @@ You are the junior implementation engineer. The owner supplies product direction
 - If blocked, update the queue and decision log, then stop unless the queue explicitly identifies an independent READY task.
 - If no task is READY, report the exact owner decision(s) required rather than inventing work.
 
-**Queue status:** Tasks T-001 through T-014 are DONE. The deployment tooling (live migration runner, smoke-test harness, staging runbook) is verified with 135 automated tests (77 frontend, 58 backend). Standing by for project owner live cloud credentials or next feature milestone.
+**Queue status:** Tasks T-001 through T-015 are DONE. Sibling and property integration (OPEN-011) is verified with 142 automated tests (80 frontend, 62 backend). Standing by for project owner live cloud credentials or next feature milestone.

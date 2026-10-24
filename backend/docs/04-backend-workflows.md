@@ -47,6 +47,11 @@ The permitted profile lifecycle transitions are enforced via `canTransitionStatu
 - **Client DTO (`ProfileRecord`):** Rich camelCase domain object used by the frontend with structured sub-objects (`siblings`, `property`, `preferences`).
 - **Least-privilege field sanitization:** `sanitizeProfileForRole()` automatically scrubs sensitive contact details (`contactPhone`, `contactEmail`), precise address, and `internalNotes` when accessed by unauthorized parties or non-owner customers.
 
+### Sibling and Property Validation (Approved & Implemented in T-015 / OPEN-011)
+- **Sibling Records:** Validated via `validateSiblingRecord` ensuring relation is strictly `brother` or `sister`, non-negative age, and valid marital status. Third-party views automatically scrub real sibling names and in-law family details until introduction authorization.
+- **Property Details:** Validated via `validatePropertyDetails` ensuring non-negative Marla area and non-negative estimated value.
+- **Land Unit Conversion:** Pakistani baseline (20 Marla = 1 Kanal) is enriched automatically via `enrichPropertyDetails` (`convertMarlaToKanal`). Estimated PKR net worth is locked from third-party viewers until introduction authorization.
+
 Do not allow arbitrary status updates. Every transition records actor, timestamp and reason code. “Approved”, “active”, “verified”, and “authorized for introduction” are distinct concepts; do not collapse them.
 
 ## 4.3 Profile update and duplicate review
