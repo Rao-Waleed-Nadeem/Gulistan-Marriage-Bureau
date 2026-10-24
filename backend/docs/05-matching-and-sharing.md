@@ -89,3 +89,25 @@ The system may generate a message and open a WhatsApp deep link where supported.
 - Changing a profile after share creation does not silently mutate the previously approved disclosure snapshot.
 - Human approval is required before a match can be shared.
 - The exact preview corresponds to the actual generated message and snapshot.
+
+## 5.10 Implemented Deterministic Matching Specification (T-009)
+
+Implemented in `frontend/src/lib/matching.ts` and tested via `src/lib/matching.test.ts` and `backend/tests/matching_engine.test.js`:
+- **Algorithm Version:** `v1.0.0-deterministic`.
+- **Mandatory Hard Gates (OPEN-009):**
+  - Self-pairing and same-gender pairings are strictly prohibited (`SELF_PAIR_PROHIBITED`, `SAME_GENDER_PROHIBITED`).
+  - Religion (`MANDATORY_RELIGION_MISMATCH`), Aqeedah (`MANDATORY_AQEEDAH_MISMATCH`), and Marital Status (`MANDATORY_MARITAL_STATUS_MISMATCH`) are strict gates. Any mismatch drops overall compatibility score to 0 and marks the candidate as ineligible.
+- **Unknown Value Handling:**
+  - Missing/undisclosed candidate fields receive 0 score contribution (`RELIGION_UNKNOWN`, `AQEEDAH_UNKNOWN`, `EDUCATION_UNKNOWN`).
+  - If a mandatory criterion is undisclosed, the match is disqualified with an unverified reason code (`MANDATORY_RELIGION_UNVERIFIED`, `MANDATORY_AQEEDAH_UNVERIFIED`).
+- **Weighted Soft Criteria:**
+  - Age: in-range receives full points (`AGE_IN_RANGE`); within 2 years of the boundary receives partial 50% buffer credit (`AGE_NEAR_RANGE`); outside buffer receives 0 points (`AGE_OUT_OF_RANGE`).
+  - Location/City: preferred city match receives full points (`CITY_MATCHED`); different city receives 30% partial credit (`CITY_DIFFERENT_RELOCATION_POSSIBLE`).
+  - Caste/Biradari: matching biradari receives full points (`CASTE_MATCHED`); different biradari receives 50% partial credit if classified as acceptable range (`CASTE_DIFFERENT`).
+- **Ranking and Deterministic Tie-Breaking:**
+  - Candidates are sorted by eligibility first, overall score descending, matched criteria count descending, and candidate profile ID ascending.
+- **Human Review and Match Decision Invariant:**
+  - `requiresHumanApproval` is permanently `true`.
+  - Review states: `pending_review`, `approved_by_nadeem`, `deferred`, `rejected`.
+  - `recordMatchDecision` prevents approving ineligible matches where mandatory criteria failed (`CANNOT_APPROVE_INELIGIBLE_MATCH`) and requires authorized matchmaker credentials.
+

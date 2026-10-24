@@ -158,24 +158,24 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 **Completion record:** Completed on 2026-10-24. Implemented `frontend/src/lib/photos.ts` enforcing private bucket isolation, 5 MB file size and MIME checks (`validatePhotoFile`), non-guessable storage paths, consent-gated signed URL issuance with 48-hour expiration (OPEN-006), immediate photo purge and grant revocation upon consent withdrawal (OPEN-008), zero-logging audit sanitization (`sanitizePhotoAuditPayload`), and fail-closed unauthorized access controls. Verified via 7 frontend tests in `src/lib/photos.test.ts` (41 passed total) and 3 backend tests in `backend/tests/photo_storage_policy.test.js` (21 passed total). Verified commit `0fdb16a`.
 
 ### T-009 — Preferences and deterministic matching
-**Status:** READY  
+**Status:** DONE  
 **Priority:** P1  
 **Dependencies:** T-001, T-004, T-007  
 **Blocking decisions:** OPEN-005 (DECIDED), OPEN-009 (DECIDED)  
 **Acceptance criteria**
-- [ ] Approved mandatory/preferred rules and unknown-value treatment implemented.
-- [ ] Results include reason codes and human-readable explanations.
-- [ ] Boundary cases/ties unit-tested.
-- [ ] No prohibited sensitive inference.
-- [ ] Human approval required before introduction/share.
+- [x] Approved mandatory/preferred rules and unknown-value treatment implemented.
+- [x] Results include reason codes and human-readable explanations.
+- [x] Boundary cases/ties unit-tested.
+- [x] No prohibited sensitive inference.
+- [x] Human approval required before introduction/share.
 
-**Completion record:** Not started.
+**Completion record:** Completed on 2026-10-24. Implemented `frontend/src/lib/matching.ts` (`v1.0.0-deterministic`) providing mandatory hard gates (religion, aqeedah, marital status, gender complementarity), zero-inference evaluation, unknown-value handling without false matches (`RELIGION_UNKNOWN`, `AQEEDAH_UNKNOWN`, `EDUCATION_UNKNOWN`), weighted soft criteria (age with 2-year boundary buffer, city relocation partial credit, education, caste acceptable range), deterministic ranking with tie-breaking, bilingual summaries and per-criterion reason codes, and human matchmaker review decision recording (`recordMatchDecision`) that strictly enforces human approval and prevents approving ineligible matches. Verified via 11 unit tests in `frontend/src/lib/matching.test.ts` (52 passed total in frontend) and 3 contract tests in `backend/tests/matching_engine.test.js` (24 passed total in backend). Updated `backend/docs/05-matching-and-sharing.md` and `09-open-decisions.md`. Verified commit `2d45f3e`.
 
 ### T-010 — Controlled disclosure and WhatsApp draft generation
-**Status:** BLOCKED  
+**Status:** READY  
 **Priority:** P1  
 **Dependencies:** T-006, T-008, T-009  
-**Blocking decisions:** OPEN-005, OPEN-006  
+**Blocking decisions:** OPEN-005 (DECIDED), OPEN-006 (DECIDED)  
 **Acceptance criteria**
 - [ ] Server authorizes each disclosed field; client payload is not trusted.
 - [ ] Client cannot inject disallowed fields.

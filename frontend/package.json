@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "tsx --test src/utils/logic.test.ts src/lib/config.test.ts src/lib/auth.test.ts src/lib/profiles.test.ts src/lib/photos.test.ts"
+    "test": "tsx --test src/utils/logic.test.ts src/lib/config.test.ts src/lib/auth.test.ts src/lib/profiles.test.ts src/lib/photos.test.ts src/lib/matching.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

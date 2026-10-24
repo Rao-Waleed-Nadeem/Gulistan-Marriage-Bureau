@@ -10,6 +10,7 @@ export type { FinancialTransaction } from '../utils/finance';
 export type MaritalStatus = 'never_married' | 'divorced' | 'widowed' | 'khula';
 export type Gender = 'male' | 'female';
 export type ProfileStatus = 'pending_review' | 'approved' | 'active' | 'introduction_authorized' | 'inactive' | 'restricted';
+export type CriteriaImportance = 'mandatory' | 'preferred' | 'acceptable_range' | 'unknown' | 'not_disclosed';
 
 export interface SiblingRecord {
   id: string;
