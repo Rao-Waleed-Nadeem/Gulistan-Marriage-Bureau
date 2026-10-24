@@ -102,13 +102,19 @@ Do not build a public URL that simply embeds a profile ID and fetches all fields
 - Record audit events without exposing unnecessary customer details.
 - Exact meaning of `payable`, `receivable`, `paid`, `received`, commission timing and settlement policy is OPEN; see document 09.
 
-## 4.8 Follow-ups
+## 4.8 Follow-ups and External Matchmaker Attribution (T-011)
 
-- Follow-ups must be scoped to permitted profiles/matches.
-- Store due dates consistently and display in the user's local timezone.
-- Restrict contact numbers and notes to authorized roles.
-- Completion records who completed it and when.
-- Do not send automated WhatsApp messages in the initial scope.
+Implemented in `frontend/src/lib/followUps.ts`, integrated into `frontend/src/App.tsx`, and tested via `src/lib/followUps.test.ts` and `backend/tests/followups_crm.test.js`:
+- **Server-Side Access Scope (OPEN-002):** Follow-ups and external matchmaker directories are restricted to Lead Matchmaker (Nadeem Ahmed) and Admin (`canAccessCRM`). Customer and unauthenticated access fails closed (`UNAUTHORIZED`).
+- **Input & Date Validation:** Validates profile references, contact names, valid phone numbers, ISO due dates, priorities (`high`, `medium`, `low`), and task types (`initial_consult`, `proposal_decision`, `meeting_arrangement`, `photo_request`, `payment_reminder`).
+- **Dynamic Overdue Calculation:** `computeFollowUpStatus` automatically evaluates calendar date boundaries to mark past-due pending tasks as `overdue`. Completed tasks permanently remain `completed`.
+- **Completion Tracking & Idempotency:** `completeFollowUp` records `completedAt` timestamp, `completedBy` email/actor ID, and completion notes. Calling completion on an already completed follow-up is safely idempotent.
+- **External Matchmaker Referral Attribution:** `attributeProfileToMatchmaker` verifies that partner agency is active, increments `profilesReferredCount`, and attributes candidate source to `external_matchmaker` in alignment with database check constraint `chk_profiles_source`. Inactive agencies are rejected (`MATCHMAKER_INACTIVE`).
+- **Consequential Audit Trail (Section 3.7):** Actions `follow_up_created`, `follow_up_completed`, and `matchmaker_attributed` log structured metadata (`actor_id`, `actor_role`, `target_type`, `target_id`, `details`) omitting raw phone numbers, full notes, or sensitive PII.
+
+
+
+
 
 ## 4.9 Error contract
 

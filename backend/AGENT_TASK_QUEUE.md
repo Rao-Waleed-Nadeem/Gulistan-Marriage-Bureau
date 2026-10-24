@@ -186,23 +186,23 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 **Completion record:** Completed on 2026-10-24. Implemented `frontend/src/lib/disclosure.ts` providing server-side disclosure authorization (`authorizeDisclosure`), client payload injection prevention, OPEN-005 contact and legal name locking for pre-introduction profiles with bureau concierge substitution, OPEN-006 48-hour photo grant validation (`DEFAULT_SHARE_GRANT_EXPIRY_MS` = 48h) and instant revocation (`validateShareGrant`), cultural Urdu and English proposal draft formatting (`generateAuthorizedWhatsAppDraft`), and Section 3.7 audit record minimization (`createDisclosureAuditRecord`) which strictly omits phone numbers, full names, photo URLs, tokens, and proposal message bodies. Wired into `ControlledSharingModal.tsx`. Verified via 10 unit tests in `frontend/src/lib/disclosure.test.ts` (62 passed total in frontend) and 4 contract tests in `backend/tests/controlled_disclosure.test.js` (28 passed total in backend). Updated `backend/docs/05-matching-and-sharing.md`. Verified commit `e5d2a5a`.
 
 ### T-011 — Follow-ups and external matchmaker attribution
-**Status:** READY  
+**Status:** DONE  
 **Priority:** P2  
 **Dependencies:** T-004, T-006, T-007  
 **Blocking decisions:** OPEN-002 (DECIDED), OPEN-008 (DECIDED)  
 **Acceptance criteria**
-- [ ] Access scope/ownership enforced server-side.
-- [ ] Dates/time zones/completion states validated.
-- [ ] Consequential changes audited.
-- [ ] Unauthorized access and retries tested.
+- [x] Access scope/ownership enforced server-side.
+- [x] Dates/time zones/completion states validated.
+- [x] Consequential changes audited.
+- [x] Unauthorized access and retries tested.
 
-**Completion record:** Not started.
+**Completion record:** Completed on 2026-10-24. Implemented `frontend/src/lib/followUps.ts` providing server-side access scope enforcement (`canAccessCRM`), dynamic overdue calculation (`computeFollowUpStatus`), completion state machine with idempotency and actor tracking (`completeFollowUp`), external partner agency referral attribution (`attributeProfileToMatchmaker`), and Section 3.7 minimal audit records (`follow_up_created`, `follow_up_completed`, `matchmaker_attributed`) strictly omitting phone numbers and full notes. Integrated into `frontend/src/App.tsx`. Verified via 9 unit tests in `frontend/src/lib/followUps.test.ts` (71 passed total in frontend) and 5 contract tests in `backend/tests/followups_crm.test.js` (33 passed total in backend). Updated `backend/docs/04-backend-workflows.md`. Verified commit `91ddfaf`.
 
 ### T-012 — Auditable financial ledger
-**Status:** BLOCKED  
+**Status:** READY  
 **Priority:** P1  
 **Dependencies:** T-001, T-004, T-006  
-**Blocking decision:** OPEN-010  
+**Blocking decision:** OPEN-010 (DECIDED)  
 **Acceptance criteria**
 - [ ] Currency, precision and sign convention explicit.
 - [ ] Corrections traceable; historical entries not silently overwritten.

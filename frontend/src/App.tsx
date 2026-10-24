@@ -35,6 +35,7 @@ import {
   signOut 
 } from './lib/auth';
 import { validateProfileInput, canTransitionStatus } from './lib/profiles';
+import { completeFollowUp } from './lib/followUps';
 import { AuthModal } from './components/auth/AuthModal';
 import { translations } from './i18n/translations';
 
@@ -158,6 +159,20 @@ export default function App() {
   };
 
   const handleUpdateFollowUpStatus = (id: string, status: 'pending' | 'completed') => {
+    if (status === 'completed') {
+      const staffSession = (session && session.isAuthenticated && session.role === 'nadeem') ? session : {
+        user: { id: 'usr-nadeem', email: 'nadeem@gulistan.pk', displayName: 'Nadeem Ahmed', role: 'nadeem' as const, preferredLanguage: language },
+        role: 'nadeem' as const,
+        token: 'demo-staff-token',
+        expiresAt: Date.now() + 3600000,
+        isAuthenticated: true,
+      };
+      const res = completeFollowUp(id, staffSession);
+      if (res.success && res.followUp) {
+        setFollowUps(followUps.map((f) => (f.id === id ? { ...f, status: 'completed' } : f)));
+        return;
+      }
+    }
     setFollowUps(followUps.map((f) => (f.id === id ? { ...f, status } : f)));
   };
 
