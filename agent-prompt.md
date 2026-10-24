@@ -31,4 +31,4 @@ You are the junior implementation engineer. The owner supplies product direction
 - If blocked, update the queue and decision log, then stop unless the queue explicitly identifies an independent READY task.
 - If no task is READY, report the exact owner decision(s) required rather than inventing work.
 
-**Queue status:** T-001 and T-002 are DONE. Downstream tasks (T-003 onward) are BLOCKED waiting for owner decisions on the 6 foundational questions in `backend/docs/11-owner-decision-sheet.md` (OPEN-001, OPEN-002, OPEN-003, OPEN-004, OPEN-013, OPEN-014).
+**Queue status:** T-001, T-002, and T-003 are DONE. T-004 (First approved database migration and access-control baseline) is READY for execution.

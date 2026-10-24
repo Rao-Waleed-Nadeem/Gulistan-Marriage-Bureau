@@ -1,0 +1,21 @@
+{
+  "name": "@gulistan/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Backend tooling, migrations, tests, and configuration for Gulistan Marriage Bureau",
+  "scripts": {
+    "test": "node --test tests/**/*.test.js",
+    "migrate:validate": "node scripts/validate-migrations.js",
+    "migrate:status": "node scripts/migration-status.js"
+  },
+  "keywords": [
+    "gulistan",
+    "marriage-bureau",
+    "backend",
+    "migrations"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,6 +1,6 @@
 # 11. Minimum Owner Decision Sheet
 
-**Status:** Awaiting Owner Confirmation  
+**Status:** DECIDED (Adopted via Owner Instruction on 2026-10-24)  
 **Prepared Under:** Task `T-002`  
 **Dependencies:** [`T-001` (Frontend Domain Inventory)](10-frontend-domain-inventory.md)  
 **Target Audience:** Project Owner & Non-Technical Stakeholders  

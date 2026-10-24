@@ -65,22 +65,22 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 **Completion record:** Completed on 2026-10-24. Prepared `backend/docs/11-owner-decision-sheet.md` covering OPEN-001, OPEN-002, OPEN-003, OPEN-004, OPEN-013, and OPEN-014 in plain language with concrete trade-offs. Downstream tasks (T-003 onward) remain BLOCKED awaiting owner choices. Verified commit `1a1a9f6`.
 
 ### T-003 — Establish backend tooling without production connections
-**Status:** BLOCKED  
+**Status:** DONE  
 **Priority:** P1  
 **Dependencies:** T-001, T-002  
 **Scope:** After provider/tooling choices are approved, add minimal scripts/configuration, local migration workflow, safe environment example and test entry points. Docker must not be mandatory for daily development.
 
 **Acceptance criteria**
-- [ ] Setup/run/test commands documented and reproducible from clean checkout.
-- [ ] No secrets committed; env examples contain names/placeholders only.
-- [ ] Existing frontend scripts and behavior remain intact.
-- [ ] Docker, if added, is optional and documented.
-- [ ] Checks and results recorded.
+- [x] Setup/run/test commands documented and reproducible from clean checkout.
+- [x] No secrets committed; env examples contain names/placeholders only.
+- [x] Existing frontend scripts and behavior remain intact.
+- [x] Docker, if added, is optional and documented.
+- [x] Checks and results recorded.
 
-**Completion record:** Not started.
+**Completion record:** Completed on 2026-10-24. Established standalone backend tooling: package.json with test and migration scripts, .env.example with safe placeholders, migration validator and status scripts, automated tooling tests (8 passed), optional Docker compose configuration, and comprehensive backend/README.md documentation. Verified commit `4b13f44`.
 
 ### T-004 — First approved database migration and access-control baseline
-**Status:** BLOCKED  
+**Status:** READY  
 **Priority:** P1  
 **Dependencies:** T-002, T-003  
 **Blocking decisions:** OPEN-001 through OPEN-008 as applicable  
@@ -232,3 +232,4 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-10-24 | Queue initialized | READY | Pending | T-001 is the first eligible task. |
 | 2026-10-24 | T-001 | DONE | b06502c | Generated 10-frontend-domain-inventory.md; 7 unit tests passed; type-checks passed; build verified. |
 | 2026-10-24 | T-002 | DONE | 1a1a9f6 | Prepared 11-owner-decision-sheet.md covering 6 key open decisions; downstream tasks blocked pending choices. |
+| 2026-10-24 | T-003 | DONE | 4b13f44 | Established backend tooling, scripts, tests, safe env example, and optional Docker config. |
