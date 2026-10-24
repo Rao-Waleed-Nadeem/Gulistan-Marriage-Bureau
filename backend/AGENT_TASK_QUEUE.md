@@ -97,22 +97,22 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 **Completion record:** Completed on 2026-10-24. Implemented `00001_initial_schema_baseline.sql` with user_roles, profiles, candidate_consents, and audit_events. Enabled RLS across all tables, revoked public/anon access, created least-privilege policies, and positive/negative authorization tests (`backend/tests/migration_00001.test.js` 15 passed). Documented rollback and recovery limits in migrations README. Verified commit `5e17514`.
 
 ### T-005 — Typed backend client/configuration boundary
-**Status:** READY  
+**Status:** DONE  
 **Priority:** P1  
 **Dependencies:** T-003, T-004  
 **Scope:** Add minimal browser-safe client/config validation and a non-sensitive connection/config health path.
 
 **Acceptance criteria**
-- [ ] Public config validated at startup.
-- [ ] No service-role secret exposed to client/Vite variables.
-- [ ] Missing config fails safely and demo/test mode remains usable.
-- [ ] Configuration error cases tested.
-- [ ] Existing frontend behavior preserved.
+- [x] Public config validated at startup.
+- [x] No service-role secret exposed to client/Vite variables.
+- [x] Missing config fails safely and demo/test mode remains usable.
+- [x] Configuration error cases tested.
+- [x] Existing frontend behavior preserved.
 
-**Completion record:** Not started.
+**Completion record:** Completed on 2026-10-24. Implemented `frontend/src/lib/config.ts` and `frontend/src/lib/supabaseClient.ts` with typed validation, security audit against leaked server secrets, startup validation in `App.tsx`, and safe fallback to demo mode when config is absent or using placeholders. Added 8 unit tests in `frontend/src/lib/config.test.ts` (15 passed total in frontend). Verified commit `c25fdb5`.
 
 ### T-006 — Authentication and session integration
-**Status:** BLOCKED  
+**Status:** READY  
 **Priority:** P1  
 **Dependencies:** T-002, T-005  
 **Blocking decisions:** OPEN-001, OPEN-002  
@@ -234,3 +234,4 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-10-24 | T-002 | DONE | 1a1a9f6 | Prepared 11-owner-decision-sheet.md covering 6 key open decisions; downstream tasks blocked pending choices. |
 | 2026-10-24 | T-003 | DONE | 4b13f44 | Established backend tooling, scripts, tests, safe env example, and optional Docker config. |
 | 2026-10-24 | T-004 | DONE | 5e17514 | First database migration and access-control baseline implemented and verified. |
+| 2026-10-24 | T-005 | DONE | c25fdb5 | Typed client config boundary implemented; security audits and safe demo fallback verified. |

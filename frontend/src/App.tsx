@@ -26,6 +26,7 @@ import { ProfileWizard } from './features/matchmaker/ProfileWizard';
 import { CustomerPortal } from './features/customer/CustomerPortal';
 import { AdminPortal } from './features/admin/AdminPortal';
 import { ScrollAnimationBackground } from './components/ui/ScrollAnimationBackground';
+import { getClientConfig } from './lib/config';
 
 export default function App() {
   const [currentRole, setCurrentRole] = useState<Role>('public');
@@ -39,6 +40,11 @@ export default function App() {
   const [matchmakers, setMatchmakers] = useState<ExternalMatchmaker[]>(INITIAL_MATCHMAKERS);
   const [transactions, setTransactions] = useState<FinancialTransaction[]>(INITIAL_TRANSACTIONS);
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>(INITIAL_AUDIT_LOGS);
+
+  // Validate public backend configuration boundary at startup (fails safely to demo mode)
+  useEffect(() => {
+    getClientConfig();
+  }, []);
 
   // Synchronize document direction and font attributes with language
   useEffect(() => {
