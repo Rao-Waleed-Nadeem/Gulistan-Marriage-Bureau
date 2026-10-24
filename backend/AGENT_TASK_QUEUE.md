@@ -225,6 +225,19 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 
 **Completion record:** Completed on 2026-10-24. Resolved OPEN-016 adopting strict offline candidate storage prohibition (Option A) in `09-open-decisions.md`. Implemented `backend/scripts/capacity-benchmark.js` benchmarking 100,000 synthetic profiles across composite filter queries (2.06 ms scan, 48.5M rows/s) and deterministic matching (21.02 ms over 100k records, 0.65 ms over 1,000 records). Implemented `backend/scripts/restore-drill.js` testing database and media restore with SHA-256 integrity, exact-Rupee ledger reconciliation, and OPEN-008 photo purge compliance with zero photo resurrection. Implemented `backend/tests/production_settings.test.js` auditing .gitignore rules, environment placeholders, zero committed secrets, and private photo bucket configuration. Produced `12-capacity-and-load-report.md`, `13-backup-restore-drill.md`, and `14-release-readiness-review.md`. Verified via 13 new backend tests (51 passed total in backend) and 77 frontend tests (128 passed total across codebase). Verified commit `3900913`.
 
+### T-014 — Staging deployment automation, live Supabase migration script, and production smoke-test harness
+**Status:** DONE  
+**Priority:** P1  
+**Dependencies:** T-003, T-004, T-005, T-012, T-013  
+**Blocking decisions:** None (ADR-002, OPEN-013, OPEN-014 DECIDED)  
+**Acceptance criteria**
+- [x] Sequential SQL migration runner with schema_migrations idempotency tracking.
+- [x] Automated smoke-test harness verifying database connectivity, RLS enforcement, private bucket security, and unauthenticated fail-closed behavior.
+- [x] Step-by-step staging and production deployment runbook documented.
+- [x] Automated tests and validation checks passing with zero secret leakage.
+
+**Completion record:** Completed on 2026-10-24. Implemented `backend/scripts/deploy-migrations.js` providing automated migration discovery, SHA-256 checksum calculation, dry-run simulation, and live transactional execution against PostgreSQL/Supabase. Implemented `backend/scripts/smoke-test.js` providing non-destructive configuration sanity checks, RLS table verification, private candidate photo bucket verification, and diagnostic reporting with CLI exit codes. Produced `15-staging-deployment-runbook.md` with end-to-end instructions for project setup, migrations, smoke-testing, and frontend hosting. Added `deploy:migrations` and `smoke:test` scripts to `backend/package.json`. Verified via 7 new automated tests in `backend/tests/deployment_smoke.test.js` (58 passed total in backend) and 77 frontend tests (135 passed total across codebase). Verified commit `PENDING_COMMIT_SHA`.
+
 ## Task history
 
 | Date | Task | Outcome | Commit | Notes |
@@ -243,3 +256,4 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-10-24 | T-011 | DONE | 013a1dc | CRM follow-ups engine, overdue calculation, idempotency, and matchmaker attribution verified. |
 | 2026-10-24 | T-012 | DONE | 3bf3434 | Auditable financial ledger (Migration 00002), PKR integer precision, and traceable reversals verified. |
 | 2026-10-24 | T-013 | DONE | 3900913 | Security, scale (100k profiles), backup restore drill, and release readiness review verified. |
+| 2026-10-24 | T-014 | DONE | PENDING | Staging deployment automation, migration deployment runner, and smoke-test harness verified. |

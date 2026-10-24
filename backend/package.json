@@ -8,6 +8,8 @@
     "test": "node --test tests/**/*.test.js",
     "benchmark": "node scripts/capacity-benchmark.js",
     "restore:drill": "node scripts/restore-drill.js",
+    "deploy:migrations": "node scripts/deploy-migrations.js",
+    "smoke:test": "node scripts/smoke-test.js --demo",
     "migrate:validate": "node scripts/validate-migrations.js",
     "migrate:status": "node scripts/migration-status.js"
   },

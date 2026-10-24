@@ -31,6 +31,7 @@ On every invocation, the agent must choose the first eligible READY task, execut
 12. [Capacity, scale and load report](12-capacity-and-load-report.md) — 100,000 synthetic profile benchmark, query plan and throughput analysis created under T-013.
 13. [Backup and restore drill](13-backup-restore-drill.md) — verified database and media restore drill, RTO/RPO metrics, and OPEN-008 photo privacy compliance created under T-013.
 14. [Release readiness and security review](14-release-readiness-review.md) — final security posture audit across all tasks and threat models created under T-013.
+15. [Staging and production deployment runbook](15-staging-deployment-runbook.md) — step-by-step provisioning, migration deployment runner, and smoke-testing guide created under T-014.
 
 ## Authority and conflict resolution
 
