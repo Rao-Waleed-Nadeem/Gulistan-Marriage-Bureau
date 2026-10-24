@@ -80,24 +80,24 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 **Completion record:** Completed on 2026-10-24. Established standalone backend tooling: package.json with test and migration scripts, .env.example with safe placeholders, migration validator and status scripts, automated tooling tests (8 passed), optional Docker compose configuration, and comprehensive backend/README.md documentation. Verified commit `4b13f44`.
 
 ### T-004 — First approved database migration and access-control baseline
-**Status:** READY  
+**Status:** DONE  
 **Priority:** P1  
 **Dependencies:** T-002, T-003  
 **Blocking decisions:** OPEN-001 through OPEN-008 as applicable  
 **Scope:** Implement only the approved first schema slice. Do not attempt the whole data model in one migration.
 
 **Acceptance criteria**
-- [ ] SQL migration replays from a clean database.
-- [ ] Approved constraints, foreign keys and indexes are present.
-- [ ] Browser-exposed tables have RLS, explicit grants and policies.
-- [ ] Positive and negative authorization tests exist.
-- [ ] No production data/mock-profile seeding.
-- [ ] Migration and recovery limits documented.
+- [x] SQL migration replays from a clean database.
+- [x] Approved constraints, foreign keys and indexes are present.
+- [x] Browser-exposed tables have RLS, explicit grants and policies.
+- [x] Positive and negative authorization tests exist.
+- [x] No production data/mock-profile seeding.
+- [x] Migration and recovery limits documented.
 
-**Completion record:** Not started.
+**Completion record:** Completed on 2026-10-24. Implemented `00001_initial_schema_baseline.sql` with user_roles, profiles, candidate_consents, and audit_events. Enabled RLS across all tables, revoked public/anon access, created least-privilege policies, and positive/negative authorization tests (`backend/tests/migration_00001.test.js` 15 passed). Documented rollback and recovery limits in migrations README. Verified commit `5e17514`.
 
 ### T-005 — Typed backend client/configuration boundary
-**Status:** BLOCKED  
+**Status:** READY  
 **Priority:** P1  
 **Dependencies:** T-003, T-004  
 **Scope:** Add minimal browser-safe client/config validation and a non-sensitive connection/config health path.
@@ -233,3 +233,4 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-10-24 | T-001 | DONE | b06502c | Generated 10-frontend-domain-inventory.md; 7 unit tests passed; type-checks passed; build verified. |
 | 2026-10-24 | T-002 | DONE | 1a1a9f6 | Prepared 11-owner-decision-sheet.md covering 6 key open decisions; downstream tasks blocked pending choices. |
 | 2026-10-24 | T-003 | DONE | 4b13f44 | Established backend tooling, scripts, tests, safe env example, and optional Docker config. |
+| 2026-10-24 | T-004 | DONE | 5e17514 | First database migration and access-control baseline implemented and verified. |

@@ -31,4 +31,4 @@ You are the junior implementation engineer. The owner supplies product direction
 - If blocked, update the queue and decision log, then stop unless the queue explicitly identifies an independent READY task.
 - If no task is READY, report the exact owner decision(s) required rather than inventing work.
 
-**Queue status:** T-001, T-002, and T-003 are DONE. T-004 (First approved database migration and access-control baseline) is READY for execution.
+**Queue status:** T-001 through T-004 are DONE. T-005 (Typed backend client/configuration boundary) is READY for execution.

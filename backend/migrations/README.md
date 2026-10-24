@@ -57,4 +57,33 @@ npm run migrate:validate
 npm run migrate:status
 ```
 
-*Note: Initial schema implementation begins under Task `T-004`.*
+---
+
+## 4. Migration Catalog & Recovery Limits
+
+### `00001_initial_schema_baseline.sql`
+* **Status:** Implemented under Task `T-004`.
+* **Scope:**
+  * App roles enum (`admin`, `matchmaker`, `customer`) and `user_roles` table.
+  * Security definer helper functions (`auth_has_role()`, `auth_is_staff()`).
+  * Core candidate profiles table (`profiles`) with constraints (age 18–100, height 48–96 inches, status, non-negative income, unique reference code).
+  * Candidate consents table (`candidate_consents`) capturing submitter relation and consent types per OPEN-004.
+  * Append-only audit trail (`audit_events`) with strict omission of UPDATE and DELETE policies.
+  * RLS enabled across all 4 tables with public/anon revocation and least-privilege authenticated grants.
+* **Replay Capability:** Replays cleanly on clean PostgreSQL 15/16 or Supabase environments.
+* **Rollback Procedure:** For development rollback before data population:
+  ```sql
+  BEGIN;
+  DROP TABLE IF EXISTS public.audit_events CASCADE;
+  DROP TABLE IF EXISTS public.candidate_consents CASCADE;
+  DROP TABLE IF EXISTS public.profiles CASCADE;
+  DROP TABLE IF EXISTS public.user_roles CASCADE;
+  DROP FUNCTION IF EXISTS public.auth_is_staff();
+  DROP FUNCTION IF EXISTS public.auth_has_role(public.app_role);
+  DROP TYPE IF EXISTS public.app_role CASCADE;
+  COMMIT;
+  ```
+* **Recovery Limits & SLA:**
+  * Free tier in development does not offer Point-In-Time Recovery (PITR).
+  * Upgrading to Supabase Pro at production launch ($25/mo per DECIDED: OPEN-013) unlocks 7-day PITR and automated physical backups.
+  * Audit events are append-only to preserve legal evidentiary value under Pakistan data protection baselines.
