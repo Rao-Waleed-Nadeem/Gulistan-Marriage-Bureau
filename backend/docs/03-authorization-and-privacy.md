@@ -105,3 +105,12 @@ The frontend authentication boundary is implemented in `frontend/src/lib/auth.ts
 - **Bilingual modal:** Authentication flows provide full bilingual support in English and Urdu with explicit validation for email format, required credentials, and helpful error messaging.
 - **Demo mode isolation:** When running without provisioned backend credentials, demo presets allow rapid local exploration with synthetic test personas while still enforcing authentic session creation, timestamp expiration, and fail-closed permission checks. Real backend credentials are never simulated with customer data.
 - **Explicit sign out:** `signOut()` immediately clears the active session and session storage, notifying all registered listeners and reverting the interface to the public unauthenticated state.
+
+## 3.10 Private photo storage and consent-gated access (T-008)
+
+The private photo storage boundary is implemented in `frontend/src/lib/photos.ts`:
+- **Private bucket isolation:** Photographs reside strictly in private storage with zero public buckets. Storage paths use isolated non-guessable identifiers (`private-photos/<profileId>/<timestamp>-<hash>.<ext>`) that conceal personal names and phone numbers.
+- **Short-lived signed URLs (OPEN-006):** Bearer photo URLs expire after 48 hours (`DEFAULT_PHOTO_EXPIRY_MS = 48 * 3600 * 1000`). Once expired or revoked, access fails closed.
+- **Mandatory candidate consent (OPEN-004):** Signed photo URLs cannot be generated if candidate photo consent is withheld or withdrawn (`photo_permission_granted = false`).
+- **Immediate purge on consent withdrawal (OPEN-008):** Withdrawing consent or deleting a profile triggers an immediate purge of the photo from storage and instantly revokes all active signed grants.
+- **Zero-logging compliance:** Signed URLs, bearer tokens, and credentials are mathematically excluded from audit logs and client console output (`sanitizePhotoAuditPayload`).

@@ -144,24 +144,24 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 **Completion record:** Completed on 2026-10-24. Implemented `frontend/src/lib/profiles.ts` providing DTO/database row separation (`ProfileRow` vs `ProfileRecord`), invariant validation (`validateProfileInput` covering age, gender, height, marital status, income, and representative consent), state machine lifecycle transitions (`canTransitionStatus` covering the approved 6-state taxonomy), role-based sensitive field sanitization (`sanitizeProfileForRole`), and repository CRUD. Integrated into `App.tsx` and tested via 8 frontend unit tests in `src/lib/profiles.test.ts` (34 passed total) and 3 backend lifecycle contract tests in `backend/tests/profile_lifecycle.test.js` (18 passed total). Verified commit `b5b6324`.
 
 ### T-008 — Private photos and consent-gated access
-**Status:** BLOCKED  
+**Status:** DONE  
 **Priority:** P1  
 **Dependencies:** T-002, T-004, T-006  
-**Blocking decisions:** OPEN-004, OPEN-006, OPEN-008, OPEN-012  
+**Blocking decisions:** OPEN-004 (DECIDED), OPEN-006 (DECIDED), OPEN-008 (DECIDED), OPEN-012 (DECIDED)  
 **Acceptance criteria**
-- [ ] Private buckets/objects by default.
-- [ ] Unauthorized upload/read denied in tests.
-- [ ] Link expiry/revocation documented and tested.
-- [ ] Photo URLs/tokens not logged.
-- [ ] Retention/deletion behavior explicit.
+- [x] Private buckets/objects by default.
+- [x] Unauthorized upload/read denied in tests.
+- [x] Link expiry/revocation documented and tested.
+- [x] Photo URLs/tokens not logged.
+- [x] Retention/deletion behavior explicit.
 
-**Completion record:** Not started.
+**Completion record:** Completed on 2026-10-24. Implemented `frontend/src/lib/photos.ts` enforcing private bucket isolation, 5 MB file size and MIME checks (`validatePhotoFile`), non-guessable storage paths, consent-gated signed URL issuance with 48-hour expiration (OPEN-006), immediate photo purge and grant revocation upon consent withdrawal (OPEN-008), zero-logging audit sanitization (`sanitizePhotoAuditPayload`), and fail-closed unauthorized access controls. Verified via 7 frontend tests in `src/lib/photos.test.ts` (41 passed total) and 3 backend tests in `backend/tests/photo_storage_policy.test.js` (21 passed total). Verified commit `0fdb16a`.
 
 ### T-009 — Preferences and deterministic matching
-**Status:** BLOCKED  
+**Status:** READY  
 **Priority:** P1  
 **Dependencies:** T-001, T-004, T-007  
-**Blocking decisions:** OPEN-005, OPEN-009  
+**Blocking decisions:** OPEN-005 (DECIDED), OPEN-009 (DECIDED)  
 **Acceptance criteria**
 - [ ] Approved mandatory/preferred rules and unknown-value treatment implemented.
 - [ ] Results include reason codes and human-readable explanations.

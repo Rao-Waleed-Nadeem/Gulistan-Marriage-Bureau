@@ -15,14 +15,14 @@ Do not silently invent answers to these questions. Keep this file updated as the
 | OPEN-002 | Staff access scope | DECIDED | Single Lead Matchmaker (Option A): Nadeem Ahmed is primary operational matchmaker; Admin has governance oversight. |
 | OPEN-003 | Public registration | DECIDED | Closed Concierge Intake (Option A): Staff enters verified candidates from walk-ins/calls/WhatsApp interviews to prevent spam and ensure data fidelity. |
 | OPEN-004 | Consent authority | DECIDED | Representative Legal Certification (Option A): Form captures submitter relationship with explicit legal certification of candidate consent. |
-| OPEN-005 | Customer visibility | OPEN | Which fields and recommendations can a customer view before and after a human-approved introduction? |
-| OPEN-006 | Sharing recipient | OPEN | Must recipients authenticate, or can a time-limited bearer link be used? What expiry default is acceptable? |
+| OPEN-005 | Customer visibility | DECIDED | Human-gated introduction: candidate families view own data and approved recommendations; contact details/legal names remain locked until mutual consent and matchmaker authorization. |
+| OPEN-006 | Sharing recipient | DECIDED | Time-limited signed bearer URLs (48-hour default expiry) delivered via WhatsApp; tokens hashed in DB; instant revocation support; private bucket storage. |
 | OPEN-007 | Profile state machine | DECIDED | Approved 6-state taxonomy (`pending_review`, `approved`, `active`, `introduction_authorized`, `inactive`, `restricted`) with transition graph enforced in `frontend/src/lib/profiles.ts` and Migration 00001. |
-| OPEN-008 | Data retention/deletion | OPEN | Retention periods for profiles, photos, audit events, inactive records and financial records; define deletion/backup behavior. |
-| OPEN-009 | Matching rules | OPEN | Approve mandatory/soft criteria, weights, unknown-value treatment, tie-breaking, score labels and allowed sensitive criteria. |
-| OPEN-010 | Matchmaker finance semantics | OPEN | Define payable/receivable vs paid/received, sign convention, commission timing, settlement, reversals and reporting. |
+| OPEN-008 | Data retention/deletion | DECIDED | Tiered retention: photos purged immediately on consent withdrawal/deletion; inactive profiles archived for 1 year before purge; immutable audit/financial ledgers retained permanently. |
+| OPEN-009 | Matching rules | DECIDED | Hybrid deterministic algorithm: religion, aqeedah, and marital status are mandatory hard gates (score drops to 0 if failed); soft criteria (age, city, education, caste) weighted; human approval required. |
+| OPEN-010 | Matchmaker finance semantics | DECIDED | Double-entry bureau convention: 'payable' is a liability (bureau owes partner), 'receivable' is an asset (partner owes bureau), net balance = receivable - payable, append-only traceable adjustments. |
 | OPEN-011 | Property and sibling fields | OPEN | Clarify whether property means land/home/value and which sibling marriage details are required; confirm units. |
-| OPEN-012 | Profile verification | OPEN | Which facts require evidence, who verifies them and how verification expiry/revocation works? |
+| OPEN-012 | Profile verification | DECIDED | Tiered verification: intake phone interview with family representative by Nadeem, self-declared data backed by legal certification (OPEN-004), physical document inspect on request. |
 | OPEN-013 | Production hosting budget | DECIDED | Free Dev Tier to Managed Pro ($25/mo) at Launch (Option A): $0 during development; ~$25/mo at production launch for daily backups and private photo storage. |
 | OPEN-014 | Data jurisdiction/legal review | DECIDED | Middle East (me-central-1) or Singapore (ap-southeast-1) (Option A): Lowest network latency (40-70ms) to Pakistan with enterprise SOC 2 compliance. |
 | OPEN-015 | AI processing | OPEN | If enabled, which data may be sent to which provider, what notice/consent is needed, and what retention applies? |
