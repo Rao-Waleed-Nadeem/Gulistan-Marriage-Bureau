@@ -7,10 +7,11 @@ export interface FinancialTransaction {
   matchmakerId: string;
   matchmakerName: string;
   date: string;
-  type: 'payable' | 'receivable' | 'paid' | 'received';
+  type: 'payable' | 'receivable' | 'paid' | 'received' | 'reversal';
   amount: number;
   description: string;
-  status: 'settled' | 'pending';
+  status: 'settled' | 'pending' | 'reversed';
+  profileId?: string;
 }
 
 export interface MatchmakerLedgerSummary {

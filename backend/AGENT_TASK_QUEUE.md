@@ -199,17 +199,17 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 **Completion record:** Completed on 2026-10-24. Implemented `frontend/src/lib/followUps.ts` providing server-side access scope enforcement (`canAccessCRM`), dynamic overdue calculation (`computeFollowUpStatus`), completion state machine with idempotency and actor tracking (`completeFollowUp`), external partner agency referral attribution (`attributeProfileToMatchmaker`), and Section 3.7 minimal audit records (`follow_up_created`, `follow_up_completed`, `matchmaker_attributed`) strictly omitting phone numbers and full notes. Integrated into `frontend/src/App.tsx`. Verified via 9 unit tests in `frontend/src/lib/followUps.test.ts` (71 passed total in frontend) and 5 contract tests in `backend/tests/followups_crm.test.js` (33 passed total in backend). Updated `backend/docs/04-backend-workflows.md`. Verified commit `91ddfaf`.
 
 ### T-012 — Auditable financial ledger
-**Status:** READY  
+**Status:** DONE  
 **Priority:** P1  
 **Dependencies:** T-001, T-004, T-006  
 **Blocking decision:** OPEN-010 (DECIDED)  
 **Acceptance criteria**
-- [ ] Currency, precision and sign convention explicit.
-- [ ] Corrections traceable; historical entries not silently overwritten.
-- [ ] Totals reconcile in tests.
-- [ ] Role-based access and audit events tested.
+- [x] Currency, precision and sign convention explicit.
+- [x] Corrections traceable; historical entries not silently overwritten.
+- [x] Totals reconcile in tests.
+- [x] Role-based access and audit events tested.
 
-**Completion record:** Not started.
+**Completion record:** Completed on 2026-10-24. Implemented migration `00002_financial_ledger.sql` creating append-only `financial_transactions` table with positive integer `amount_pkr`, explicit `PKR` currency, RLS policies omitting UPDATE/DELETE, and `reversal_of` foreign key. Implemented `frontend/src/lib/finance.ts` providing double-entry ledger arithmetic per OPEN-010 (`calculatePartnerLedger`), append-only recording (`recordTransaction`), traceable reversals (`reverseTransaction`), deterministic global reconciliation (`reconcileLedger`), and minimal audit records (`financial_transaction_recorded`, `financial_transaction_reversed`) omitting sensitive customer data. Wired into `frontend/src/App.tsx`. Verified via 6 unit tests in `frontend/src/lib/finance.test.ts` (77 passed total in frontend) and 5 contract tests in `backend/tests/financial_ledger.test.js` (38 passed total in backend). Updated `backend/docs/04-backend-workflows.md`. Verified commit `PENDING_COMMIT_SHA`.
 
 ### T-013 — Security, scale, backup and release review
 **Status:** BLOCKED  

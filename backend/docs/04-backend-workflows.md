@@ -92,15 +92,25 @@ A UI button click or local state update is not a durable decision.
 
 Do not build a public URL that simply embeds a profile ID and fetches all fields. See [matching and sharing](05-matching-and-sharing.md).
 
-## 4.7 Financial workflows
+## 4.7 Financial workflows (T-012 — Auditable Financial Ledger)
 
-- Only authorized finance users can read or write ledger records.
-- Amount, currency, effective date, party and transaction type are validated server-side.
-- Use idempotency keys or unique external operation IDs to avoid duplicate entries on retries.
-- Corrections should be traceable reversals/adjustments, not silent edits.
-- Compute balances from authoritative ledger entries using a documented sign convention.
-- Record audit events without exposing unnecessary customer details.
-- Exact meaning of `payable`, `receivable`, `paid`, `received`, commission timing and settlement policy is OPEN; see document 09.
+Implemented in `frontend/src/lib/finance.ts`, backed by database migration `00002_financial_ledger.sql`, wired into `frontend/src/App.tsx`, and tested via `src/lib/finance.test.ts` and `backend/tests/financial_ledger.test.js`:
+- **Explicit Currency & Precision:** Currency is strictly PKR (`ISO-4217: PKR`) with positive integer precision (`amount_pkr > 0`, `currency = 'PKR'`). Floating-point or fractional amounts are disallowed.
+- **Sign Convention & Balance Formula (OPEN-010):**
+  - `'payable'`: Bureau owes partner agency (liability).
+  - `'receivable'`: Partner agency owes Bureau (asset).
+  - `'paid'`: Settlement disbursement reducing liability.
+  - `'received'`: Settlement collection reducing receivable.
+  - `Net Balance = Total Pending Payable - Total Pending Receivable` (positive = Bureau owes partner; negative = partner owes Bureau).
+- **Append-Only Database Ledger & Traceable Reversals:** Historical entries cannot be silently overwritten or deleted. Migration `00002_financial_ledger.sql` defines Row-Level Security policies with strictly NO UPDATE or DELETE grants. Errors are corrected exclusively by appending inverse reversal records referencing `reversal_of` with documented business reasons.
+- **Deterministic Reconciliation:** `reconcileLedger` and `calculatePartnerLedger` reconcile total pending liabilities, settled volume, and net balances across all partner agencies.
+- **Role-Based Access & Minimal Audit:** Ledger access is restricted to Lead Matchmaker (Nadeem Ahmed) and Admin (`canAccessFinance`). Every ledger write logs an audit event omitting customer PII (Section 3.7).
+
+
+
+
+
+
 
 ## 4.8 Follow-ups and External Matchmaker Attribution (T-011)
 

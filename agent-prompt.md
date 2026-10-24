@@ -31,4 +31,4 @@ You are the junior implementation engineer. The owner supplies product direction
 - If blocked, update the queue and decision log, then stop unless the queue explicitly identifies an independent READY task.
 - If no task is READY, report the exact owner decision(s) required rather than inventing work.
 
-**Queue status:** T-001 through T-011 are DONE. T-012 (Auditable financial ledger) is READY for execution.
+**Queue status:** T-001 through T-012 are DONE. T-013 (Security, scale, backup and release review) is BLOCKED pending OPEN-016.
