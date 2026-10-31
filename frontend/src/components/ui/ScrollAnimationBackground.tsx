@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { resolveInitialClarity, CLARITY_CHANGE_EVENT, ClarityMode } from '../../lib/appearance';
 
 const TOTAL_FRAMES = 300;
 const FRAME_PATH_PREFIX = '/frames/frame_';
@@ -8,7 +9,21 @@ const LERP_FACTOR = 0.24; // Snappy, silky interpolation without sluggish lag
 
 export const ScrollAnimationBackground: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [clarityMode, setClarityMode] = useState<'clear' | 'ultra' | 'soft'>('clear');
+  const [clarityMode, setClarityMode] = useState<ClarityMode>(resolveInitialClarity);
+
+  useEffect(() => {
+    const handleClarityChange = (e: Event) => {
+      const customEvent = e as CustomEvent<ClarityMode>;
+      if (customEvent.detail) {
+        setClarityMode(customEvent.detail);
+      } else {
+        setClarityMode(resolveInitialClarity());
+      }
+    };
+
+    window.addEventListener(CLARITY_CHANGE_EVENT, handleClarityChange);
+    return () => window.removeEventListener(CLARITY_CHANGE_EVENT, handleClarityChange);
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -300,34 +315,13 @@ export const ScrollAnimationBackground: React.FC = () => {
   }[clarityMode];
 
   return (
-    <>
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden" aria-hidden="true">
-        <canvas 
-          ref={canvasRef} 
-          className="w-full h-full block" 
-        />
-        {/* Crystal Clear Overlay with frosted balance */}
-        <div className={`absolute inset-0 ${overlayClass} pointer-events-none transition-all duration-300`} />
-      </div>
-
-      {/* Floating Background Clarity Controller */}
-      <div className="fixed bottom-5 end-5 z-40">
-        <button
-          onClick={() => {
-            const nextMode = clarityMode === 'clear' ? 'ultra' : clarityMode === 'ultra' ? 'soft' : 'clear';
-            setClarityMode(nextMode);
-          }}
-          className="flex items-center gap-2 rounded-full border border-[#B69A62]/60 bg-[#182848]/90 px-3.5 py-1.5 text-xs font-medium text-[#F7F3EA] shadow-xl backdrop-blur-md transition-all hover:bg-[#283848] hover:border-[#B69A62] cursor-pointer"
-          title="Click to toggle background animation clarity (Clear / Ultra / Soft)"
-        >
-          <span className="h-2 w-2 rounded-full bg-[#B69A62] animate-pulse" />
-          <span>
-            {clarityMode === 'clear' && 'Background: Clear (82%)'}
-            {clarityMode === 'ultra' && 'Background: Ultra Clear (95%)'}
-            {clarityMode === 'soft' && 'Background: Soft (65%)'}
-          </span>
-        </button>
-      </div>
-    </>
+    <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden" aria-hidden="true">
+      <canvas 
+        ref={canvasRef} 
+        className="w-full h-full block" 
+      />
+      {/* Crystal Clear Overlay with frosted balance */}
+      <div className={`absolute inset-0 ${overlayClass} pointer-events-none transition-all duration-300`} />
+    </div>
   );
 };

@@ -39,12 +39,38 @@ import { completeFollowUp } from './lib/followUps';
 import { recordTransaction } from './lib/finance';
 import { AuthModal } from './components/auth/AuthModal';
 import { translations } from './i18n/translations';
+import { 
+  resolveInitialLanguage, 
+  persistLanguagePreference, 
+  applyDocumentLanguage 
+} from './lib/language';
 
 export default function App() {
-  const [currentRole, setCurrentRole] = useState<Role>('public');
-  const [language, setLanguage] = useState<Language>('ur');
-  const [activeNav, setActiveNav] = useState<string>('home');
   const [session, setSession] = useState<AuthSession>(getCurrentSession());
+  const [language, setLanguage] = useState<Language>(() => 
+    resolveInitialLanguage(getCurrentSession().user?.preferredLanguage)
+  );
+
+  // Initialize activeNav and currentRole from URL hash or localStorage for refresh persistence
+  const getInitialRoute = () => {
+    if (typeof window !== 'undefined') {
+      const hashNav = window.location.hash.replace(/^#\/?/, '').trim();
+      const storedNav = window.localStorage?.getItem('gulistan_active_nav');
+      const candidateNav = hashNav || storedNav || 'home';
+      const storedRole = (window.localStorage?.getItem('gulistan_active_role') as Role) || 'public';
+      return { candidateNav, storedRole };
+    }
+    return { candidateNav: 'home', storedRole: 'public' as Role };
+  };
+
+  const initialRoute = getInitialRoute();
+  const [currentRole, setCurrentRole] = useState<Role>(() => {
+    if (initialRoute.storedRole !== 'public' && canAccessRole(session, initialRoute.storedRole)) {
+      return initialRoute.storedRole;
+    }
+    return 'public';
+  });
+  const [activeNav, setActiveNav] = useState<string>(() => initialRoute.candidateNav);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // Application Data States
@@ -72,13 +98,26 @@ export default function App() {
     return unsubscribe;
   }, [currentRole]);
 
-  // Synchronize document direction and font attributes with language
+  // Synchronize document direction and font attributes with persistent language
   useEffect(() => {
-    document.documentElement.dir = language === 'ur' ? 'rtl' : 'ltr';
-    document.documentElement.lang = language;
+    applyDocumentLanguage(language);
   }, [language]);
 
-  // Gated role selection with fail-closed access control
+  const handleNavigate = (sec: string) => {
+    if (sec === 'login') {
+      setIsAuthModalOpen(true);
+      return;
+    }
+    setActiveNav(sec);
+    if (typeof window !== 'undefined') {
+      window.location.hash = sec;
+      window.localStorage?.setItem('gulistan_active_nav', sec);
+      window.localStorage?.setItem('gulistan_active_role', currentRole);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Gated role selection with fail-closed access control and language preference retention
   const handleSelectRole = (role: Role) => {
     if (role !== 'public') {
       if (!canAccessRole(session, role)) {
@@ -89,41 +128,52 @@ export default function App() {
       }
     }
     setCurrentRole(role);
+    if (typeof window !== 'undefined') {
+      window.localStorage?.setItem('gulistan_active_role', role);
+    }
     if (role === 'admin') {
       setLanguage('en');
-    } else if (role === 'nadeem') {
-      // Default to Urdu per requirement 5.2
-      setLanguage('ur');
+      persistLanguagePreference('en');
+    } else {
+      // Respect persisted language preference (Urdu or English)
+      const persisted = resolveInitialLanguage(session?.user?.preferredLanguage);
+      setLanguage(persisted);
+      persistLanguagePreference(persisted);
     }
-    setActiveNav(role === 'public' ? 'home' : 'dashboard');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const targetNav = role === 'public' ? 'home' : 'dashboard';
+    handleNavigate(targetNav);
   };
 
   const handleSignOut = async () => {
     await signOut();
     setCurrentRole('public');
-    setActiveNav('home');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    handleNavigate('home');
   };
 
   const handleAuthSuccess = (role: Role) => {
     setCurrentRole(role);
+    if (typeof window !== 'undefined') {
+      window.localStorage?.setItem('gulistan_active_role', role);
+    }
     if (role === 'admin') {
       setLanguage('en');
-    } else if (role === 'nadeem') {
-      setLanguage('ur');
+      persistLanguagePreference('en');
+    } else {
+      const persisted = resolveInitialLanguage(session?.user?.preferredLanguage);
+      setLanguage(persisted);
+      persistLanguagePreference(persisted);
     }
-    setActiveNav('dashboard');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    handleNavigate('dashboard');
   };
 
   const handleToggleLanguage = (newLang: Language) => {
-    // If admin, enforce English
+    // If admin, enforce English per policy
     if (currentRole === 'admin') {
       alert('The Administrative System Oversight Portal operates in English.');
       return;
     }
     setLanguage(newLang);
+    persistLanguagePreference(newLang);
   };
 
   const handleSaveProfile = (newProfile: ProfileRecord) => {
@@ -152,9 +202,9 @@ export default function App() {
     setAuditLogs([newLog, ...auditLogs]);
 
     if (currentRole === 'nadeem') {
-      setActiveNav('profiles');
+      handleNavigate('profiles');
     } else {
-      setActiveNav('dashboard');
+      handleNavigate('dashboard');
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
     alert(
@@ -241,14 +291,7 @@ export default function App() {
         language={language}
         onToggleLanguage={handleToggleLanguage}
         activeNav={activeNav}
-        onNavigate={(sec) => {
-          if (sec === 'login') {
-            setIsAuthModalOpen(true);
-            return;
-          }
-          setActiveNav(sec);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
+        onNavigate={handleNavigate}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         isAuthenticated={session.isAuthenticated}
         userEmail={session.user?.email}
@@ -357,11 +400,10 @@ export default function App() {
                     : 'overview'
                 }
                 onTabChange={(tab) => {
-                  setActiveNav(tab === 'overview' ? 'dashboard' : tab);
+                  handleNavigate(tab === 'overview' ? 'dashboard' : tab);
                 }}
                 onNavigateToWizard={() => {
-                  setActiveNav('create-profile');
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                  handleNavigate('create-profile');
                 }}
                 onUpdateFollowUpStatus={handleUpdateFollowUpStatus}
                 onAddTransaction={handleAddTransaction}

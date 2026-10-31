@@ -251,6 +251,32 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 
 **Completion record:** Completed on 2026-10-24. Resolved OPEN-011 adopting Pakistani matrimonial conventions for sibling structures and land metrics (20 Marla = 1 Kanal) in `09-open-decisions.md`. Implemented `validateSiblingRecord`, `validatePropertyDetails`, and `enrichPropertyDetails` in `frontend/src/lib/profiles.ts`. Integrated validation and enrichment into `handleSaveProfile` in `frontend/src/App.tsx`. Updated `sanitizeProfileForRole` to scrub sibling real names, spouse family details, and exact property PKR values for third-party viewers. Verified via 3 new frontend unit tests in `src/lib/profiles.test.ts` (80 passed total in frontend) and 4 new backend contract tests in `backend/tests/family_property.test.js` (62 passed total in backend; 142 total passing tests across codebase). Verified commit `1e3e0c5`.
 
+### T-016 — UI/UX refinement, dashboard optimization & usability improvements
+**Status:** DONE  
+**Priority:** P0  
+**Dependencies:** T-006, T-007, T-009, T-011  
+**Scope:** Implement full UI/UX refinements per `agent-prompt.md`: permanent language persistence, translucent glass dashboard hero, dashboard quick-action cards and removal of redundant secondary desktop tabs, high-contrast blue-and-white active navigation states with refresh persistence, readable follow-up interface with prominent contact details and actionable states, scannable profile summary cards with larger portrait photography, comprehensive 7-section profile detail modal, sticky Best Match search toolbar with simultaneous multi-filtering and selective filter chip removal, hamburger-menu-exclusive background clarity settings, and responsive layout across mobile, tablet, and desktop viewports.
+
+**Acceptance criteria**
+- [x] Language preference persists across routes and sessions without hydration flicker or overwriting.
+- [x] Translucent glass hero container with three specified headings appears exclusively on the dashboard.
+- [x] Primary dashboard quick-action cards remain responsive and touch-ergonomic.
+- [x] Redundant secondary dashboard desktop navigation row is removed while preserving global navigation.
+- [x] Active navigation state uses high-contrast blue background with white text and survives page refresh.
+- [x] Follow-up interface features prominent customer names, large clickable telephone links, 1-click copy action with feedback, and distinguishable overdue vs due-today urgency badges.
+- [x] Profile cards emphasize larger architectural arched photographs, clean scannable summaries, and a prominent full profile CTA.
+- [x] Complete profile detail modal organizes personal, career, parents, detailed siblings, property estate (with Marla/Kanal conversions), partner preferences, and private notes into structured sections.
+- [x] Best Match page features a sticky search toolbar that remains visible during candidate scrolling.
+- [x] Multiple simultaneous filters (age range, multiple cities, marital status, education, gender) combine accurately.
+- [x] Individual filter chips can be selectively removed without clearing other filters or search query.
+- [x] Dedicated Reset All action clears both search query and active filters predictably.
+- [x] Background clarity setting is accessible via the hamburger menu only (floating button removed) and persists to localStorage.
+- [x] Fully responsive across mobile, tablet, laptop, and desktop in both Urdu RTL and English LTR layouts.
+- [x] Existing business logic, deterministic matching, WhatsApp draft generator, photo consent gating, and audit logging remain intact.
+- [x] All automated tests (86 frontend, 62 backend, 148 total) and production build pass with zero errors.
+
+**Completion record:** Completed on 2026-11-01. Implemented language persistence module (`frontend/src/lib/language.ts` and unit tests in `src/lib/language.test.ts`), appearance preference manager (`frontend/src/lib/appearance.ts`), translucent frosted glass hero and action cards in `NadeemDashboard.tsx`, high-contrast blue-and-white active navigation in `Navbar.tsx` and mobile bottom bar, readable card-based CRM in `FollowUpsView.tsx`, sticky search toolbar with selective multi-filter chips in `BestMatchView.tsx`, larger scannable cards in `ProfileCard.tsx`, and full 7-section modal in `ProfileDetailModal.tsx`. Removed permanent floating clarity button and redundant secondary dashboard menu row. Verified with 86 frontend tests, 62 backend tests (148 total passed), `tsc --noEmit` (0 errors), and `vite build` (3.26s).
+
 ## Task history
 
 | Date | Task | Outcome | Commit | Notes |
@@ -271,3 +297,4 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-10-24 | T-013 | DONE | 3900913 | Security, scale (100k profiles), backup restore drill, and release readiness review verified. |
 | 2026-10-24 | T-014 | DONE | 0730f8c | Staging deployment automation, migration deployment runner, and smoke-test harness verified. |
 | 2026-10-24 | T-015 | DONE | 1e3e0c5 | Sibling profiles and structured property holdings integration (OPEN-011) verified. |
+| 2026-11-01 | T-016 | DONE | Pending | UI/UX refinement, dashboard optimization & usability improvements per agent-prompt.md verified. |

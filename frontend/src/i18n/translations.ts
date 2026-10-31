@@ -133,7 +133,26 @@ export const translations = {
     auditLogs: 'Audit Activity',
     userManagement: 'User Management',
     systemSettings: 'System Settings',
-    financialSummary: 'Bureau Financials',
+    // Appearance & Clarity
+    claritySettingTitle: 'Background Clarity',
+    clarityClear: 'Clear (82%)',
+    clarityUltra: 'Ultra Clear (95%)',
+    claritySoft: 'Soft (65%)',
+    
+    // Usability Actions
+    viewFullProfile: 'View Full Profile',
+    callCustomer: 'Call Customer',
+    copyPhone: 'Copy Number',
+    copied: 'Copied!',
+    activeFiltersLabel: 'Active Filters',
+    allFiltersCleared: 'All filters reset',
+    btnResetAll: 'Reset All',
+    filterByStatus: 'Filter Status',
+    filterAll: 'All',
+    filterPending: 'Pending',
+    filterCompleted: 'Completed',
+    filterOverdue: 'Overdue',
+    filterDueToday: 'Due Today',
   },
   ur: {
     // Brand & Meta
@@ -265,6 +284,25 @@ export const translations = {
     auditLogs: 'سسٹم آڈٹ اور سرگرمیاں',
     userManagement: 'اکاؤنٹس اور اختیارات',
     systemSettings: 'نظامی ترتیبات و اصول',
-    financialSummary: 'مالیاتی خلاصہ',
+    // Appearance & Clarity
+    claritySettingTitle: 'پس منظر کی صفائی',
+    clarityClear: 'صاف (۸۲٪)',
+    clarityUltra: 'نہایت شفاف (۹۵٪)',
+    claritySoft: 'ہلکا مدھم (۶۵٪)',
+
+    // Usability Actions
+    viewFullProfile: 'مکمل پروفائل دیکھیں',
+    callCustomer: 'گاہک کو کال کریں',
+    copyPhone: 'نمبر کاپی کریں',
+    copied: 'کاپی ہو گیا!',
+    activeFiltersLabel: 'فعال فلٹرز',
+    allFiltersCleared: 'تمام فلٹرز ختم کر دیے گئے',
+    btnResetAll: 'تمام فلٹرز ختم کریں',
+    filterByStatus: 'کیفیت کے مطابق انتخاب',
+    filterAll: 'تمام',
+    filterPending: 'زیرِ التواء',
+    filterCompleted: 'مکمل شدہ',
+    filterOverdue: 'تاریخ گزر چکی',
+    filterDueToday: 'آج مطلوب',
   },
 };

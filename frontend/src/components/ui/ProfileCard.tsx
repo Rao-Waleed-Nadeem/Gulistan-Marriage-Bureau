@@ -100,9 +100,9 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
       {/* Main Card Body */}
       <div className="p-5 sm:p-6">
         <div className="flex flex-col sm:flex-row gap-5">
-          {/* Avatar / Portrait Frame with Architectural Arch */}
+          {/* Avatar / Portrait Frame with Architectural Arch - Prominent & Consistent */}
           <div className="relative shrink-0 mx-auto sm:mx-0">
-            <div className="relative h-28 w-24 sm:h-32 sm:w-28 overflow-hidden rounded-t-full rounded-b-xl border border-[#B69A62]/40 bg-[#182848]/10 shadow-sm">
+            <div className="relative h-40 w-32 sm:h-48 sm:w-36 overflow-hidden rounded-t-full rounded-b-2xl border-2 border-[#B69A62]/40 bg-[#182848]/10 shadow-md">
               {profile.photoPermissionGranted ? (
                 <img
                   src={profile.photoUrl}
@@ -111,20 +111,20 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                   loading="lazy"
                 />
               ) : (
-                <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-b from-[#182848] to-[#283848] text-[#F7F3EA] p-2 text-center">
-                  <Lock className="w-5 h-5 text-[#B69A62] mb-1" />
-                  <span className="text-[10px] text-[#88A8A8] leading-tight">Photo Protected</span>
-                  <span className="text-[9px] text-[#B69A62]/90">On Request</span>
+                <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-b from-[#182848] to-[#283848] text-[#F7F3EA] p-3 text-center">
+                  <Lock className="w-6 h-6 text-[#B69A62] mb-1.5" />
+                  <span className="text-xs font-semibold leading-tight">{language === 'ur' ? 'تصویر محفوظ ہے' : 'Photo Protected'}</span>
+                  <span className="text-[10px] text-[#88A8A8] mt-1">{language === 'ur' ? 'درخواست پر' : 'On Request'}</span>
                 </div>
               )}
             </div>
 
             {/* Verified Crest */}
             <div
-              className="absolute -bottom-2 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-[#182848] text-[#B69A62] border border-[#F7F3EA] shadow"
+              className="absolute -bottom-2 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-[#182848] text-[#B69A62] border-2 border-white shadow-md"
               title="Verified Bureau Credentials"
             >
-              <ShieldCheck className="h-3.5 w-3.5" />
+              <ShieldCheck className="h-4 w-4" />
             </div>
           </div>
 
@@ -254,43 +254,46 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
         )}
 
         {/* Card Footer Actions */}
-        <div className="mt-5 pt-3.5 border-t border-[#E7E2D8] flex flex-wrap items-center justify-between gap-2">
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="inline-flex items-center gap-1 text-xs font-medium text-[#182848] hover:text-[#B69A62] transition-colors"
-          >
-            <span>{isExpanded ? (language === 'ur' ? 'کم تفصیلات' : 'Hide Details') : (language === 'ur' ? 'مزید خاندانی تفصیلات' : 'Family Details')}</span>
-            {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          </button>
+        <div className="mt-5 pt-3.5 border-t border-[#E7E2D8] flex flex-wrap items-center justify-between gap-2.5">
+          {onViewDetails ? (
+            <button
+              type="button"
+              onClick={() => onViewDetails(profile)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/70 hover:bg-white text-xs font-semibold text-[#182848] border border-[#182848]/20 hover:border-[#182848] transition-all shadow-xs cursor-pointer"
+            >
+              <Eye className="w-3.5 h-3.5 text-[#B69A62]" />
+              <span>{t.viewFullProfile || (language === 'ur' ? 'مکمل کوائف' : 'View Full Profile')}</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-[#182848] hover:text-[#B69A62] transition-colors cursor-pointer"
+            >
+              <span>{isExpanded ? (language === 'ur' ? 'کم تفصیلات' : 'Hide Details') : (language === 'ur' ? 'مزید خاندانی تفصیلات' : 'Family Details')}</span>
+              {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+          )}
 
           <div className="flex items-center gap-2">
             {onShareWhatsApp && (
               <button
+                type="button"
                 onClick={() => onShareWhatsApp(profile)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#B69A62]/40 bg-white/10 hover:bg-white/25 backdrop-blur-md px-3 py-1.5 text-xs font-medium text-[#182848] shadow-xs transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-600/40 bg-emerald-50 hover:bg-emerald-100 px-3.5 py-1.5 text-xs font-semibold text-emerald-800 shadow-xs transition-colors cursor-pointer"
                 title="Prepare Controlled WhatsApp Proposal"
               >
-                <Share2 className="w-3.5 h-3.5 text-[#B69A62]" />
+                <Share2 className="w-3.5 h-3.5 text-emerald-600" />
                 <span className="hidden sm:inline">{t.btnShareWhatsApp}</span>
               </button>
             )}
 
             {onFindMatch && (
               <button
+                type="button"
                 onClick={() => onFindMatch(profile)}
-                className="inline-flex items-center gap-1 rounded-full bg-[#182848] px-4 py-1.5 text-xs font-semibold text-[#F7F3EA] shadow-md hover:bg-[#283848] transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 rounded-full bg-[#182848] hover:bg-[#283848] px-4 py-1.5 text-xs font-semibold text-[#F7F3EA] shadow-md transition-all active:scale-95 cursor-pointer"
               >
                 <span>{t.actionFindMatch}</span>
-              </button>
-            )}
-
-            {onViewDetails && (
-              <button
-                onClick={() => onViewDetails(profile)}
-                className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 hover:bg-white/20 backdrop-blur-md px-3 py-1.5 text-xs font-medium text-[#252E2C] transition-colors cursor-pointer"
-              >
-                <Eye className="w-3.5 h-3.5 text-[#486878]" />
-                <span>{language === 'ur' ? 'مکمل کوائف' : 'View'}</span>
               </button>
             )}
           </div>

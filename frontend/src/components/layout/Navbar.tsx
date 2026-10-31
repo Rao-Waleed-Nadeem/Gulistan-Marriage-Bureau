@@ -1,8 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { Role, Language } from '../../types';
 import { translations } from '../../i18n/translations';
-import { Globe, Shield, User, Users, Menu, X, Check, ChevronDown, LogIn, LogOut } from 'lucide-react';
+import { 
+  Globe, 
+  Shield, 
+  User, 
+  Users, 
+  Menu, 
+  X, 
+  Check, 
+  ChevronDown, 
+  LogIn, 
+  LogOut, 
+  Sparkles 
+} from 'lucide-react';
 import { getClientConfig } from '../../lib/config';
+import { 
+  resolveInitialClarity, 
+  persistClarityPreference, 
+  CLARITY_CHANGE_EVENT, 
+  ClarityMode 
+} from '../../lib/appearance';
 
 interface NavbarProps {
   currentRole: Role;
@@ -31,8 +49,12 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  const [isSettingsDropdownOpen, setIsSettingsDropdownOpen] = useState(false);
+  const [clarityMode, setClarityMode] = useState<ClarityMode>(resolveInitialClarity);
   const [isScrolled, setIsScrolled] = useState(false);
+
   const t = translations[language];
+  const isRTL = language === 'ur';
   const clientConfig = getClientConfig();
   const isDemoMode = clientConfig.mode === 'demo';
 
@@ -45,10 +67,27 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    const handleClarityChange = (e: Event) => {
+      const customEvent = e as CustomEvent<ClarityMode>;
+      if (customEvent.detail) {
+        setClarityMode(customEvent.detail);
+      }
+    };
+    window.addEventListener(CLARITY_CHANGE_EVENT, handleClarityChange);
+    return () => window.removeEventListener(CLARITY_CHANGE_EVENT, handleClarityChange);
+  }, []);
+
   const handleRoleChange = (role: Role) => {
     onSelectRole(role);
     setIsRoleDropdownOpen(false);
     setIsMobileMenuOpen(false);
+  };
+
+  const handleSelectClarity = (mode: ClarityMode) => {
+    setClarityMode(mode);
+    persistClarityPreference(mode);
+    setIsSettingsDropdownOpen(false);
   };
 
   const roleLabels: Record<Role, string> = {
@@ -58,11 +97,15 @@ export const Navbar: React.FC<NavbarProps> = ({
     admin: t.roleAdmin,
   };
 
-  const isRTL = language === 'ur';
+  const clarityLabels: Record<ClarityMode, string> = {
+    clear: t.clarityClear || (isRTL ? 'صاف (۸۲٪)' : 'Clear (82%)'),
+    ultra: t.clarityUltra || (isRTL ? 'نہایت شفاف (۹۵٪)' : 'Ultra Clear (95%)'),
+    soft: t.claritySoft || (isRTL ? 'ہلکا مدھم (۶۵٪)' : 'Soft (65%)'),
+  };
 
   return (
     <header className="fixed top-2.5 sm:top-4 inset-x-0 z-50 flex flex-col items-center pointer-events-none px-3 sm:px-6 transition-all duration-300">
-      {/* FLOATING GLASS CAPSULE — Generous Vertical Height, Spacious Padding & Frosted Contrast */}
+      {/* FLOATING GLASS CAPSULE */}
       <div 
         className={`pointer-events-auto w-full max-w-7xl nav-capsule px-4 sm:px-7 py-3 sm:py-3.5 min-h-[62px] sm:min-h-[68px] flex items-center justify-between transition-all duration-300 ${
           isScrolled ? 'nav-capsule-scrolled shadow-xl py-2.5 sm:py-3 min-h-[58px] sm:min-h-[64px]' : ''
@@ -92,7 +135,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </button>
 
-        {/* Desktop Navigation Links — Strictly Single-Line with Whitespace-Nowrap */}
+        {/* Desktop Navigation Links — Clear Blue-and-White Active State */}
         <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5 flex-nowrap shrink-0">
           {currentRole === 'public' && (
             <>
@@ -109,10 +152,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                     type="button"
                     key={item.id}
                     onClick={() => onNavigate(item.id)}
-                    className={`relative px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap shrink-0 transition-all duration-200 cursor-pointer ${
+                    className={`relative px-4 py-2 rounded-full text-sm whitespace-nowrap shrink-0 transition-all duration-200 cursor-pointer ${
                       isActive
-                        ? 'bg-[#182848] text-[#F7F3EA] shadow-sm font-semibold'
-                        : 'text-[#182848]/85 hover:text-[#182848] hover:bg-[#182848]/8'
+                        ? 'bg-[#182848] text-white shadow-md font-bold ring-1 ring-white/20'
+                        : 'text-[#182848]/80 hover:text-[#182848] hover:bg-white/60 font-medium'
                     }`}
                   >
                     <span className="whitespace-nowrap">{item.label}</span>
@@ -140,10 +183,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                     type="button"
                     key={item.id}
                     onClick={() => onNavigate(item.id)}
-                    className={`relative px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap shrink-0 transition-all duration-200 cursor-pointer ${
+                    className={`relative px-4 py-2 rounded-full text-sm whitespace-nowrap shrink-0 transition-all duration-200 cursor-pointer ${
                       isActive
-                        ? 'bg-[#182848] text-[#F7F3EA] shadow-sm font-semibold'
-                        : 'text-[#182848]/85 hover:text-[#182848] hover:bg-[#182848]/8'
+                        ? 'bg-[#182848] text-white shadow-md font-bold ring-1 ring-white/20'
+                        : 'text-[#182848]/80 hover:text-[#182848] hover:bg-white/60 font-medium'
                     }`}
                   >
                     <span className="whitespace-nowrap">{item.label}</span>
@@ -170,10 +213,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                     type="button"
                     key={item.id}
                     onClick={() => onNavigate(item.id)}
-                    className={`relative px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap shrink-0 transition-all duration-200 cursor-pointer ${
+                    className={`relative px-4 py-2 rounded-full text-sm whitespace-nowrap shrink-0 transition-all duration-200 cursor-pointer ${
                       isActive
-                        ? 'bg-[#182848] text-[#F7F3EA] shadow-sm font-semibold'
-                        : 'text-[#182848]/85 hover:text-[#182848] hover:bg-[#182848]/8'
+                        ? 'bg-[#182848] text-white shadow-md font-bold ring-1 ring-white/20'
+                        : 'text-[#182848]/80 hover:text-[#182848] hover:bg-white/60 font-medium'
                     }`}
                   >
                     <span className="whitespace-nowrap">{item.label}</span>
@@ -200,10 +243,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                     type="button"
                     key={item.id}
                     onClick={() => onNavigate(item.id)}
-                    className={`relative px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap shrink-0 transition-all duration-200 cursor-pointer ${
+                    className={`relative px-4 py-2 rounded-full text-sm whitespace-nowrap shrink-0 transition-all duration-200 cursor-pointer ${
                       isActive
-                        ? 'bg-[#182848] text-[#F7F3EA] shadow-sm font-semibold'
-                        : 'text-[#182848]/85 hover:text-[#182848] hover:bg-[#182848]/8'
+                        ? 'bg-[#182848] text-white shadow-md font-bold ring-1 ring-white/20'
+                        : 'text-[#182848]/80 hover:text-[#182848] hover:bg-white/60 font-medium'
                     }`}
                   >
                     <span className="whitespace-nowrap">{item.label}</span>
@@ -217,7 +260,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </nav>
 
-        {/* Right Action Controls: Persona Switcher, Language Toggle, and CTA */}
+        {/* Right Action Controls: Persona Switcher, Language Toggle, Settings & CTA */}
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
           {/* Persona Switcher Dropdown */}
           <div className="relative">
@@ -271,12 +314,55 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </div>
 
-          {/* Language Toggle Pill */}
+          {/* Desktop Appearance Clarity Settings Dropdown */}
+          <div className="relative hidden md:block">
+            <button
+              type="button"
+              onClick={() => setIsSettingsDropdownOpen(!isSettingsDropdownOpen)}
+              className="inline-flex items-center gap-1.5 rounded-full bg-white/60 hover:bg-white/90 border border-[#182848]/15 px-3 py-2 text-xs sm:text-sm font-semibold text-[#182848] transition-all shadow-xs cursor-pointer whitespace-nowrap"
+              title={t.claritySettingTitle || 'Background Clarity'}
+              aria-expanded={isSettingsDropdownOpen}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#B69A62]" />
+              <span className="hidden lg:inline text-xs">{clarityLabels[clarityMode]}</span>
+              <ChevronDown className="w-3 h-3 text-[#B69A62]" />
+            </button>
+
+            {isSettingsDropdownOpen && (
+              <div className="absolute end-0 mt-2 w-56 rounded-2xl bg-[#182848]/95 text-[#F7F3EA] p-2.5 shadow-2xl backdrop-blur-2xl z-50 border border-[#B69A62]/30 animate-in fade-in zoom-in-95 duration-150">
+                <div className="px-2.5 pb-2 text-[10px] font-semibold uppercase tracking-wider text-[#88A8A8] border-b border-white/10 mb-1.5">
+                  {t.claritySettingTitle || 'Background Clarity'}
+                </div>
+                <div className="space-y-1">
+                  {(['clear', 'ultra', 'soft'] as ClarityMode[]).map((mode) => {
+                    const isSelected = clarityMode === mode;
+                    return (
+                      <button
+                        type="button"
+                        key={mode}
+                        onClick={() => handleSelectClarity(mode)}
+                        className={`w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition-colors cursor-pointer ${
+                          isSelected
+                            ? 'bg-white/20 text-white font-bold'
+                            : 'hover:bg-white/10 text-[#88A8A8] hover:text-white'
+                        }`}
+                      >
+                        <span>{clarityLabels[mode]}</span>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-[#B69A62]" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Language Toggle Pill — Permanent Persistence */}
           <button
             type="button"
             onClick={() => onToggleLanguage(language === 'en' ? 'ur' : 'en')}
             className="inline-flex items-center justify-center rounded-full bg-white/60 hover:bg-white/90 border border-[#182848]/15 px-3 py-2 text-xs sm:text-sm font-bold text-[#182848] transition-all shadow-xs cursor-pointer whitespace-nowrap min-w-[42px]"
-            title="Switch Language (Urdu / English)"
+            title={language === 'en' ? 'اردو میں تبدیل کریں' : 'Switch to English'}
           >
             <span className="text-[#B69A62]">{language === 'en' ? 'اردو' : 'EN'}</span>
           </button>
@@ -326,13 +412,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </div>
 
-          {/* Mobile Menu Trigger */}
+          {/* Hamburger Menu Trigger */}
           <div className="flex lg:hidden items-center">
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="rounded-full bg-white/60 hover:bg-white/90 border border-[#182848]/15 p-2 text-[#182848] transition-colors cursor-pointer"
-              aria-label="Toggle mobile menu"
+              aria-label="Toggle navigation and appearance menu"
             >
               {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
@@ -340,9 +426,9 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </div>
 
-      {/* MOBILE FLOATING GLASS DRAWER MENU */}
+      {/* FLOATING GLASS DRAWER / HAMBURGER MENU (MOBILE & TABLET) */}
       {isMobileMenuOpen && (
-        <div className="pointer-events-auto w-full max-w-7xl mt-2 rounded-3xl glass-panel p-5 shadow-2xl space-y-3 lg:hidden animate-in fade-in zoom-in-95 duration-200 border border-white/60">
+        <div className="pointer-events-auto w-full max-w-7xl mt-2 rounded-3xl glass-panel p-5 shadow-2xl space-y-3 lg:hidden animate-in fade-in zoom-in-95 duration-200 border border-white/60 max-h-[85vh] overflow-y-auto">
           <div className="flex flex-col space-y-2">
             {currentRole === 'public' && (
               <>
@@ -359,7 +445,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     onClick={() => { onNavigate(item.id); setIsMobileMenuOpen(false); }}
                     className={`text-start px-4 py-3 rounded-2xl text-sm font-medium transition-colors cursor-pointer ${
                       activeNav === item.id
-                        ? 'bg-[#182848] text-[#F7F3EA] font-semibold'
+                        ? 'bg-[#182848] text-white font-bold shadow-sm'
                         : 'text-[#182848] hover:bg-[#182848]/10'
                     }`}
                   >
@@ -387,20 +473,23 @@ export const Navbar: React.FC<NavbarProps> = ({
                   { id: 'search', label: t.actionFindMatch },
                   { id: 'followups', label: t.actionFollowUps },
                   { id: 'finances', label: t.actionFinances },
-                ].map((item) => (
-                  <button
-                    type="button"
-                    key={item.id}
-                    onClick={() => { onNavigate(item.id); setIsMobileMenuOpen(false); }}
-                    className={`text-start px-4 py-3 rounded-2xl text-sm font-medium transition-colors cursor-pointer ${
-                      activeNav === item.id
-                        ? 'bg-[#182848] text-[#F7F3EA] font-semibold'
-                        : 'text-[#182848] hover:bg-[#182848]/10'
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
+                ].map((item) => {
+                  const isActive = activeNav === item.id || (item.id === 'dashboard' && activeNav === 'overview');
+                  return (
+                    <button
+                      type="button"
+                      key={item.id}
+                      onClick={() => { onNavigate(item.id); setIsMobileMenuOpen(false); }}
+                      className={`text-start px-4 py-3 rounded-2xl text-sm font-medium transition-colors cursor-pointer ${
+                        isActive
+                          ? 'bg-[#182848] text-white font-bold shadow-sm'
+                          : 'text-[#182848] hover:bg-[#182848]/10'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
               </>
             )}
 
@@ -418,7 +507,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     onClick={() => { onNavigate(item.id); setIsMobileMenuOpen(false); }}
                     className={`text-start px-4 py-3 rounded-2xl text-sm font-medium transition-colors cursor-pointer ${
                       activeNav === item.id
-                        ? 'bg-[#182848] text-[#F7F3EA] font-semibold'
+                        ? 'bg-[#182848] text-white font-bold shadow-sm'
                         : 'text-[#182848] hover:bg-[#182848]/10'
                     }`}
                   >
@@ -442,7 +531,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     onClick={() => { onNavigate(item.id); setIsMobileMenuOpen(false); }}
                     className={`text-start px-4 py-3 rounded-2xl text-sm font-medium transition-colors cursor-pointer ${
                       activeNav === item.id
-                        ? 'bg-[#182848] text-[#F7F3EA] font-semibold'
+                        ? 'bg-[#182848] text-white font-bold shadow-sm'
                         : 'text-[#182848] hover:bg-[#182848]/10'
                     }`}
                   >
@@ -451,6 +540,39 @@ export const Navbar: React.FC<NavbarProps> = ({
                 ))}
               </>
             )}
+
+            {/* SECTION 8 REQUIREMENT: Background Clarity Control Inside Hamburger Menu */}
+            <div className="pt-3 mt-2 border-t border-[#182848]/15 space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold text-[#182848]">
+                <span className="flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-[#B69A62]" />
+                  <span>{t.claritySettingTitle || (isRTL ? 'پس منظر کی صفائی' : 'Background Clarity')}</span>
+                </span>
+                <span className="text-[11px] text-[#587888] font-mono">
+                  {clarityLabels[clarityMode]}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 pt-1">
+                {(['clear', 'ultra', 'soft'] as ClarityMode[]).map((mode) => {
+                  const isSelected = clarityMode === mode;
+                  return (
+                    <button
+                      type="button"
+                      key={mode}
+                      onClick={() => handleSelectClarity(mode)}
+                      className={`py-2 px-1 text-center rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-[#182848] text-white shadow-sm ring-1 ring-white/20'
+                          : 'bg-white/70 text-[#182848] hover:bg-white border border-[#182848]/10'
+                      }`}
+                    >
+                      {clarityLabels[mode]}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
             {/* Mobile Auth Button */}
             <div className="pt-3 mt-1 border-t border-[#182848]/15">
