@@ -275,7 +275,7 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 - [x] Existing business logic, deterministic matching, WhatsApp draft generator, photo consent gating, and audit logging remain intact.
 - [x] All automated tests (86 frontend, 62 backend, 148 total) and production build pass with zero errors.
 
-**Completion record:** Completed on 2026-11-01. Implemented language persistence module (`frontend/src/lib/language.ts` and unit tests in `src/lib/language.test.ts`), appearance preference manager (`frontend/src/lib/appearance.ts`), translucent frosted glass hero and action cards in `NadeemDashboard.tsx`, high-contrast blue-and-white active navigation in `Navbar.tsx` and mobile bottom bar, readable card-based CRM in `FollowUpsView.tsx`, sticky search toolbar with selective multi-filter chips in `BestMatchView.tsx`, larger scannable cards in `ProfileCard.tsx`, and full 7-section modal in `ProfileDetailModal.tsx`. Removed permanent floating clarity button and redundant secondary dashboard menu row. Verified with 86 frontend tests, 62 backend tests (148 total passed), `tsc --noEmit` (0 errors), and `vite build` (3.26s).
+**Completion record:** Completed on 2026-11-01. Implemented language persistence module (`frontend/src/lib/language.ts` and unit tests in `src/lib/language.test.ts`), appearance preference manager (`frontend/src/lib/appearance.ts`), translucent frosted glass hero and action cards in `NadeemDashboard.tsx`, high-contrast blue-and-white active navigation in `Navbar.tsx` and mobile bottom bar, readable card-based CRM in `FollowUpsView.tsx`, sticky search toolbar with selective multi-filter chips in `BestMatchView.tsx`, larger scannable cards in `ProfileCard.tsx`, and full 7-section modal in `ProfileDetailModal.tsx`. Removed permanent floating clarity button and redundant secondary dashboard menu row. Verified with 86 frontend tests, 62 backend tests (148 total passed), `tsc --noEmit` (0 errors), and `vite build` (3.26s). Verified commit `b2eb64e`.
 
 ## Task history
 
@@ -297,4 +297,4 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-10-24 | T-013 | DONE | 3900913 | Security, scale (100k profiles), backup restore drill, and release readiness review verified. |
 | 2026-10-24 | T-014 | DONE | 0730f8c | Staging deployment automation, migration deployment runner, and smoke-test harness verified. |
 | 2026-10-24 | T-015 | DONE | 1e3e0c5 | Sibling profiles and structured property holdings integration (OPEN-011) verified. |
-| 2026-11-01 | T-016 | DONE | Pending | UI/UX refinement, dashboard optimization & usability improvements per agent-prompt.md verified. |
+| 2026-11-01 | T-016 | DONE | b2eb64e | UI/UX refinement, dashboard optimization & usability improvements per agent-prompt.md verified. |
