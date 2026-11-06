@@ -1,15 +1,16 @@
 /**
- * Authentication & Session Management Module — Gulistan Marriage Bureau
- * 
- * ARCHITECTURAL POLICIES (DECIDED: OPEN-001 & OPEN-002):
- * - Hybrid Authentication: Staff uses Email + Password; Families use Magic Links.
- * - Least Privilege: UI state alone NEVER grants permissions.
- * - Fail Closed: Any protected route accessed without a valid, unexpired session is rejected.
- * - Demo Mode: Preserved safely offline for local testing without cloud credentials.
+ * Authentication boundary — Gulistan Marriage Bureau.
+ *
+ * SECURITY STATE:
+ * - Demo credentials and locally fabricated login sessions are disabled.
+ * - No browser-generated token or client-selected role is an authenticated identity.
+ * - Until a real identity provider is provisioned and verified, all sign-in
+ *   attempts fail closed.
+ * - UI role checks are navigation safeguards only; backend authorization must
+ *   enforce every protected operation.
  */
 
 import { Role } from '../types';
-import { getClientConfig } from './config';
 
 export interface AuthUser {
   id: string;
@@ -23,7 +24,7 @@ export interface AuthSession {
   user: AuthUser | null;
   role: Role;
   token: string | null;
-  expiresAt: number | null; // Unix timestamp in milliseconds
+  expiresAt: number | null;
   isAuthenticated: boolean;
 }
 
@@ -37,37 +38,10 @@ export interface AuthResult {
   };
 }
 
-const SESSION_STORAGE_KEY = 'gulistan_auth_session';
-export const DEFAULT_SESSION_DURATION_MS = 8 * 60 * 60 * 1000; // 8 hours
+const LEGACY_SESSION_STORAGE_KEY = 'gulistan_auth_session';
+export const DEFAULT_SESSION_DURATION_MS = 8 * 60 * 60 * 1000;
 
-function resolvePermanentLanguage(): 'en' | 'ur' {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    try {
-      const stored = window.localStorage.getItem('gulistan_preferred_language');
-      if (stored === 'en' || stored === 'ur') {
-        return stored;
-      }
-    } catch {}
-  }
-  return 'ur';
-}
-
-function initSession(): AuthSession {
-  if (typeof window !== 'undefined' && window.sessionStorage) {
-    try {
-      const stored = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
-      if (stored) {
-        const parsed: AuthSession = JSON.parse(stored);
-        if (parsed && parsed.isAuthenticated && parsed.expiresAt && Date.now() < parsed.expiresAt) {
-          return parsed;
-        } else {
-          window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
-        }
-      }
-    } catch {
-      // Ignore storage parse errors
-    }
-  }
+function unauthenticatedSession(): AuthSession {
   return {
     user: null,
     role: 'public',
@@ -77,19 +51,30 @@ function initSession(): AuthSession {
   };
 }
 
-// Active session state
+/**
+ * Remove sessions created by the former demo implementation.
+ * Browser storage is never accepted as proof of identity.
+ */
+function initSession(): AuthSession {
+  if (typeof window !== 'undefined') {
+    try {
+      window.sessionStorage?.removeItem(LEGACY_SESSION_STORAGE_KEY);
+    } catch {
+      // Storage may be unavailable; the in-memory state still fails closed.
+    }
+  }
+  return unauthenticatedSession();
+}
+
 let currentSession: AuthSession = initSession();
 
-// Listeners for session state changes
 type SessionListener = (session: AuthSession) => void;
 const listeners = new Set<SessionListener>();
 
 export function subscribeToAuthChanges(listener: SessionListener): () => void {
   listeners.add(listener);
-  listener(currentSession);
-  return () => {
-    listeners.delete(listener);
-  };
+  listener({ ...currentSession });
+  return () => listeners.delete(listener);
 }
 
 function notifyListeners(): void {
@@ -102,25 +87,15 @@ function notifyListeners(): void {
   }
 }
 
-function persistSession(session: AuthSession): void {
+/**
+ * Session state is memory-only. A future provider integration must supply
+ * verified provider sessions; this module must not manufacture credentials.
+ */
+function setSessionInMemory(session: AuthSession): void {
   currentSession = session;
-  if (typeof window !== 'undefined' && window.sessionStorage) {
-    try {
-      if (session.isAuthenticated) {
-        window.sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
-      } else {
-        window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
-      }
-    } catch {
-      // Ignore storage errors
-    }
-  }
   notifyListeners();
 }
 
-/**
- * Validates whether a session is active, unexpired, and authentic.
- */
 export function validateSession(session: AuthSession | null): {
   valid: boolean;
   reason?: 'missing' | 'expired' | 'unauthenticated';
@@ -129,7 +104,11 @@ export function validateSession(session: AuthSession | null): {
     return { valid: false, reason: 'missing' };
   }
 
-  if (session.expiresAt && Date.now() > session.expiresAt) {
+  if (!session.token || !session.expiresAt || session.role !== session.user.role) {
+    return { valid: false, reason: 'unauthenticated' };
+  }
+
+  if (Date.now() >= session.expiresAt) {
     return { valid: false, reason: 'expired' };
   }
 
@@ -137,21 +116,16 @@ export function validateSession(session: AuthSession | null): {
 }
 
 /**
- * Checks whether the given session has authority to access a target role view.
- * FAILS CLOSED: Returns false by default if session is invalid or unauthorized.
+ * Client-side navigation guard only. This is not a security boundary.
+ * Database RLS and trusted server-side authorization remain mandatory.
  */
 export function canAccessRole(session: AuthSession | null, targetRole: Role): boolean {
-  if (targetRole === 'public') {
-    return true;
-  }
+  if (targetRole === 'public') return true;
 
   const validation = validateSession(session);
-  if (!validation.valid || !session?.user) {
-    return false;
-  }
+  if (!validation.valid || !session?.user) return false;
 
   const userRole = session.user.role;
-
   switch (targetRole) {
     case 'admin':
       return userRole === 'admin';
@@ -164,17 +138,25 @@ export function canAccessRole(session: AuthSession | null, targetRole: Role): bo
   }
 }
 
-/**
- * Authenticates staff using email and password.
- */
-export async function signInWithPassword(
-  email: string,
-  password: string
-): Promise<AuthResult> {
-  const cleanEmail = email.trim().toLowerCase();
-  const cleanPassword = password.trim();
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
 
-  if (!cleanEmail || !cleanPassword) {
+function providerUnavailableError(): AuthResult['error'] {
+  return {
+    code: 'AUTH_PROVIDER_NOT_CONFIGURED',
+    messageEn: 'Sign-in is temporarily unavailable because verified authentication has not been configured. No account was signed in.',
+    messageUrdu: 'تصدیق شدہ لاگ اِن سروس ابھی ترتیب نہیں دی گئی۔ کوئی اکاؤنٹ لاگ اِن نہیں کیا گیا۔',
+  };
+}
+
+/**
+ * Staff sign-in is intentionally disabled until a real provider is integrated.
+ * Never replace this with hardcoded credentials or a locally generated session.
+ */
+export async function signInWithPassword(email: string, password: string): Promise<AuthResult> {
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail || !password) {
     return {
       success: false,
       session: null,
@@ -186,8 +168,7 @@ export async function signInWithPassword(
     };
   }
 
-  // Simple email pattern check
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+  if (!isValidEmail(cleanEmail)) {
     return {
       success: false,
       session: null,
@@ -199,78 +180,16 @@ export async function signInWithPassword(
     };
   }
 
-  const clientConfig = getClientConfig();
-
-  // If live backend is configured, Supabase Auth integration is invoked
-  if (clientConfig.mode === 'backend') {
-    return {
-      success: false,
-      session: null,
-      error: {
-        code: 'BACKEND_NOT_PROVISIONED',
-        messageEn: 'Live backend authentication is not yet provisioned. Switch to demo mode.',
-        messageUrdu: 'لائیو بیک اینڈ سروس ابھی دستیاب نہیں ہے۔ براہ کرم ڈیمو موڈ استعمال کریں۔',
-      },
-    };
-  }
-
-  // Demo / Local Mode Authentication (Safe Synthetic Staff Personas)
-  let role: Role = 'public';
-  let displayName = 'Staff Member';
-
-  if (cleanEmail === 'nadeem@gulistan.pk' && cleanPassword === 'Nadeem2026!') {
-    role = 'nadeem';
-    displayName = 'Nadeem Ahmed (Lead Matchmaker)';
-  } else if (cleanEmail === 'admin@gulistan.pk' && cleanPassword === 'Admin2026!') {
-    role = 'admin';
-    displayName = 'System Administrator';
-  } else if (cleanEmail.includes('admin') && cleanPassword === 'Admin2026!') {
-    role = 'admin';
-    displayName = 'System Administrator';
-  } else if ((cleanEmail.includes('nadeem') || cleanEmail.includes('matchmaker')) && cleanPassword === 'Nadeem2026!') {
-    role = 'nadeem';
-    displayName = 'Nadeem Ahmed (Matchmaker)';
-  } else {
-    return {
-      success: false,
-      session: null,
-      error: {
-        code: 'INVALID_CREDENTIALS',
-        messageEn: 'Invalid email or password. Use demo staff credentials: nadeem@gulistan.pk / Nadeem2026!',
-        messageUrdu: 'ای میل یا پاس ورڈ غلط ہے۔ ڈیمو کریڈینشلز استعمال کریں: nadeem@gulistan.pk / Nadeem2026!',
-      },
-    };
-  }
-
-  const newSession: AuthSession = {
-    user: {
-      id: `usr-${Date.now()}`,
-      email: cleanEmail,
-      displayName,
-      role,
-      preferredLanguage: resolvePermanentLanguage(),
-    },
-    role,
-    token: `demo-token-${Date.now()}`,
-    expiresAt: Date.now() + DEFAULT_SESSION_DURATION_MS,
-    isAuthenticated: true,
-  };
-
-  persistSession(newSession);
-
-  return {
-    success: true,
-    session: newSession,
-  };
+  return { success: false, session: null, error: providerUnavailableError() };
 }
 
 /**
- * Dispatches a passwordless Magic Link to candidate or family email.
+ * Customer magic-link sign-in is intentionally disabled until an actual
+ * provider sends and verifies the link. Merely entering an email never signs in.
  */
 export async function sendMagicLink(email: string): Promise<AuthResult> {
   const cleanEmail = email.trim().toLowerCase();
-
-  if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+  if (!cleanEmail || !isValidEmail(cleanEmail)) {
     return {
       success: false,
       session: null,
@@ -282,85 +201,29 @@ export async function sendMagicLink(email: string): Promise<AuthResult> {
     };
   }
 
-  const clientConfig = getClientConfig();
-
-  if (clientConfig.mode === 'backend') {
-    return {
-      success: false,
-      session: null,
-      error: {
-        code: 'BACKEND_NOT_PROVISIONED',
-        messageEn: 'Live backend authentication is not yet provisioned. Switch to demo mode.',
-        messageUrdu: 'لائیو بیک اینڈ سروس ابھی دستیاب نہیں ہے۔',
-      },
-    };
-  }
-
-  // Demo Mode: Mock instant magic link verification for candidate
-  const newSession: AuthSession = {
-    user: {
-      id: 'usr-customer-fatima',
-      email: cleanEmail,
-      displayName: 'Dr. Fatima (Candidate Family)',
-      role: 'customer',
-      preferredLanguage: resolvePermanentLanguage(),
-    },
-    role: 'customer',
-    token: `demo-magic-token-${Date.now()}`,
-    expiresAt: Date.now() + DEFAULT_SESSION_DURATION_MS,
-    isAuthenticated: true,
-  };
-
-  persistSession(newSession);
-
-  return {
-    success: true,
-    session: newSession,
-  };
+  return { success: false, session: null, error: providerUnavailableError() };
 }
 
-/**
- * Terminates the active session and fails closed to public state.
- */
 export async function signOut(): Promise<void> {
-  const blankSession: AuthSession = {
-    user: null,
-    role: 'public',
-    token: null,
-    expiresAt: null,
-    isAuthenticated: false,
-  };
-
-  persistSession(blankSession);
+  setSessionInMemory(unauthenticatedSession());
 }
 
-/**
- * Returns a snapshot of the current session.
- */
 export function getCurrentSession(): AuthSession {
   return { ...currentSession };
 }
 
-/**
- * Updates the preferred language in the active user profile and persists the session.
- */
 export function updateUserPreferredLanguage(lang: 'en' | 'ur'): void {
-  if (currentSession && currentSession.user) {
-    currentSession = {
-      ...currentSession,
-      user: {
-        ...currentSession.user,
-        preferredLanguage: lang,
-      },
-    };
-    persistSession(currentSession);
-  }
+  if (!currentSession.user) return;
+  currentSession = {
+    ...currentSession,
+    user: { ...currentSession.user, preferredLanguage: lang },
+  };
+  notifyListeners();
 }
 
 /**
- * For testing purposes: manually sets session state.
+ * Test-only seam. Never call this from application UI or production workflows.
  */
 export function setSessionForTesting(session: AuthSession): void {
-  currentSession = { ...session };
-  notifyListeners();
+  setSessionInMemory({ ...session });
 }
