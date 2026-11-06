@@ -6,7 +6,7 @@
 
 | Check | Required command or procedure | Result |
 |---|---|---|
-| Targeted auth tests | `cd frontend && npm test -- --? ` (confirm runner filtering before use) | Not tested |
+| Targeted auth tests | `cd frontend && npx tsx --test src/lib/auth.test.ts src/lib/language.test.ts` | Not tested |
 | Full frontend tests | `cd frontend && npm test` | Not tested |
 | Type check | `cd frontend && npm run lint` | Not tested |
 | Production build | `cd frontend && npm run build` | Not tested |
