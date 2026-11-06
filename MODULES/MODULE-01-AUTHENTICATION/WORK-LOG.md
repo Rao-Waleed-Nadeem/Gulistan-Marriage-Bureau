@@ -74,3 +74,12 @@ Inspected the current source for authentication, authentication UI, app session 
 3. Decide and approve the real authentication provider architecture.
 4. Implement real provider integration only after that approval.
 5. Complete staging integration and authorization tests.
+
+
+### Review handoff
+
+- Draft pull request opened: [PR #2 — Fix C-01: disable simulated authentication](https://github.com/Rao-Waleed-Nadeem/Gulistan-Marriage-Bureau/pull/2).
+- PR status: Open, draft, not merged.
+- Files changed in the branch: 10.
+- Branch is 14 commits ahead of `main` at the time of handoff.
+- Merge is intentionally withheld pending actual test execution, technical review and Product Owner acceptance.
