@@ -82,6 +82,8 @@ Initial implementation branch changes:
 - `frontend/src/components/auth/AuthModal.tsx`
 - `frontend/src/App.tsx`
 - `frontend/src/lib/auth.test.ts`
+- `frontend/src/lib/language.ts`
+- `frontend/src/lib/language.test.ts`
 
 Any additional file change requires a documented reason and must remain within this module's authentication boundary.
 
