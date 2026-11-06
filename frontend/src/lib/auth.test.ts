@@ -10,231 +10,125 @@ import {
   setSessionForTesting,
   subscribeToAuthChanges,
   AuthSession,
-  DEFAULT_SESSION_DURATION_MS,
 } from './auth';
 
-test('validateSession rejects null, unauthenticated, or empty sessions', () => {
+function makeSession(role: 'admin' | 'nadeem' | 'customer' = 'nadeem'): AuthSession {
+  return {
+    user: {
+      id: 'test-user',
+      email: 'test@example.com',
+      displayName: 'Test User',
+      role,
+      preferredLanguage: 'en',
+    },
+    role,
+    token: 'provider-test-token',
+    expiresAt: Date.now() + 60_000,
+    isAuthenticated: true,
+  };
+}
+
+test('validateSession rejects null and unauthenticated sessions', () => {
   assert.deepEqual(validateSession(null), { valid: false, reason: 'missing' });
-
-  const unauthSession: AuthSession = {
-    user: null,
-    role: 'public',
-    token: null,
-    expiresAt: null,
-    isAuthenticated: false,
-  };
-  assert.deepEqual(validateSession(unauthSession), { valid: false, reason: 'missing' });
+  assert.deepEqual(validateSession({
+    user: null, role: 'public', token: null, expiresAt: null, isAuthenticated: false,
+  }), { valid: false, reason: 'missing' });
 });
 
-test('validateSession detects and rejects expired sessions', () => {
-  const expiredSession: AuthSession = {
-    user: {
-      id: 'usr-1',
-      email: 'nadeem@gulistan.pk',
-      displayName: 'Nadeem Ahmed',
-      role: 'nadeem',
-      preferredLanguage: 'ur',
-    },
-    role: 'nadeem',
-    token: 'tok-expired',
-    expiresAt: Date.now() - 5000, // Expired 5 seconds ago
-    isAuthenticated: true,
-  };
+test('validateSession rejects expired, tokenless, and role-inconsistent sessions', () => {
+  const expired = makeSession();
+  expired.expiresAt = Date.now() - 1;
+  assert.deepEqual(validateSession(expired), { valid: false, reason: 'expired' });
 
-  assert.deepEqual(validateSession(expiredSession), { valid: false, reason: 'expired' });
+  const tokenless = makeSession();
+  tokenless.token = null;
+  assert.deepEqual(validateSession(tokenless), { valid: false, reason: 'unauthenticated' });
+
+  const inconsistent = makeSession('customer');
+  inconsistent.role = 'admin';
+  assert.deepEqual(validateSession(inconsistent), { valid: false, reason: 'unauthenticated' });
 });
 
-test('validateSession accepts active, unexpired session', () => {
-  const activeSession: AuthSession = {
-    user: {
-      id: 'usr-1',
-      email: 'nadeem@gulistan.pk',
-      displayName: 'Nadeem Ahmed',
-      role: 'nadeem',
-      preferredLanguage: 'ur',
-    },
-    role: 'nadeem',
-    token: 'tok-valid',
-    expiresAt: Date.now() + 60000,
-    isAuthenticated: true,
-  };
-
-  assert.deepEqual(validateSession(activeSession), { valid: true });
+test('validateSession accepts a structurally valid, unexpired provider session', () => {
+  assert.deepEqual(validateSession(makeSession()), { valid: true });
 });
 
-test('canAccessRole allows public role unconditionally but fails closed for protected roles when unauthenticated', () => {
+test('canAccessRole fails closed for protected routes without a session', () => {
   assert.equal(canAccessRole(null, 'public'), true);
-
-  // Protected roles must fail closed
-  assert.equal(canAccessRole(null, 'nadeem'), false);
   assert.equal(canAccessRole(null, 'customer'), false);
+  assert.equal(canAccessRole(null, 'nadeem'), false);
   assert.equal(canAccessRole(null, 'admin'), false);
 });
 
-test('canAccessRole enforces strict role boundaries and fails closed across unauthorized tiers', () => {
-  const customerSession: AuthSession = {
-    user: {
-      id: 'usr-cust',
-      email: 'customer@example.com',
-      displayName: 'Customer Fatima',
-      role: 'customer',
-      preferredLanguage: 'ur',
-    },
-    role: 'customer',
-    token: 'tok-cust',
-    expiresAt: Date.now() + 60000,
-    isAuthenticated: true,
-  };
+test('canAccessRole enforces role boundaries for a valid session', () => {
+  const customer = makeSession('customer');
+  assert.equal(canAccessRole(customer, 'customer'), true);
+  assert.equal(canAccessRole(customer, 'nadeem'), false);
+  assert.equal(canAccessRole(customer, 'admin'), false);
 
-  // Customer cannot access staff workspaces
-  assert.equal(canAccessRole(customerSession, 'public'), true);
-  assert.equal(canAccessRole(customerSession, 'customer'), true);
-  assert.equal(canAccessRole(customerSession, 'nadeem'), false);
-  assert.equal(canAccessRole(customerSession, 'admin'), false);
+  const nadeem = makeSession('nadeem');
+  assert.equal(canAccessRole(nadeem, 'customer'), true);
+  assert.equal(canAccessRole(nadeem, 'nadeem'), true);
+  assert.equal(canAccessRole(nadeem, 'admin'), false);
 
-  const nadeemSession: AuthSession = {
-    user: {
-      id: 'usr-nad',
-      email: 'nadeem@gulistan.pk',
-      displayName: 'Nadeem Ahmed',
-      role: 'nadeem',
-      preferredLanguage: 'ur',
-    },
-    role: 'nadeem',
-    token: 'tok-nad',
-    expiresAt: Date.now() + 60000,
-    isAuthenticated: true,
-  };
-
-  // Nadeem can view customer and matchmaker views, but cannot access administrative oversight
-  assert.equal(canAccessRole(nadeemSession, 'public'), true);
-  assert.equal(canAccessRole(nadeemSession, 'customer'), true);
-  assert.equal(canAccessRole(nadeemSession, 'nadeem'), true);
-  assert.equal(canAccessRole(nadeemSession, 'admin'), false);
-
-  const adminSession: AuthSession = {
-    user: {
-      id: 'usr-adm',
-      email: 'admin@gulistan.pk',
-      displayName: 'Admin Officer',
-      role: 'admin',
-      preferredLanguage: 'en',
-    },
-    role: 'admin',
-    token: 'tok-adm',
-    expiresAt: Date.now() + 60000,
-    isAuthenticated: true,
-  };
-
-  // Admin has overarching system oversight
-  assert.equal(canAccessRole(adminSession, 'public'), true);
-  assert.equal(canAccessRole(adminSession, 'customer'), true);
-  assert.equal(canAccessRole(adminSession, 'nadeem'), true);
-  assert.equal(canAccessRole(adminSession, 'admin'), true);
+  const admin = makeSession('admin');
+  assert.equal(canAccessRole(admin, 'admin'), true);
+  assert.equal(canAccessRole(admin, 'nadeem'), true);
+  assert.equal(canAccessRole(admin, 'customer'), true);
 });
 
-test('canAccessRole fails closed if an authenticated session has expired', () => {
-  const expiredAdminSession: AuthSession = {
-    user: {
-      id: 'usr-adm',
-      email: 'admin@gulistan.pk',
-      displayName: 'Admin Officer',
-      role: 'admin',
-      preferredLanguage: 'en',
-    },
-    role: 'admin',
-    token: 'tok-adm',
-    expiresAt: Date.now() - 1000,
-    isAuthenticated: true,
-  };
-
-  assert.equal(canAccessRole(expiredAdminSession, 'admin'), false);
-  assert.equal(canAccessRole(expiredAdminSession, 'nadeem'), false);
-  assert.equal(canAccessRole(expiredAdminSession, 'customer'), false);
-  assert.equal(canAccessRole(expiredAdminSession, 'public'), true);
+test('staff password sign-in never authenticates through demo credentials', async () => {
+  await signOut();
+  const result = await signInWithPassword('nadeem@gulistan.pk', 'Nadeem2026!');
+  assert.equal(result.success, false);
+  assert.equal(result.session, null);
+  assert.equal(result.error?.code, 'AUTH_PROVIDER_NOT_CONFIGURED');
+  assert.equal(getCurrentSession().isAuthenticated, false);
+  assert.equal(getCurrentSession().role, 'public');
 });
 
-test('signInWithPassword validates inputs and rejects invalid credentials with bilingual messages', async () => {
-  // Missing fields
-  const missingRes = await signInWithPassword('', '');
-  assert.equal(missingRes.success, false);
-  assert.equal(missingRes.error?.code, 'MISSING_CREDENTIALS');
-  assert.ok(missingRes.error?.messageEn.length > 0);
-  assert.ok(missingRes.error?.messageUrdu.length > 0);
+test('customer magic link never creates a session without provider verification', async () => {
+  await signOut();
 
-  // Malformed email
-  const malformedRes = await signInWithPassword('not-an-email', 'password123');
-  assert.equal(malformedRes.success, false);
-  assert.equal(malformedRes.error?.code, 'INVALID_EMAIL');
-
-  // Wrong password
-  const badCreds = await signInWithPassword('nadeem@gulistan.pk', 'WrongPassword!');
-  assert.equal(badCreds.success, false);
-  assert.equal(badCreds.error?.code, 'INVALID_CREDENTIALS');
-});
-
-test('signInWithPassword authenticates staff and creates a timed session', async () => {
-  const res = await signInWithPassword('nadeem@gulistan.pk', 'Nadeem2026!');
-  assert.equal(res.success, true);
-  assert.ok(res.session);
-  assert.equal(res.session?.role, 'nadeem');
-  assert.equal(res.session?.user?.email, 'nadeem@gulistan.pk');
-  assert.ok(res.session?.expiresAt && res.session.expiresAt > Date.now());
-
-  const current = getCurrentSession();
-  assert.equal(current.isAuthenticated, true);
-  assert.equal(current.role, 'nadeem');
-});
-
-test('sendMagicLink validates candidate email and creates customer session', async () => {
-  // Invalid email
-  const invalid = await sendMagicLink('invalid-email');
+  const invalid = await sendMagicLink('not-an-email');
   assert.equal(invalid.success, false);
   assert.equal(invalid.error?.code, 'INVALID_EMAIL');
 
-  // Valid candidate email
-  const valid = await sendMagicLink('fatima.candidate@example.com');
-  assert.equal(valid.success, true);
-  assert.ok(valid.session);
-  assert.equal(valid.session?.role, 'customer');
-  assert.equal(valid.session?.user?.email, 'fatima.candidate@example.com');
+  const valid = await sendMagicLink('candidate@example.com');
+  assert.equal(valid.success, false);
+  assert.equal(valid.session, null);
+  assert.equal(valid.error?.code, 'AUTH_PROVIDER_NOT_CONFIGURED');
+  assert.equal(getCurrentSession().isAuthenticated, false);
 });
 
-test('signOut terminates session and resets to unauthenticated public state', async () => {
-  // Ensure we are signed in first
-  await signInWithPassword('admin@gulistan.pk', 'Admin2026!');
+test('signOut clears in-memory authentication state', async () => {
+  setSessionForTesting(makeSession('admin'));
   assert.equal(getCurrentSession().isAuthenticated, true);
 
-  // Sign out
   await signOut();
-  const sessionAfter = getCurrentSession();
-  assert.equal(sessionAfter.isAuthenticated, false);
-  assert.equal(sessionAfter.role, 'public');
-  assert.equal(sessionAfter.user, null);
-  assert.equal(sessionAfter.token, null);
+  const current = getCurrentSession();
+  assert.equal(current.isAuthenticated, false);
+  assert.equal(current.role, 'public');
+  assert.equal(current.user, null);
+  assert.equal(current.token, null);
 });
 
-test('subscribeToAuthChanges notifies on changes and unsubscribes cleanly', async () => {
+test('authentication subscribers receive current state and sign-out changes', async () => {
+  await signOut();
   let callCount = 0;
   let lastSession: AuthSession | null = null;
 
-  const unsubscribe = subscribeToAuthChanges((s) => {
+  const unsubscribe = subscribeToAuthChanges((session) => {
     callCount++;
-    lastSession = s;
+    lastSession = session;
   });
 
-  // Initial subscription emits current session immediately
   assert.equal(callCount, 1);
-
-  // Trigger login
-  await signInWithPassword('nadeem@gulistan.pk', 'Nadeem2026!');
+  setSessionForTesting(makeSession('nadeem'));
   assert.equal(callCount, 2);
   assert.equal((lastSession as AuthSession | null)?.role, 'nadeem');
 
-  // Unsubscribe
   unsubscribe();
-
-  // Sign out should not notify unsubscribed listener
   await signOut();
   assert.equal(callCount, 2);
 });
