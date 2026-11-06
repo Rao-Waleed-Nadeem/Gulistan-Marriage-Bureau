@@ -299,7 +299,7 @@ export default function App() {
       />
 
       {/* Main Routed Content Area with top clearance for floating capsule navigation */}
-      <main className="flex-1 relative z-10 pt-20 sm:pt-24">
+      <main className="flex-1 relative z-10 pt-32 sm:pt-36">
         {/* PUBLIC EXPERIENCE */}
         {currentRole === 'public' && (
           <>

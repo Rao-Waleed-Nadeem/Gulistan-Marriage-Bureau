@@ -277,6 +277,29 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 
 **Completion record:** Completed on 2026-11-01. Implemented language persistence module (`frontend/src/lib/language.ts` and unit tests in `src/lib/language.test.ts`), appearance preference manager (`frontend/src/lib/appearance.ts`), translucent frosted glass hero and action cards in `NadeemDashboard.tsx`, high-contrast blue-and-white active navigation in `Navbar.tsx` and mobile bottom bar, readable card-based CRM in `FollowUpsView.tsx`, sticky search toolbar with selective multi-filter chips in `BestMatchView.tsx`, larger scannable cards in `ProfileCard.tsx`, and full 7-section modal in `ProfileDetailModal.tsx`. Removed permanent floating clarity button and redundant secondary dashboard menu row. Verified with 86 frontend tests, 62 backend tests (148 total passed), `tsc --noEmit` (0 errors), and `vite build` (3.26s). Verified commit `b2eb64e`.
 
+### T-017 — Header / Navbar two-tier ergonomic layout & overflow elimination
+**Status:** DONE  
+**Priority:** P0  
+**Dependencies:** T-016  
+**Scope:** Re-architect header/navbar into a clean two-tier floating glass capsule to permanently resolve horizontal overflow across desktop and tablet screens (1024px to 1440px). Tier 1 hosts the brand monogram/title, primary navigation links with high-contrast active states, primary CTA, authentication action, and responsive mobile hamburger trigger. Tier 2 (dedicated new line) houses the profile/persona switcher button, background clarity controls (`Clear 82%`, `Ultra 95%`, `Soft 65%`), and bilingual language changing button (`اردو` / `English`). Update top offsets in `App.tsx` and sticky search toolbar in `BestMatchView.tsx` to accommodate the two-tier capsule height. Add unit tests for appearance/clarity preference persistence and dispatch.
+
+**Acceptance criteria**
+- [x] Header navbar horizontal overflow eliminated; navigation links never wrap or collide with utility controls.
+- [x] Tier 1 contains Brand monogram, logo text, role-specific nav items, Sign In/Out, and Register/Add Profile CTA.
+- [x] Tier 2 on a dedicated new line contains:
+  1. Profile changing button (stakeholder persona switcher: Public / Nadeem / Customer / Admin) with dropdown.
+  2. Background changing & clarity controls (`Clear 82%`, `Ultra 95%`, `Soft 65%`) with direct 1-click update.
+  3. Language changing button (`Globe` icon + `اردو` / `English`).
+- [x] Mobile hamburger menu remains fully functional for drawer navigation and auth.
+- [x] `App.tsx` top padding adjusted to `pt-32 sm:pt-36` to provide comfortable clearance below two-tier capsule.
+- [x] `BestMatchView.tsx` sticky toolbar adjusted to `sticky top-32 sm:top-36` to cleanly pin below the two-tier capsule.
+- [x] Capsule border radius adjusted to 28px in `index.css` for multi-tier visual harmony.
+- [x] Appearance/clarity manager covered by unit tests in `frontend/src/lib/appearance.test.ts`.
+- [x] All automated tests (90 frontend, 62 backend, 152 total passing), `tsc --noEmit`, and `vite build` verified.
+- [x] Commit directly to `main` with verified remote hash.
+
+**Completion record:** Completed on 2026-11-06. Refactored `frontend/src/components/layout/Navbar.tsx` into a two-tier layout separating primary navigation from utility controls (profile switcher, clarity modes, language toggle). Updated capsule styling in `frontend/src/index.css` and adjusted top offsets in `frontend/src/App.tsx` and `frontend/src/features/matchmaker/BestMatchView.tsx`. Created unit tests in `frontend/src/lib/appearance.test.ts`. Verified with 90 frontend tests, 62 backend tests (152 total passing), `tsc --noEmit` (0 errors), and `vite build` (11.04s). Verified commit `d0a35f0`.
+
 ## Task history
 
 | Date | Task | Outcome | Commit | Notes |
@@ -298,3 +321,4 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-10-24 | T-014 | DONE | 0730f8c | Staging deployment automation, migration deployment runner, and smoke-test harness verified. |
 | 2026-10-24 | T-015 | DONE | 1e3e0c5 | Sibling profiles and structured property holdings integration (OPEN-011) verified. |
 | 2026-11-01 | T-016 | DONE | b2eb64e | UI/UX refinement, dashboard optimization & usability improvements per agent-prompt.md verified. |
+| 2026-11-06 | T-017 | DONE | d0a35f0 | Two-tier navbar with dedicated utility line (persona, clarity, language) to eliminate overflow; 152 tests passed. |

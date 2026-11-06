@@ -244,7 +244,7 @@ export const BestMatchView: React.FC<BestMatchViewProps> = ({
 
       {/* STICKY SEARCH & FILTER TOOLBAR */}
       <div 
-        className="sticky top-20 sm:top-24 z-30 bg-[#FFFEFA]/95 backdrop-blur-md border border-[#E7E2D8] shadow-lg rounded-3xl p-4 sm:p-5 transition-all space-y-3"
+        className="sticky top-32 sm:top-36 z-30 bg-[#FFFEFA]/95 backdrop-blur-md border border-[#E7E2D8] shadow-lg rounded-3xl p-4 sm:p-5 transition-all space-y-3"
       >
         {/* Main Search Row */}
         <div className="flex flex-col sm:flex-row gap-3 items-stretch">
