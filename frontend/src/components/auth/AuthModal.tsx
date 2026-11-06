@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Language, Role } from '../../types';
-import { translations } from '../../i18n/translations';
 import { signInWithPassword, sendMagicLink } from '../../lib/auth';
 import { Lock, Mail, Shield, KeyRound, Sparkles, X, AlertCircle, ArrowRight } from 'lucide-react';
 
@@ -17,7 +16,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   language,
   onSuccessRole,
 }) => {
-  const t = translations[language];
   const isUrdu = language === 'ur';
   const [authMethod, setAuthMethod] = useState<'password' | 'magic_link'>('password');
   const [email, setEmail] = useState('');
