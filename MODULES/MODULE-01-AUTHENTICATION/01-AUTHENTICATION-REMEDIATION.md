@@ -20,6 +20,8 @@ Files inspected on the default branch:
 - `frontend/src/lib/auth.ts`
 - `frontend/src/components/auth/AuthModal.tsx`
 - `frontend/src/lib/auth.test.ts`
+- `frontend/src/lib/language.ts`
+- `frontend/src/lib/language.test.ts`
 - `frontend/src/lib/config.ts`
 - `frontend/src/App.tsx`
 - `frontend/src/lib/followUps.ts`
@@ -122,6 +124,7 @@ The remediation branch currently contains these changes:
 - `AuthModal.tsx`: removed demo quick-fill buttons and false success notice; added a bilingual explanation that verified sign-in is not configured.
 - `App.tsx`: removed synthetic staff-session fallbacks for follow-up completion and finance recording.
 - `auth.test.ts`: replaced tests that expected demo sign-in success with tests for fail-closed behavior.
+- `language.ts` and `language.test.ts`: removed mutation of legacy authentication session storage from language-preference handling.
 
 These are code changes, not yet proof that the application builds or that the complete system is secure.
 
