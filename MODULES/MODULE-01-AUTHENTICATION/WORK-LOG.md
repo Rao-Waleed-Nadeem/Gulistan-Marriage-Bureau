@@ -38,6 +38,9 @@ Inspected the current source for authentication, authentication UI, app session 
    - Replaced demo-success expectations with fail-closed tests.
    - Added tests for provider-unavailable staff and customer sign-in.
    - Added session integrity and role-boundary coverage.
+5. `frontend/src/lib/language.ts` and `frontend/src/lib/language.test.ts`
+   - Removed reading and mutation of legacy auth session storage from language preference persistence.
+   - Updated the test to verify language preference changes leave legacy session data untouched.
 
 ### Commit checkpoints
 
