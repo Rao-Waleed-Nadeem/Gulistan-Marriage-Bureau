@@ -217,14 +217,10 @@ export default function App() {
 
   const handleUpdateFollowUpStatus = (id: string, status: 'pending' | 'completed') => {
     if (status === 'completed') {
-      const staffSession = (session && session.isAuthenticated && session.role === 'nadeem') ? session : {
-        user: { id: 'usr-nadeem', email: 'nadeem@gulistan.pk', displayName: 'Nadeem Ahmed', role: 'nadeem' as const, preferredLanguage: language },
-        role: 'nadeem' as const,
-        token: 'demo-staff-token',
-        expiresAt: Date.now() + 3600000,
-        isAuthenticated: true,
-      };
-      const res = completeFollowUp(id, staffSession);
+      // Never manufacture staff identity in the client. A real authenticated
+      // session is required before attempting a protected CRM operation.
+      if (!canAccessRole(session, 'nadeem')) return;
+      const res = completeFollowUp(id, session);
       if (res.success && res.followUp) {
         setFollowUps(followUps.map((f) => (f.id === id ? { ...f, status: 'completed' } : f)));
         return;
@@ -234,15 +230,12 @@ export default function App() {
   };
 
   const handleAddTransaction = (newTx: FinancialTransaction) => {
-    const staffSession = (session && session.isAuthenticated && session.role === 'nadeem') ? session : {
-      user: { id: 'usr-nadeem', email: 'nadeem@gulistan.pk', displayName: 'Nadeem Ahmed', role: 'nadeem' as const, preferredLanguage: language },
-      role: 'nadeem' as const,
-      token: 'demo-staff-token',
-      expiresAt: Date.now() + 3600000,
-      isAuthenticated: true,
-    };
-    const res = recordTransaction(newTx, staffSession);
-    const recorded = (res.success && res.transaction) ? res.transaction : newTx;
+    // Never manufacture staff identity in the client. Protected finance
+    // operations must wait for a real authenticated staff session.
+    if (!canAccessRole(session, 'nadeem')) return;
+    const res = recordTransaction(newTx, session);
+    if (!res.success || !res.transaction) return;
+    const recorded = res.transaction;
     setTransactions([recorded, ...transactions]);
     const newLog: AuditLogItem = {
       id: `AUD-${Date.now()}`,
