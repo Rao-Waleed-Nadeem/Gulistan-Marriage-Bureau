@@ -40,6 +40,18 @@ export interface AuthResult {
 const SESSION_STORAGE_KEY = 'gulistan_auth_session';
 export const DEFAULT_SESSION_DURATION_MS = 8 * 60 * 60 * 1000; // 8 hours
 
+function resolvePermanentLanguage(): 'en' | 'ur' {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const stored = window.localStorage.getItem('gulistan_preferred_language');
+      if (stored === 'en' || stored === 'ur') {
+        return stored;
+      }
+    } catch {}
+  }
+  return 'ur';
+}
+
 function initSession(): AuthSession {
   if (typeof window !== 'undefined' && window.sessionStorage) {
     try {
@@ -236,7 +248,7 @@ export async function signInWithPassword(
       email: cleanEmail,
       displayName,
       role,
-      preferredLanguage: role === 'admin' ? 'en' : 'ur',
+      preferredLanguage: resolvePermanentLanguage(),
     },
     role,
     token: `demo-token-${Date.now()}`,
@@ -291,7 +303,7 @@ export async function sendMagicLink(email: string): Promise<AuthResult> {
       email: cleanEmail,
       displayName: 'Dr. Fatima (Candidate Family)',
       role: 'customer',
-      preferredLanguage: 'ur',
+      preferredLanguage: resolvePermanentLanguage(),
     },
     role: 'customer',
     token: `demo-magic-token-${Date.now()}`,
@@ -327,6 +339,22 @@ export async function signOut(): Promise<void> {
  */
 export function getCurrentSession(): AuthSession {
   return { ...currentSession };
+}
+
+/**
+ * Updates the preferred language in the active user profile and persists the session.
+ */
+export function updateUserPreferredLanguage(lang: 'en' | 'ur'): void {
+  if (currentSession && currentSession.user) {
+    currentSession = {
+      ...currentSession,
+      user: {
+        ...currentSession.user,
+        preferredLanguage: lang,
+      },
+    };
+    persistSession(currentSession);
+  }
 }
 
 /**

@@ -298,7 +298,26 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 - [x] All automated tests (90 frontend, 62 backend, 152 total passing), `tsc --noEmit`, and `vite build` verified.
 - [x] Commit directly to `main` with verified remote hash.
 
-**Completion record:** Completed on 2026-11-06. Refactored `frontend/src/components/layout/Navbar.tsx` into a two-tier layout separating primary navigation from utility controls (profile switcher, clarity modes, language toggle). Updated capsule styling in `frontend/src/index.css` and adjusted top offsets in `frontend/src/App.tsx` and `frontend/src/features/matchmaker/BestMatchView.tsx`. Created unit tests in `frontend/src/lib/appearance.test.ts`. Verified with 90 frontend tests, 62 backend tests (152 total passing), `tsc --noEmit` (0 errors), and `vite build` (11.04s). Verified commit `d0a35f0`.
+**Completion record:** Completed on 2026-11-06. Refactored `frontend/src/components/layout/Navbar.tsx` into a two-tier layout separating primary navigation from utility controls (profile switcher, clarity modes, language toggle). Updated capsule styling in `frontend/src/index.css` and adjusted top offsets in `frontend/src/App.tsx` and `frontend/src/features/matchmaker/BestMatchView.tsx`. Created unit tests in `frontend/src/lib/appearance.test.ts`. Verified with 90 frontend tests, 62 backend tests (152 total passing), `tsc --noEmit` (0 errors), and `vite build` (11.04s). Verified commit `c86504d`.
+
+### T-018 — Permanent language persistence across browser, cold load, and all stakeholder profiles
+**Status:** DONE  
+**Priority:** P0  
+**Dependencies:** T-016, T-017  
+**Scope:** Fix temporary language switching regression where language reset to default on cold load or profile change. Prioritize persistent browser `localStorage` in `resolveInitialLanguage`, synchronize preference across all stakeholder profile keys (`public`, `nadeem`, `customer`, `admin`), update active user session storage via `updateUserPreferredLanguage`, add immediate inline bootstrap script in `index.html` to eliminate direction/language hydration flash, allow unhindered language switching in Admin portal without disruptive blocking alerts, and prevent `handleSelectRole` and `handleAuthSuccess` from resetting language state.
+
+**Acceptance criteria**
+- [x] Language selection persists permanently across browser reload and never auto-switches to default.
+- [x] Switching between any stakeholder profiles/roles (Public, Nadeem, Customer, Admin) preserves the selected language.
+- [x] Language preference is permanently stored in browser localStorage (global and per-role keys).
+- [x] Active user session profile in sessionStorage is dynamically updated with chosen language.
+- [x] Immediate `<script>` in `index.html` sets `<html lang dir>` before bundle execution, eliminating hydration flicker.
+- [x] Admin profile permits language switching freely without alerts.
+- [x] Automated unit tests in `frontend/src/lib/language.test.ts` verify localStorage precedence, fallback behavior, profile synchronization, and live event dispatch.
+- [x] All 154 automated tests (92 frontend, 62 backend) pass, `tsc --noEmit` clean, and production build succeeds.
+- [x] Commit directly to `main` with verified remote SHA.
+
+**Completion record:** Completed on 2026-11-06. Updated `frontend/src/lib/language.ts` so `resolveInitialLanguage` prioritizes persistent browser `localStorage` and `persistLanguagePreference` synchronizes across all stakeholder role profiles and active session storage. Added `updateUserPreferredLanguage` to `frontend/src/lib/auth.ts`. Added cold-load bootstrap script to `frontend/index.html`. Removed role-based language resets and blocking alerts in `frontend/src/App.tsx`. Verified with 92 frontend tests, 62 backend tests (154 total passing), `tsc --noEmit` (0 errors), and `vite build` (1.71s). Verified commit `2ac4091`.
 
 ## Task history
 
@@ -321,4 +340,5 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-10-24 | T-014 | DONE | 0730f8c | Staging deployment automation, migration deployment runner, and smoke-test harness verified. |
 | 2026-10-24 | T-015 | DONE | 1e3e0c5 | Sibling profiles and structured property holdings integration (OPEN-011) verified. |
 | 2026-11-01 | T-016 | DONE | b2eb64e | UI/UX refinement, dashboard optimization & usability improvements per agent-prompt.md verified. |
-| 2026-11-06 | T-017 | DONE | d0a35f0 | Two-tier navbar with dedicated utility line (persona, clarity, language) to eliminate overflow; 152 tests passed. |
+| 2026-11-06 | T-017 | DONE | c86504d | Two-tier navbar with dedicated utility line (persona, clarity, language) to eliminate overflow; 152 tests passed. |
+| 2026-11-06 | T-018 | DONE | 2ac4091 | Permanent language persistence across browser, cold load, and all stakeholder profiles; 154 tests passed. |

@@ -32,7 +32,8 @@ import {
   getCurrentSession, 
   subscribeToAuthChanges, 
   canAccessRole, 
-  signOut 
+  signOut,
+  updateUserPreferredLanguage
 } from './lib/auth';
 import { validateProfileInput, canTransitionStatus, enrichPropertyDetails } from './lib/profiles';
 import { completeFollowUp } from './lib/followUps';
@@ -40,6 +41,7 @@ import { recordTransaction } from './lib/finance';
 import { AuthModal } from './components/auth/AuthModal';
 import { translations } from './i18n/translations';
 import { 
+  LANGUAGE_CHANGE_EVENT,
   resolveInitialLanguage, 
   persistLanguagePreference, 
   applyDocumentLanguage 
@@ -103,6 +105,18 @@ export default function App() {
     applyDocumentLanguage(language);
   }, [language]);
 
+  // Synchronize language state reactively when updated by any component or window event
+  useEffect(() => {
+    const handleLanguageChanged = (e: Event) => {
+      const customEvent = e as CustomEvent<Language>;
+      if (customEvent.detail && (customEvent.detail === 'en' || customEvent.detail === 'ur')) {
+        setLanguage(customEvent.detail);
+      }
+    };
+    window.addEventListener(LANGUAGE_CHANGE_EVENT, handleLanguageChanged);
+    return () => window.removeEventListener(LANGUAGE_CHANGE_EVENT, handleLanguageChanged);
+  }, []);
+
   const handleNavigate = (sec: string) => {
     if (sec === 'login') {
       setIsAuthModalOpen(true);
@@ -117,7 +131,7 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Gated role selection with fail-closed access control and language preference retention
+  // Gated role selection with fail-closed access control and permanent language preference retention
   const handleSelectRole = (role: Role) => {
     if (role !== 'public') {
       if (!canAccessRole(session, role)) {
@@ -131,14 +145,10 @@ export default function App() {
     if (typeof window !== 'undefined') {
       window.localStorage?.setItem('gulistan_active_role', role);
     }
-    if (role === 'admin') {
-      setLanguage('en');
-      persistLanguagePreference('en');
-    } else {
-      // Respect persisted language preference (Urdu or English)
-      const persisted = resolveInitialLanguage(session?.user?.preferredLanguage);
-      setLanguage(persisted);
-      persistLanguagePreference(persisted);
+    // Retain and reinforce permanent language preference across all profile changes
+    persistLanguagePreference(language);
+    if (session && session.isAuthenticated && session.user) {
+      updateUserPreferredLanguage(language);
     }
     const targetNav = role === 'public' ? 'home' : 'dashboard';
     handleNavigate(targetNav);
@@ -155,25 +165,16 @@ export default function App() {
     if (typeof window !== 'undefined') {
       window.localStorage?.setItem('gulistan_active_role', role);
     }
-    if (role === 'admin') {
-      setLanguage('en');
-      persistLanguagePreference('en');
-    } else {
-      const persisted = resolveInitialLanguage(session?.user?.preferredLanguage);
-      setLanguage(persisted);
-      persistLanguagePreference(persisted);
-    }
+    // Retain and reinforce permanent language preference for authenticated session
+    persistLanguagePreference(language);
+    updateUserPreferredLanguage(language);
     handleNavigate('dashboard');
   };
 
   const handleToggleLanguage = (newLang: Language) => {
-    // If admin, enforce English per policy
-    if (currentRole === 'admin') {
-      alert('The Administrative System Oversight Portal operates in English.');
-      return;
-    }
     setLanguage(newLang);
     persistLanguagePreference(newLang);
+    updateUserPreferredLanguage(newLang);
   };
 
   const handleSaveProfile = (newProfile: ProfileRecord) => {

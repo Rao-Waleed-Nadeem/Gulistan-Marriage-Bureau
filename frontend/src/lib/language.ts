@@ -1,18 +1,22 @@
 import { Language } from '../types';
 
 export const LANGUAGE_STORAGE_KEY = 'gulistan_preferred_language';
+export const LANGUAGE_CHANGE_EVENT = 'gulistan_language_changed';
+
+export const ROLE_LANGUAGE_KEYS = {
+  public: 'gulistan_role_lang_public',
+  nadeem: 'gulistan_role_lang_nadeem',
+  customer: 'gulistan_role_lang_customer',
+  admin: 'gulistan_role_lang_admin',
+} as const;
 
 /**
- * Resolves the application language according to the strict priority:
- * 1. Authenticated user preference (if provided and valid)
- * 2. Persisted local storage preference
+ * Resolves the application language with permanent persistence:
+ * 1. Persistent browser localStorage preference (Highest priority: respects user's explicit choice)
+ * 2. Authenticated user preference (Fallback when localStorage is not yet set)
  * 3. Default application language ('ur' per Pakistani bureau domain standard)
  */
 export function resolveInitialLanguage(authenticatedUserPreference?: string | null): Language {
-  if (authenticatedUserPreference === 'en' || authenticatedUserPreference === 'ur') {
-    return authenticatedUserPreference;
-  }
-
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
       const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
@@ -24,18 +28,53 @@ export function resolveInitialLanguage(authenticatedUserPreference?: string | nu
     }
   }
 
+  if (authenticatedUserPreference === 'en' || authenticatedUserPreference === 'ur') {
+    return authenticatedUserPreference;
+  }
+
   return 'ur';
 }
 
 /**
- * Persists the chosen language to local storage and synchronizes document attributes (dir and lang).
+ * Persists the chosen language permanently:
+ * - Saves to localStorage (global app key and all role profile keys)
+ * - Updates active session storage user profile if present
+ * - Sets document attributes (lang and dir)
+ * - Dispatches a window change event for instant reactive synchronization
  */
 export function persistLanguagePreference(lang: Language): void {
-  if (typeof window !== 'undefined' && window.localStorage) {
+  if (typeof window !== 'undefined') {
+    if (window.localStorage) {
+      try {
+        window.localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
+        window.localStorage.setItem(ROLE_LANGUAGE_KEYS.public, lang);
+        window.localStorage.setItem(ROLE_LANGUAGE_KEYS.nadeem, lang);
+        window.localStorage.setItem(ROLE_LANGUAGE_KEYS.customer, lang);
+        window.localStorage.setItem(ROLE_LANGUAGE_KEYS.admin, lang);
+      } catch {
+        // Gracefully handle storage quotas or restrictions
+      }
+    }
+
+    if (window.sessionStorage) {
+      try {
+        const rawSession = window.sessionStorage.getItem('gulistan_auth_session');
+        if (rawSession) {
+          const session = JSON.parse(rawSession);
+          if (session && session.user) {
+            session.user.preferredLanguage = lang;
+            window.sessionStorage.setItem('gulistan_auth_session', JSON.stringify(session));
+          }
+        }
+      } catch {
+        // Ignore session parse errors
+      }
+    }
+
     try {
-      window.localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
+      window.dispatchEvent(new CustomEvent(LANGUAGE_CHANGE_EVENT, { detail: lang }));
     } catch {
-      // Gracefully handle storage quotas or restrictions
+      // Ignore event dispatch errors in testing environments
     }
   }
 

@@ -3,6 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function() {
+        try {
+          var lang = localStorage.getItem('gulistan_preferred_language') || 'ur';
+          document.documentElement.lang = lang;
+          document.documentElement.dir = (lang === 'ur') ? 'rtl' : 'ltr';
+        } catch(e) {}
+      })();
+    </script>
     <title>Gulistan Marriage Bureau</title>
     <meta name="description" content="Premium Pakistani marriage bureau and bespoke matchmaking platform with distinct portals for Nadeem (matchmaker), Customers, and System Admin." />
     <meta property="og:title" content="Gulistan Marriage Bureau" />
