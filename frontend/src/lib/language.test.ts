@@ -98,24 +98,16 @@ test('persistLanguagePreference stores preference across browser storage and all
   assert.equal(mockDocumentElement.dir, 'ltr');
 });
 
-test('persistLanguagePreference updates active authenticated session profile in sessionStorage', () => {
-  const dummySession = {
-    user: {
-      id: 'usr-1',
-      displayName: 'Nadeem Ahmed',
-      role: 'nadeem',
-      preferredLanguage: 'ur'
-    },
+test('persistLanguagePreference never reads or modifies authentication session storage', () => {
+  const legacySession = JSON.stringify({
+    user: { id: 'legacy-user', role: 'admin', preferredLanguage: 'ur' },
     isAuthenticated: true
-  };
-  sessionStorage.setItem('gulistan_auth_session', JSON.stringify(dummySession));
+  });
+  sessionStorage.setItem('gulistan_auth_session', legacySession);
 
   persistLanguagePreference('en');
 
-  const updatedRaw = sessionStorage.getItem('gulistan_auth_session');
-  assert.ok(updatedRaw);
-  const parsed = JSON.parse(updatedRaw);
-  assert.equal(parsed.user.preferredLanguage, 'en');
+  assert.equal(sessionStorage.getItem('gulistan_auth_session'), legacySession);
 });
 
 test('persistLanguagePreference dispatches live language change event', () => {
