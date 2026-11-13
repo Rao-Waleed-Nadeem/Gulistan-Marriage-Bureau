@@ -354,7 +354,7 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 - [x] 164 automated tests (102 frontend, 62 backend) pass, `tsc --noEmit` clean, production build succeeds.
 - [x] Documentation, changelog, and queue updated; commit directly to `main`.
 
-**Completion record:** Completed on 2026-11-13. Updated `frontend/src/lib/config.ts` enforcing fatal production configuration validation and distinct 5-service health reporting (`BackendHealthStatus`). Updated `frontend/src/lib/supabaseClient.ts` to report individual service reachability. Updated `frontend/src/App.tsx` to isolate mock fixtures from backend mode. Added 4 unit and boundary tests in `frontend/src/lib/config.test.ts`. Verified with 102 frontend tests, 62 backend tests (164 total passing), `tsc --noEmit` (0 errors), and `vite build` (3.25s). Verified commit SHA recorded on main.
+**Completion record:** Completed on 2026-11-13. Updated `frontend/src/lib/config.ts` enforcing fatal production configuration validation and distinct 5-service health reporting (`BackendHealthStatus`). Updated `frontend/src/lib/supabaseClient.ts` to report individual service reachability. Updated `frontend/src/App.tsx` to isolate mock fixtures from backend mode. Added 4 unit and boundary tests in `frontend/src/lib/config.test.ts`. Verified with 102 frontend tests, 62 backend tests (164 total passing), `tsc --noEmit` (0 errors), and `vite build` (4.01s). Verified commit `b22a08f`.
 
 ## Task history
 
@@ -380,4 +380,4 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-11-06 | T-017 | DONE | c86504d | Two-tier navbar with dedicated utility line (persona, clarity, language) to eliminate overflow; 152 tests passed. |
 | 2026-11-06 | T-018 | DONE | 2ac4091 | Permanent language persistence across browser, cold load, and all stakeholder profiles; 154 tests passed. |
 | 2026-11-13 | T-019 | DONE | 66eab88 | Module 01: Supabase Auth integration, trusted role mapping & C-01 completion; 160 tests passed. |
-| 2026-11-13 | T-020 | DONE | Pending | Refactor W1: Configuration schema, production demo rejection & 5-service health; 164 tests passed. |
+| 2026-11-13 | T-020 | DONE | b22a08f | Refactor W1: Configuration schema, production demo rejection & 5-service health; 164 tests passed. |
