@@ -408,7 +408,7 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 - [x] 188 automated tests (120 frontend, 68 backend) pass, `tsc --noEmit` clean, production build succeeds.
 - [x] Documentation, changelog, and queue updated; commit directly to `main`.
 
-**Completion record:** Completed on 2026-11-14. Implemented `frontend/src/lib/crypto.ts` providing pure-JS deterministic SHA-256 token hashing and cryptographic UUID/randomness (PRIV-02, PRIV-05). Upgraded `frontend/src/lib/photos.ts` with token hashing at rest, 48-hour expiration, consent verification, immediate photo purge (OPEN-008), 365-day inactive retention evaluator (PRIV-07), and privacy erasure workflow (PRIV-08). Upgraded `frontend/src/lib/disclosure.ts` with cryptographic grant tokens, SHA-256 hashes at rest in `share_grants`, profile freshness validation, and privacy-preserving audit logs omitting raw tokens (OPEN-005, OPEN-006, SHARE-01..SHARE-05). Added unit tests in `photos.test.ts` and `disclosure.test.ts`. Verified with 120 frontend tests, 68 backend tests (188 total passing), `tsc --noEmit` (0 errors), and `vite build` (28.91s). Verified commit pending.
+**Completion record:** Completed on 2026-11-14. Implemented `frontend/src/lib/crypto.ts` providing pure-JS deterministic SHA-256 token hashing and cryptographic UUID/randomness (PRIV-02, PRIV-05). Upgraded `frontend/src/lib/photos.ts` with token hashing at rest, 48-hour expiration, consent verification, immediate photo purge (OPEN-008), 365-day inactive retention evaluator (PRIV-07), and privacy erasure workflow (PRIV-08). Upgraded `frontend/src/lib/disclosure.ts` with cryptographic grant tokens, SHA-256 hashes at rest in `share_grants`, profile freshness validation, and privacy-preserving audit logs omitting raw tokens (OPEN-005, OPEN-006, SHARE-01..SHARE-05). Added unit tests in `photos.test.ts` and `disclosure.test.ts`. Verified with 120 frontend tests, 68 backend tests (188 total passing), `tsc --noEmit` (0 errors), and `vite build` (28.91s). Verified commit `8ca378c`.
 
 ### T-024 — Deterministic matching, persisted evaluations and Nadeem approvals
 **Status:** READY  
@@ -486,4 +486,4 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-11-13 | T-020 | DONE | b22a08f | Refactor W1: Configuration schema, production demo rejection & 5-service health; 164 tests passed. |
 | 2026-11-13 | T-021 | DONE | 67c9b66 | Refactor W2: Migration 00003, typed repositories & lossless DTO mapping; 178 tests passed. |
 | 2026-11-13 | T-022 | DONE | e12070e | Refactor W3: Self-service intake, duplicate review & consent certification; 184 tests passed. |
-| 2026-11-14 | T-023 | DONE | Pending | Refactor W4: Private photo storage, hash-at-rest grants & disclosure; 188 tests passed. |
+| 2026-11-14 | T-023 | DONE | 8ca378c | Refactor W4: Private photo storage, hash-at-rest grants & disclosure; 188 tests passed. |
