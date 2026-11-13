@@ -57,7 +57,7 @@ These rules are stable project constraints. A module task may add stricter rules
 2. Do not bundle broad refactoring, formatting or unrelated feature work into a focused fix.
 3. Preserve existing functionality unless the task explicitly authorizes its removal or replacement.
 4. Database migrations must be repeatable, reviewed and non-destructive unless explicitly approved.
-5. Do not introduce a provider, paid service, dependency or architecture change without documenting the rationale and obtaining required approval.
+5. Do not introduce a provider, paid service, dependency or architecture change without documenting the rationale and obtaining required approval. Supabase Auth is the approved identity provider for this project; its production provisioning and configuration still require the relevant approvals.
 6. Keep UI, business rules, data access, authentication, authorization, storage and integrations separated.
 7. Never claim persistence when data is only held in memory.
 8. Never claim delivery because a message was merely prepared or an external application was opened.
@@ -87,7 +87,7 @@ Execution sequence:
 7. Review the diff and regression risks.
 8. Update the module work log and test evidence.
 9. Request Product Owner acceptance.
-10. Merge only after approval.
+10. For this repository, the Product Owner has directed contributors to commit approved work directly to `main`; do not create pull requests unless the Product Owner changes this instruction. Validate and review each focused change before committing. Never bypass branch protection or force-push.
 
 ## 7. Status vocabulary
 
