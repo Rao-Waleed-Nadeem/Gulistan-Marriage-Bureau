@@ -319,6 +319,43 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 
 **Completion record:** Completed on 2026-11-06. Updated `frontend/src/lib/language.ts` so `resolveInitialLanguage` prioritizes persistent browser `localStorage` and `persistLanguagePreference` synchronizes across all stakeholder role profiles and active session storage. Added `updateUserPreferredLanguage` to `frontend/src/lib/auth.ts`. Added cold-load bootstrap script to `frontend/index.html`. Removed role-based language resets and blocking alerts in `frontend/src/App.tsx`. Verified with 92 frontend tests, 62 backend tests (154 total passing), `tsc --noEmit` (0 errors), and `vite build` (1.71s). Verified commit `2ac4091`.
 
+### T-019 — Module 01 / Workstream W0: Supabase Auth integration, trusted role mapping & C-01 completion
+**Status:** DONE  
+**Priority:** P0  
+**Dependencies:** T-004, T-005, T-006, T-018  
+**Scope:** Complete Module 01 and Refactor Workstream W0 per `BIBLE/ANTIGRAVITY-MASTER-IMPLEMENTATION-PROMPT.md` and `backend/docs/refactor/02-IMPLEMENTATION-BLUEPRINT.md`. Implement official `@supabase/supabase-js` client boundary; staff email/password authentication; customer/family magic-link OTP authentication with `shouldCreateUser: false` (prohibiting unapproved public registration); trusted role mapping from PostgreSQL `public.user_roles` (`admin` -> `admin`, `matchmaker` -> `nadeem`, `customer` -> `customer`); fail-closed boundary on unconfigured provider or missing database role; `initAuth` lifecycle initialization and `onAuthStateChange` synchronization; bilingual magic link confirmation card in `AuthModal.tsx`; and expanded security/unit test coverage.
+
+**Acceptance criteria**
+- [x] Official `@supabase/supabase-js` integrated via typed client singleton with demo fallback.
+- [x] Staff email/password authentication uses Supabase Auth with bilingual error handling.
+- [x] Customer/family magic-link authentication enforces `shouldCreateUser: false` and requires verified callback.
+- [x] Application roles are mapped exclusively from PostgreSQL `public.user_roles` table.
+- [x] Missing or unmapped database roles fail closed and sign out immediately.
+- [x] Auth lifecycle initialized on startup via `initAuth` in `App.tsx` and role synced reactively.
+- [x] `AuthModal.tsx` provides verified dispatch confirmation and dynamic provider status.
+- [x] 160 automated tests (98 frontend, 62 backend) pass, `tsc --noEmit` clean, production build succeeds.
+- [x] Work log, test results, and changelog updated; commit directly to `main`.
+
+**Completion record:** Completed on 2026-11-13. Implemented `@supabase/supabase-js` v2.119.0 client boundary in `frontend/src/lib/supabaseClient.ts` and auth service in `frontend/src/lib/auth.ts`. Enforced `shouldCreateUser: false` on magic links, added trusted role resolution from `public.user_roles`, updated `AuthModal.tsx`, and fixed timestamp drift in `photos.ts`. Added 9 new unit/security tests in `auth.test.ts`. Verified with 98 frontend tests, 62 backend tests (160 total passing), `tsc --noEmit` (0 errors), and `vite build` (4.36s). Verified commits `66eab88`, `6a0e3e2`, and `3b50f3d`.
+
+### T-020 — Refactor Workstream W1: Configuration schema, production demo-mode rejection & distinct service health
+**Status:** DONE  
+**Priority:** P0  
+**Dependencies:** T-005, T-019  
+**Scope:** Implement Refactor Workstream W1 per `backend/docs/refactor/02-IMPLEMENTATION-BLUEPRINT.md` and resolve audit findings CFG-01, CFG-02, CFG-03, CFG-04, and CFG-05. Strictly enforce production configuration validation in `frontend/src/lib/config.ts`: reject missing credentials, placeholder keys, and `VITE_USE_MOCK_DATA=true` when running in `production` mode with explicit critical errors (CFG-01). Preserve safe demo mode fallback exclusively for local `development` mode on clean checkout. Upgrade `BackendHealthStatus` and `checkBackendConnectionHealth` to distinctly report 5 separate service component statuses: configuration, REST gateway, auth service, database, and storage (CFG-04). Isolate mock fixtures (`INITIAL_PROFILES`, `INITIAL_FOLLOW_UPS`, `INITIAL_TRANSACTIONS`, etc.) in `frontend/src/App.tsx` so mock records never contaminate staging/production state when `mode === 'backend'` (CFG-05). Add automated unit and security tests in `config.test.ts`.
+
+**Acceptance criteria**
+- [x] Production environment strictly rejects missing credentials and placeholder tokens with fatal errors (CFG-01).
+- [x] Production environment strictly prohibits `VITE_USE_MOCK_DATA=true` (CFG-01).
+- [x] Development mode safely preserves offline demo exploration on clean checkout (CFG-02).
+- [x] Privileged server secrets (service-role keys, DB passwords, private keys) remain blocked (CFG-03).
+- [x] Backend health distinctly evaluates configuration, gateway, auth, database, and storage (CFG-04).
+- [x] `App.tsx` initializes empty data state when in backend mode, isolating mock fixtures exclusively to demo mode (CFG-05).
+- [x] 164 automated tests (102 frontend, 62 backend) pass, `tsc --noEmit` clean, production build succeeds.
+- [x] Documentation, changelog, and queue updated; commit directly to `main`.
+
+**Completion record:** Completed on 2026-11-13. Updated `frontend/src/lib/config.ts` enforcing fatal production configuration validation and distinct 5-service health reporting (`BackendHealthStatus`). Updated `frontend/src/lib/supabaseClient.ts` to report individual service reachability. Updated `frontend/src/App.tsx` to isolate mock fixtures from backend mode. Added 4 unit and boundary tests in `frontend/src/lib/config.test.ts`. Verified with 102 frontend tests, 62 backend tests (164 total passing), `tsc --noEmit` (0 errors), and `vite build` (3.25s). Verified commit SHA recorded on main.
+
 ## Task history
 
 | Date | Task | Outcome | Commit | Notes |
@@ -343,3 +380,4 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-11-06 | T-017 | DONE | c86504d | Two-tier navbar with dedicated utility line (persona, clarity, language) to eliminate overflow; 152 tests passed. |
 | 2026-11-06 | T-018 | DONE | 2ac4091 | Permanent language persistence across browser, cold load, and all stakeholder profiles; 154 tests passed. |
 | 2026-11-13 | T-019 | DONE | 66eab88 | Module 01: Supabase Auth integration, trusted role mapping & C-01 completion; 160 tests passed. |
+| 2026-11-13 | T-020 | DONE | Pending | Refactor W1: Configuration schema, production demo rejection & 5-service health; 164 tests passed. |

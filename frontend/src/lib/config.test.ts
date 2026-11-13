@@ -90,6 +90,54 @@ test('validateClientConfig configures backend mode when valid credentials provid
   assert.equal(result.config?.useMockData, false);
 });
 
+test('validateClientConfig strictly rejects missing credentials in production mode (CFG-01)', () => {
+  const prodEmptyEnv = {
+    VITE_APP_ENV: 'production',
+  };
+
+  const result = validateClientConfig(prodEmptyEnv);
+
+  assert.equal(result.isValid, false);
+  assert.equal(result.config, null);
+  assert.ok(
+    result.errors.some((e) => e.includes('Production environment requires valid, non-placeholder')),
+    'Production must fail hard when config is missing'
+  );
+});
+
+test('validateClientConfig strictly rejects placeholder credentials in production mode (CFG-01)', () => {
+  const prodPlaceholderEnv = {
+    VITE_APP_ENV: 'production',
+    VITE_SUPABASE_URL: 'https://your-project-ref.supabase.co',
+    VITE_SUPABASE_ANON_KEY: 'placeholder-token',
+  };
+
+  const result = validateClientConfig(prodPlaceholderEnv);
+
+  assert.equal(result.isValid, false);
+  assert.ok(
+    result.errors.some((e) => e.includes('Demo fallback is strictly prohibited in production')),
+    'Production must reject placeholder credentials'
+  );
+});
+
+test('validateClientConfig strictly rejects VITE_USE_MOCK_DATA=true in production mode (CFG-01)', () => {
+  const prodMockEnv = {
+    VITE_APP_ENV: 'production',
+    VITE_SUPABASE_URL: 'https://gulistan-prod.supabase.co',
+    VITE_SUPABASE_ANON_KEY: 'valid.token.string',
+    VITE_USE_MOCK_DATA: 'true',
+  };
+
+  const result = validateClientConfig(prodMockEnv);
+
+  assert.equal(result.isValid, false);
+  assert.ok(
+    result.errors.some((e) => e.includes('VITE_USE_MOCK_DATA=true is strictly prohibited in production')),
+    'Production must prohibit mock mode'
+  );
+});
+
 test('getBackendHealthStatus returns safe non-sensitive status object', () => {
   resetClientConfigForTesting();
   const status = getBackendHealthStatus();
@@ -97,6 +145,20 @@ test('getBackendHealthStatus returns safe non-sensitive status object', () => {
   assert.ok(status.status === 'demo_mode' || status.status === 'configured');
   assert.ok(status.timestamp, 'Health status must include ISO timestamp');
   assert.ok(typeof status.message === 'string');
+});
+
+test('getBackendHealthStatus reports distinct component health for all 5 services (CFG-04)', () => {
+  resetClientConfigForTesting();
+  const status = getBackendHealthStatus();
+
+  assert.ok(status.services);
+  assert.ok(status.services.configuration);
+  assert.ok(status.services.gateway);
+  assert.ok(status.services.auth);
+  assert.ok(status.services.database);
+  assert.ok(status.services.storage);
+  assert.equal(status.services.configuration.status, 'healthy');
+  assert.equal(status.services.gateway.status, 'unconfigured');
 });
 
 test('isBackendConfigured accurately reflects configuration boundary', () => {

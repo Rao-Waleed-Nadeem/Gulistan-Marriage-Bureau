@@ -101,6 +101,11 @@ export async function checkBackendConnectionHealth(): Promise<BackendHealthStatu
         status: 'configured',
         message: 'Supabase gateway reachable and operational.',
         timestamp: new Date().toISOString(),
+        services: {
+          ...baseStatus.services,
+          gateway: { status: 'healthy', message: `REST gateway reachable (HTTP ${response.status})` },
+          database: { status: 'healthy', message: 'Database API endpoint active' },
+        },
       };
     }
 
@@ -109,6 +114,11 @@ export async function checkBackendConnectionHealth(): Promise<BackendHealthStatu
       status: 'misconfigured',
       message: `Supabase gateway returned unexpected HTTP status: ${response.status}`,
       timestamp: new Date().toISOString(),
+      services: {
+        ...baseStatus.services,
+        gateway: { status: 'degraded', message: `Unexpected gateway status: ${response.status}` },
+        database: { status: 'degraded', message: 'Database response degraded' },
+      },
     };
   } catch (err) {
     return {
@@ -116,6 +126,11 @@ export async function checkBackendConnectionHealth(): Promise<BackendHealthStatu
       status: 'misconfigured',
       message: `Network connectivity check failed: ${err instanceof Error ? err.message : String(err)}`,
       timestamp: new Date().toISOString(),
+      services: {
+        ...baseStatus.services,
+        gateway: { status: 'offline', message: `Gateway unreachable: ${err instanceof Error ? err.message : String(err)}` },
+        database: { status: 'offline', message: 'Database endpoint unreachable' },
+      },
     };
   }
 }

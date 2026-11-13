@@ -76,13 +76,14 @@ export default function App() {
   const [activeNav, setActiveNav] = useState<string>(() => initialRoute.candidateNav);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
-  // Application Data States
-  const [profiles, setProfiles] = useState<ProfileRecord[]>(INITIAL_PROFILES);
-  const [recommendations, setRecommendations] = useState<MatchRecommendation[]>(INITIAL_RECOMMENDATIONS);
-  const [followUps, setFollowUps] = useState<FollowUpItem[]>(INITIAL_FOLLOW_UPS);
-  const [matchmakers, setMatchmakers] = useState<ExternalMatchmaker[]>(INITIAL_MATCHMAKERS);
-  const [transactions, setTransactions] = useState<FinancialTransaction[]>(INITIAL_TRANSACTIONS);
-  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>(INITIAL_AUDIT_LOGS);
+  // Application Data States: synthetic fixtures are strictly isolated to demo mode (CFG-05)
+  const isDemo = getClientConfig().mode === 'demo';
+  const [profiles, setProfiles] = useState<ProfileRecord[]>(() => isDemo ? INITIAL_PROFILES : []);
+  const [recommendations, setRecommendations] = useState<MatchRecommendation[]>(() => isDemo ? INITIAL_RECOMMENDATIONS : []);
+  const [followUps, setFollowUps] = useState<FollowUpItem[]>(() => isDemo ? INITIAL_FOLLOW_UPS : []);
+  const [matchmakers, setMatchmakers] = useState<ExternalMatchmaker[]>(() => isDemo ? INITIAL_MATCHMAKERS : []);
+  const [transactions, setTransactions] = useState<FinancialTransaction[]>(() => isDemo ? INITIAL_TRANSACTIONS : []);
+  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>(() => isDemo ? INITIAL_AUDIT_LOGS : []);
 
   // Validate public backend configuration boundary and initialize auth lifecycle at startup
   useEffect(() => {

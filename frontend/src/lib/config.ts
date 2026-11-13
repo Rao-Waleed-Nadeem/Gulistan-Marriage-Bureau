@@ -1,12 +1,15 @@
 /**
  * Typed Backend Client Configuration & Security Boundary — Gulistan Marriage Bureau
  * 
- * IMPORTANT ARCHITECTURAL & SECURITY INVARIANTS:
+ * ARCHITECTURAL & SECURITY INVARIANTS:
  * 1. Only variables prefixed with VITE_ are exposed to the client bundle by Vite.
  * 2. Service-role keys (SUPABASE_SERVICE_ROLE_KEY) or direct database connection strings
  *    must NEVER be exposed to browser clients.
- * 3. If configuration is missing or invalid on clean checkout, the application fails
- *    SAFELY to 'demo' mode with mock fixtures rather than crashing.
+ * 3. On clean local checkout without credentials (development mode), the application fails
+ *    SAFELY to 'demo' mode with synthetic fixtures for local exploration.
+ * 4. In PRODUCTION (VITE_APP_ENV=production), missing credentials, placeholder values, or
+ *    VITE_USE_MOCK_DATA=true must FAIL HARD. Falling back to demo mode in production is prohibited (CFG-01).
+ * 5. Distinct service component health is reported for configuration, gateway, auth, database, and storage (CFG-04).
  */
 
 export interface ClientConfig {
@@ -24,16 +27,28 @@ export interface ConfigValidationResult {
   errors: string[];
 }
 
+export interface ServiceComponentHealth {
+  status: 'healthy' | 'degraded' | 'unconfigured' | 'offline';
+  message: string;
+}
+
 export interface BackendHealthStatus {
   status: 'demo_mode' | 'configured' | 'misconfigured';
   mode: 'demo' | 'backend';
   url: string | null;
   message: string;
   timestamp: string;
+  services: {
+    configuration: ServiceComponentHealth;
+    gateway: ServiceComponentHealth;
+    auth: ServiceComponentHealth;
+    database: ServiceComponentHealth;
+    storage: ServiceComponentHealth;
+  };
 }
 
 /**
- * Validates raw environment dictionary against security and typing invariants.
+ * Validates raw environment dictionary against security, environment separation, and typing invariants.
  * @param rawEnv Raw key-value dictionary (e.g. import.meta.env or process.env)
  * @returns ConfigValidationResult
  */
@@ -70,12 +85,44 @@ export function validateClientConfig(rawEnv: Record<string, unknown> = {}): Conf
   const rawUrl = typeof rawEnv.VITE_SUPABASE_URL === 'string' ? rawEnv.VITE_SUPABASE_URL.trim() : '';
   const rawAnonKey = typeof rawEnv.VITE_SUPABASE_ANON_KEY === 'string' ? rawEnv.VITE_SUPABASE_ANON_KEY.trim() : '';
   const rawEnvMode = typeof rawEnv.VITE_APP_ENV === 'string' ? rawEnv.VITE_APP_ENV.trim() : 'development';
-  const rawUseMock = typeof rawEnv.VITE_USE_MOCK_DATA === 'string' ? rawEnv.VITE_USE_MOCK_DATA.trim().toLowerCase() : 'true';
+  const appEnv = (['development', 'staging', 'production'].includes(rawEnvMode) ? rawEnvMode : 'development') as ClientConfig['appEnv'];
+  const rawUseMock = typeof rawEnv.VITE_USE_MOCK_DATA === 'string'
+    ? rawEnv.VITE_USE_MOCK_DATA.trim().toLowerCase()
+    : (appEnv === 'production' ? 'false' : 'true');
 
   const isPlaceholderUrl = !rawUrl || rawUrl.includes('your-project-ref') || rawUrl.includes('placeholder');
   const isPlaceholderKey = !rawAnonKey || rawAnonKey.includes('your-anon-token') || rawAnonKey.includes('placeholder');
 
-  // 3. Fallback to Demo Mode if variables are missing or placeholders
+  // 3. Strict Production Invariants (CFG-01):
+  if (appEnv === 'production') {
+    if (!rawUrl || !rawAnonKey || isPlaceholderUrl || isPlaceholderKey) {
+      errors.push(
+        'CRITICAL CONFIGURATION ERROR: Production environment requires valid, non-placeholder VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY. Demo fallback is strictly prohibited in production.'
+      );
+      return {
+        isValid: false,
+        mode: 'demo',
+        config: null,
+        warnings,
+        errors,
+      };
+    }
+
+    if (rawUseMock === 'true') {
+      errors.push(
+        'CRITICAL CONFIGURATION ERROR: VITE_USE_MOCK_DATA=true is strictly prohibited in production. Production must run with real verified backend services.'
+      );
+      return {
+        isValid: false,
+        mode: 'demo',
+        config: null,
+        warnings,
+        errors,
+      };
+    }
+  }
+
+  // 4. Fallback to Demo Mode if variables are missing or placeholders (development only)
   if (!rawUrl || !rawAnonKey || isPlaceholderUrl || isPlaceholderKey) {
     warnings.push(
       'Supabase public configuration is not configured or uses placeholder values. Running safely in local demo mode with synthetic fixtures.'
@@ -87,7 +134,7 @@ export function validateClientConfig(rawEnv: Record<string, unknown> = {}): Conf
       config: {
         supabaseUrl: '',
         supabaseAnonKey: '',
-        appEnv: (['development', 'staging', 'production'].includes(rawEnvMode) ? rawEnvMode : 'development') as ClientConfig['appEnv'],
+        appEnv,
         useMockData: true,
       },
       warnings,
@@ -95,7 +142,7 @@ export function validateClientConfig(rawEnv: Record<string, unknown> = {}): Conf
     };
   }
 
-  // 4. Validate URL formatting for backend mode
+  // 5. Validate URL formatting for backend mode
   let validUrl = false;
   try {
     const parsed = new URL(rawUrl);
@@ -115,8 +162,7 @@ export function validateClientConfig(rawEnv: Record<string, unknown> = {}): Conf
     };
   }
 
-  // 5. Valid Backend Mode Configuration
-  const appEnv = (['development', 'staging', 'production'].includes(rawEnvMode) ? rawEnvMode : 'development') as ClientConfig['appEnv'];
+  // 6. Valid Backend Mode Configuration
   const useMockData = rawUseMock === 'true';
 
   return {
@@ -138,7 +184,7 @@ let cachedResult: ConfigValidationResult | null = null;
 
 /**
  * Retrieves the current client configuration.
- * Safely defaults to demo mode if configuration is missing.
+ * Safely defaults to demo mode in development if configuration is missing.
  */
 export function getClientConfig(): ConfigValidationResult {
   if (!cachedResult) {
@@ -168,7 +214,8 @@ export function resetClientConfigForTesting(): void {
 }
 
 /**
- * Returns non-sensitive health status of the backend connection boundary.
+ * Returns non-sensitive health status of the backend connection boundary,
+ * reporting distinct component health for configuration, gateway, auth, database, and storage (CFG-04).
  */
 export function getBackendHealthStatus(): BackendHealthStatus {
   const result = getClientConfig();
@@ -180,6 +227,13 @@ export function getBackendHealthStatus(): BackendHealthStatus {
       url: null,
       message: result.errors.join('; '),
       timestamp: new Date().toISOString(),
+      services: {
+        configuration: { status: 'offline', message: result.errors.join('; ') },
+        gateway: { status: 'offline', message: 'Gateway unconfigured due to invalid configuration' },
+        auth: { status: 'unconfigured', message: 'Auth service unconfigured' },
+        database: { status: 'offline', message: 'Database connection unconfigured' },
+        storage: { status: 'unconfigured', message: 'Storage unconfigured' },
+      },
     };
   }
 
@@ -190,6 +244,13 @@ export function getBackendHealthStatus(): BackendHealthStatus {
       url: null,
       message: 'Running in standalone demo mode with local mock records.',
       timestamp: new Date().toISOString(),
+      services: {
+        configuration: { status: 'healthy', message: 'Local demo configuration active with synthetic fixtures' },
+        gateway: { status: 'unconfigured', message: 'Offline demo mode - network gateway disabled' },
+        auth: { status: 'unconfigured', message: 'Local demo authentication boundary active' },
+        database: { status: 'unconfigured', message: 'In-memory test store active' },
+        storage: { status: 'unconfigured', message: 'In-memory private photo simulation active' },
+      },
     };
   }
 
@@ -199,5 +260,12 @@ export function getBackendHealthStatus(): BackendHealthStatus {
     url: result.config?.supabaseUrl || null,
     message: `Backend client configured for ${result.config?.appEnv} environment.`,
     timestamp: new Date().toISOString(),
+    services: {
+      configuration: { status: 'healthy', message: `Backend configuration active for ${result.config?.appEnv}` },
+      gateway: { status: 'healthy', message: 'Supabase gateway configured' },
+      auth: { status: 'healthy', message: 'Supabase Auth service configured' },
+      database: { status: 'healthy', message: 'PostgreSQL connection configured' },
+      storage: { status: 'healthy', message: 'Private storage bucket configured' },
+    },
   };
 }
