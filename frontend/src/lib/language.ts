@@ -38,7 +38,7 @@ export function resolveInitialLanguage(authenticatedUserPreference?: string | nu
 /**
  * Persists the chosen language permanently:
  * - Saves to localStorage (global app key and all role profile keys)
- * - Updates active session storage user profile if present
+ * - Does not read or write authentication/session storage.
  * - Sets document attributes (lang and dir)
  * - Dispatches a window change event for instant reactive synchronization
  */
@@ -53,21 +53,6 @@ export function persistLanguagePreference(lang: Language): void {
         window.localStorage.setItem(ROLE_LANGUAGE_KEYS.admin, lang);
       } catch {
         // Gracefully handle storage quotas or restrictions
-      }
-    }
-
-    if (window.sessionStorage) {
-      try {
-        const rawSession = window.sessionStorage.getItem('gulistan_auth_session');
-        if (rawSession) {
-          const session = JSON.parse(rawSession);
-          if (session && session.user) {
-            session.user.preferredLanguage = lang;
-            window.sessionStorage.setItem('gulistan_auth_session', JSON.stringify(session));
-          }
-        }
-      } catch {
-        // Ignore session parse errors
       }
     }
 
