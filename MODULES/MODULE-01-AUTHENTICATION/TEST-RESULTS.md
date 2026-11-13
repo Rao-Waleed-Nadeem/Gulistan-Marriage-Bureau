@@ -1,8 +1,8 @@
 # Module 01 — Test Results
 
 **Task:** GMB-C01  
-**Branch:** `fix/c-01-disable-demo-auth`  
-**Status:** Not yet executed / pending evidence
+**Branch:** `main`  
+**Status:** Not yet executed / pending evidence; C-01 remediation has been committed directly to main
 
 | Check | Required command or procedure | Result |
 |---|---|---|
