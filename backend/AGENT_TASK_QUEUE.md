@@ -371,7 +371,7 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 - [x] 178 automated tests (110 frontend, 68 backend) pass, `tsc --noEmit` clean, production build succeeds.
 - [x] Documentation, changelog, and queue updated; commit directly to `main`.
 
-**Completion record:** Completed on 2026-11-13. Created Migration 00003 (`00003_complete_normalized_schema.sql`) covering 14 normalized tables with full RLS and security constraints. Implemented `frontend/src/lib/repositories.ts` providing typed repositories with Supabase backend query integration and safe demo fallback. Fixed fact fabrication in `profileRowToDTO` and `profileDTOToRow` in `frontend/src/lib/profiles.ts`. Added 8 tests in `repositories.test.ts` and 6 migration tests in `migration_00003.test.js`. Verified with 110 frontend tests, 68 backend tests (178 total passing), `tsc --noEmit` (0 errors), and `vite build` (4.20s). Verified commit SHA recorded on main.
+**Completion record:** Completed on 2026-11-13. Created Migration 00003 (`00003_complete_normalized_schema.sql`) covering 14 normalized tables with full RLS and security constraints. Implemented `frontend/src/lib/repositories.ts` providing typed repositories with Supabase backend query integration and safe demo fallback. Fixed fact fabrication in `profileRowToDTO` and `profileDTOToRow` in `frontend/src/lib/profiles.ts`. Added 8 tests in `repositories.test.ts` and 6 migration tests in `migration_00003.test.js`. Verified with 110 frontend tests, 68 backend tests (178 total passing), `tsc --noEmit` (0 errors), and `vite build` (4.20s). Verified commit `67c9b66`.
 
 ### T-022 — Profile intake, lifecycle, consent integrity and self-service
 **Status:** READY  
@@ -461,4 +461,4 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-11-06 | T-018 | DONE | 2ac4091 | Permanent language persistence across browser, cold load, and all stakeholder profiles; 154 tests passed. |
 | 2026-11-13 | T-019 | DONE | 66eab88 | Module 01: Supabase Auth integration, trusted role mapping & C-01 completion; 160 tests passed. |
 | 2026-11-13 | T-020 | DONE | b22a08f | Refactor W1: Configuration schema, production demo rejection & 5-service health; 164 tests passed. |
-| 2026-11-13 | T-021 | DONE | Pending | Refactor W2: Migration 00003, typed repositories & lossless DTO mapping; 178 tests passed. |
+| 2026-11-13 | T-021 | DONE | 67c9b66 | Refactor W2: Migration 00003, typed repositories & lossless DTO mapping; 178 tests passed. |
