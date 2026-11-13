@@ -5,7 +5,7 @@
 **Priority:** P0 — Critical  
 **Defect reference:** C-01  
 **Status:** Remediation in progress; Product Owner acceptance pending  
-**Repository branch:** `fix/c-01-disable-demo-auth`
+**Repository branch:** `main`
 
 ## 1. Objective
 
@@ -120,7 +120,7 @@ Any additional file change requires a documented reason and must remain within t
 
 ## 8. Current implementation notes
 
-The remediation branch currently contains these changes:
+The C-01 remediation changes have been transferred directly to `main`:
 
 - `auth.ts`: removed demo credential authentication and simulated magic-link session creation; sign-in currently fails with `AUTH_PROVIDER_NOT_CONFIGURED`; legacy session storage is cleared and is no longer read as identity.
 - `AuthModal.tsx`: removed demo quick-fill buttons and false success notice; added a bilingual explanation that verified sign-in is not configured.
@@ -143,6 +143,6 @@ These are code changes, not yet proof that the application builds or that the co
 
 ## 10. Status
 
-**Current status:** Remediation code committed to a feature branch; automated validation and Product Owner acceptance are still pending.
+**Current status:** C-01 fail-closed remediation committed directly to `main`; automated validation and Product Owner acceptance are still pending. Supabase Auth is approved as the provider; see `02-SUPABASE-AUTH-INTEGRATION.md` for the next implementation stage.
 
-Do not merge this branch or use it with real customer data until the acceptance evidence is complete.
+Do not treat this module as complete or use it with real customer data until the acceptance evidence is complete.
