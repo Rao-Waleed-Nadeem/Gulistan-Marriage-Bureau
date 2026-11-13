@@ -8,10 +8,52 @@
  * 3. Network operations must fail closed and handle connection errors gracefully.
  */
 
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { getClientConfig, getBackendHealthStatus, BackendHealthStatus, ClientConfig } from './config';
 
 export { getClientConfig, getBackendHealthStatus };
-export type { BackendHealthStatus, ClientConfig };
+export type { BackendHealthStatus, ClientConfig, SupabaseClient };
+
+let supabaseInstance: SupabaseClient | null = null;
+
+/**
+ * Returns the singleton typed Supabase client instance when configuration is valid.
+ * Fails closed and returns null when configuration is missing or placeholder.
+ */
+export function getSupabaseClient(): SupabaseClient | null {
+  if (supabaseInstance) {
+    return supabaseInstance;
+  }
+
+  const result = getClientConfig();
+  if (!result.isValid || result.mode === 'demo' || !result.config?.supabaseUrl || !result.config?.supabaseAnonKey) {
+    return null;
+  }
+
+  supabaseInstance = createClient(result.config.supabaseUrl, result.config.supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  });
+
+  return supabaseInstance;
+}
+
+/**
+ * Injects a mock client or clears the singleton instance for testing purposes.
+ */
+export function setSupabaseClientForTesting(mockClient: SupabaseClient | null): void {
+  supabaseInstance = mockClient;
+}
+
+/**
+ * Resets the cached singleton client.
+ */
+export function resetSupabaseClientForTesting(): void {
+  supabaseInstance = null;
+}
 
 /**
  * Checks whether the application is running against a live backend or in local demo mode.

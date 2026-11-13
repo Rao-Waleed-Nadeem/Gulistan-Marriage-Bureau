@@ -33,7 +33,8 @@ import {
   subscribeToAuthChanges, 
   canAccessRole, 
   signOut,
-  updateUserPreferredLanguage
+  updateUserPreferredLanguage,
+  initAuth
 } from './lib/auth';
 import { validateProfileInput, canTransitionStatus, enrichPropertyDetails } from './lib/profiles';
 import { completeFollowUp } from './lib/followUps';
@@ -83,9 +84,12 @@ export default function App() {
   const [transactions, setTransactions] = useState<FinancialTransaction[]>(INITIAL_TRANSACTIONS);
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>(INITIAL_AUDIT_LOGS);
 
-  // Validate public backend configuration boundary at startup (fails safely to demo mode)
+  // Validate public backend configuration boundary and initialize auth lifecycle at startup
   useEffect(() => {
     getClientConfig();
+    initAuth().catch((err) => {
+      console.error('[Gulistan] Failed to initialize authentication lifecycle:', err);
+    });
   }, []);
 
   // Listen to authentication session changes and fail closed if session becomes invalid

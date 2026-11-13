@@ -119,3 +119,43 @@ New guidance added directly to `main`:
 - Product Owner acceptance of implementation: **Pending**
 
 The earlier draft PR #2 was closed without merging at the Product Owner's direction. Future implementation must follow the master Antigravity prompt and work directly on `main`.
+
+## 2026-11-13 — Module 01 Supabase Auth integration, trusted role mapping & C-01 verification
+
+**Task:** GMB-C01 completion & GMB-AUTH-02 Supabase Auth Integration  
+**Target branch:** `main`  
+**Repository:** `Rao-Waleed-Nadeem/Gulistan-Marriage-Bureau`
+
+### Implementation Summary
+
+1. **Official Provider Dependency:**
+   - Installed `@supabase/supabase-js` v2.119.0 in `frontend/package.json`.
+2. **Typed Client Boundary (`frontend/src/lib/supabaseClient.ts`):**
+   - Created typed `getSupabaseClient()` singleton reading `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` from validated config.
+   - Preserved safe demo fallback when config is missing or using placeholders.
+   - Added test seam `setSupabaseClientForTesting` and `resetSupabaseClientForTesting`.
+3. **Authentication Boundary (`frontend/src/lib/auth.ts`):**
+   - Staff sign-in: `signInWithPassword(email, password)` via Supabase Auth with bilingual error handling (invalid credentials, rate limiting, provider errors).
+   - Candidate/family magic-link: `sendMagicLink(email)` with `shouldCreateUser: false` to prohibit unapproved public self-registration. Dispatches link but strictly returns `{ success: true, session: null }` without creating premature sessions.
+   - Trusted role mapping: `fetchUserTrustedRole(userId)` queries `public.user_roles` in PostgreSQL. `mapDatabaseRoleToAppRole` maps database roles (`admin` -> `admin`, `matchmaker` -> `nadeem`, `customer` -> `customer`). Never trusts client metadata or browser state.
+   - Role invariant enforcement: If a user authenticates with Supabase Auth but has no assigned role in `public.user_roles`, the session fails closed (`ROLE_NOT_ASSIGNED`), `supabase.auth.signOut()` is executed immediately, and memory state is cleared.
+   - Lifecycle initialization: `initAuth()` restores active provider session on cold load and binds `onAuthStateChange` listener.
+4. **Modal & Application Shell Integration:**
+   - Updated `AuthModal.tsx` to display verified dispatch confirmation banner for magic links, with bilingual instructions and unapproved registration warnings.
+   - Wired `initAuth` into startup `useEffect` in `App.tsx`.
+   - Fixed timestamp drift in `photos.ts` `generateSignedPhotoGrant` so `issuedAt` and `expiresAt` use an identical millisecond reference.
+5. **Comprehensive Automated Test Coverage:**
+   - Added 9 new unit and boundary tests in `frontend/src/lib/auth.test.ts` (17 tests total in auth suite, 98 total in frontend, 62 in backend, 160 total across repository).
+
+### Actual Validation Results
+
+- `cd frontend && npx tsx --test src/lib/auth.test.ts src/lib/language.test.ts`: **25/25 passed (0 errors)**
+- `cd frontend && npm test`: **98/98 passed (0 errors)**
+- `cd frontend && npm run lint`: **0 errors (`tsc --noEmit`)**
+- `cd frontend && npm run build`: **Success (1734 modules, 4.36s)**
+- `cd backend && npm test`: **62/62 passed (0 errors)**
+
+### Next Steps & Open Items
+
+- Await Product Owner decision on administrative MFA.
+- Once Product Owner provides live Supabase project credentials in local `.env`, run end-to-end smoke test against live project.

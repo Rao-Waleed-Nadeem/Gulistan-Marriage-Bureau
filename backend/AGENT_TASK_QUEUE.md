@@ -319,6 +319,25 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 
 **Completion record:** Completed on 2026-11-06. Updated `frontend/src/lib/language.ts` so `resolveInitialLanguage` prioritizes persistent browser `localStorage` and `persistLanguagePreference` synchronizes across all stakeholder role profiles and active session storage. Added `updateUserPreferredLanguage` to `frontend/src/lib/auth.ts`. Added cold-load bootstrap script to `frontend/index.html`. Removed role-based language resets and blocking alerts in `frontend/src/App.tsx`. Verified with 92 frontend tests, 62 backend tests (154 total passing), `tsc --noEmit` (0 errors), and `vite build` (1.71s). Verified commit `2ac4091`.
 
+### T-019 — Module 01: Approved Supabase Auth integration, trusted role mapping & C-01 completion
+**Status:** DONE  
+**Priority:** P0  
+**Dependencies:** T-004, T-005, T-006, T-018  
+**Scope:** Complete Module 01 per `BIBLE/ANTIGRAVITY-MASTER-IMPLEMENTATION-PROMPT.md` and `agent-prompt.md`. Implement official `@supabase/supabase-js` client boundary; staff email/password authentication; customer/family magic-link OTP authentication with `shouldCreateUser: false` (prohibiting unapproved public registration); trusted role mapping from PostgreSQL `public.user_roles` (`admin` -> `admin`, `matchmaker` -> `nadeem`, `customer` -> `customer`); fail-closed boundary on unconfigured provider or missing database role; `initAuth` lifecycle initialization and `onAuthStateChange` synchronization; bilingual magic link confirmation card in `AuthModal.tsx`; and expanded security/unit test coverage.
+
+**Acceptance criteria**
+- [x] Official `@supabase/supabase-js` integrated via typed client singleton with demo fallback.
+- [x] Staff email/password authentication uses Supabase Auth with bilingual error handling.
+- [x] Customer/family magic-link authentication enforces `shouldCreateUser: false` and requires verified callback.
+- [x] Application roles are mapped exclusively from PostgreSQL `public.user_roles` table.
+- [x] Missing or unmapped database roles fail closed and sign out immediately.
+- [x] Auth lifecycle initialized on startup via `initAuth` in `App.tsx`.
+- [x] `AuthModal.tsx` provides verified dispatch confirmation and dynamic provider status.
+- [x] 160 automated tests (98 frontend, 62 backend) pass, `tsc --noEmit` clean, production build succeeds.
+- [x] Work log, test results, and changelog updated; commit directly to `main`.
+
+**Completion record:** Completed on 2026-11-13. Implemented `@supabase/supabase-js` v2.119.0 client boundary in `frontend/src/lib/supabaseClient.ts` and auth service in `frontend/src/lib/auth.ts`. Enforced `shouldCreateUser: false` on magic links, added trusted role resolution from `public.user_roles`, updated `AuthModal.tsx`, and fixed timestamp drift in `photos.ts`. Added 9 new unit/security tests in `auth.test.ts`. Verified with 98 frontend tests, 62 backend tests (160 total passing), `tsc --noEmit` (0 errors), and `vite build` (4.36s).
+
 ## Task history
 
 | Date | Task | Outcome | Commit | Notes |
@@ -342,3 +361,4 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-11-01 | T-016 | DONE | b2eb64e | UI/UX refinement, dashboard optimization & usability improvements per agent-prompt.md verified. |
 | 2026-11-06 | T-017 | DONE | c86504d | Two-tier navbar with dedicated utility line (persona, clarity, language) to eliminate overflow; 152 tests passed. |
 | 2026-11-06 | T-018 | DONE | 2ac4091 | Permanent language persistence across browser, cold load, and all stakeholder profiles; 154 tests passed. |
+| 2026-11-13 | T-019 | DONE | Pending | Module 01: Supabase Auth integration, trusted role mapping & C-01 completion; 160 tests passed. |

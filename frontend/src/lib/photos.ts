@@ -149,15 +149,16 @@ export function generateSignedPhotoGrant(
   }
 
   // 3. Generate high-entropy bearer token & 48-hour expiration
-  const token = `sig_${Date.now()}_${Math.random().toString(36).substring(2, 12)}`;
-  const expiresAt = Date.now() + DEFAULT_PHOTO_EXPIRY_MS;
+  const now = Date.now();
+  const token = `sig_${now}_${Math.random().toString(36).substring(2, 12)}`;
+  const expiresAt = now + DEFAULT_PHOTO_EXPIRY_MS;
 
   const grant: SignedPhotoGrant = {
     token,
     signedUrl: `https://gulistan.pk/secure-photo?token=${token}&scope=${photo.profileId}`,
     photoId: photo.id,
     profileId: photo.profileId,
-    issuedAt: Date.now(),
+    issuedAt: now,
     expiresAt,
     isRevoked: false,
     recipientContext,

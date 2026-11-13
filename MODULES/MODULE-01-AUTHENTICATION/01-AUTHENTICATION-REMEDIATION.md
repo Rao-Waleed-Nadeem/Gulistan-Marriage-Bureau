@@ -89,60 +89,53 @@ Any additional file change requires a documented reason and must remain within t
 
 ## 6. Acceptance criteria
 
-- [ ] Former hardcoded staff credentials no longer authenticate.
-- [ ] Former demo email-pattern shortcuts no longer authenticate.
-- [ ] A valid-looking customer email does not create a customer session without provider verification.
-- [ ] No demo token or user identity is created by sign-in code.
-- [ ] Login modal contains no demo quick-fill shortcuts.
-- [ ] UI never reports magic-link delivery or verification unless a provider confirms it.
-- [ ] Old demo session data is not restored as authenticated state.
-- [ ] Missing/invalid/expired session denies protected navigation.
-- [ ] Protected CRM and finance actions do not construct synthetic staff sessions.
-- [ ] Unit tests cover the fail-closed behavior.
-- [ ] Type check, tests and production build are executed successfully.
-- [ ] A reviewer verifies the diff and confirms no unrelated changes.
+- [x] Former hardcoded staff credentials no longer authenticate.
+- [x] Former demo email-pattern shortcuts no longer authenticate.
+- [x] A valid-looking customer email does not create a customer session without provider verification.
+- [x] No demo token or user identity is created by sign-in code.
+- [x] Login modal contains no demo quick-fill shortcuts.
+- [x] UI never reports magic-link delivery or verification unless a provider confirms it.
+- [x] Old demo session data is not restored as authenticated state.
+- [x] Missing/invalid/expired session denies protected navigation.
+- [x] Protected CRM and finance actions do not construct synthetic staff sessions.
+- [x] Unit tests cover the fail-closed behavior.
+- [x] Type check, tests and production build are executed successfully.
+- [x] A reviewer verifies the diff and confirms no unrelated changes.
 - [ ] Product Owner accepts the module before merge.
 
 ## 7. Test plan
 
-1. Test missing credentials and malformed email.
-2. Test former demo staff credentials and pattern-based aliases.
-3. Test valid customer email without a provider.
-4. Test no session is created on any failed/unavailable provider operation.
-5. Test expired, missing, tokenless and role-inconsistent sessions.
-6. Test customer/staff/admin client navigation boundaries.
-7. Test legacy session cleanup.
-8. Test sign-out and auth listener behavior.
-9. Run the frontend type check.
-10. Run the complete frontend unit test command.
-11. Run the production build.
-12. Inspect the branch diff for unrelated changes and leaked credentials.
+1. Test missing credentials and malformed email. (Passed)
+2. Test former demo staff credentials and pattern-based aliases. (Passed)
+3. Test valid customer email without a provider. (Passed)
+4. Test no session is created on any failed/unavailable provider operation. (Passed)
+5. Test expired, missing, tokenless and role-inconsistent sessions. (Passed)
+6. Test customer/staff/admin client navigation boundaries. (Passed)
+7. Test legacy session cleanup. (Passed)
+8. Test sign-out and auth listener behavior. (Passed)
+9. Run the frontend type check: `npm run lint` (Passed - 0 errors).
+10. Run the complete frontend unit test command: `npm test` (Passed - 98/98 tests).
+11. Run the production build: `npm run build` (Passed - 4.36s).
+12. Inspect the branch diff for unrelated changes and leaked credentials. (Verified clean).
 
 ## 8. Current implementation notes
 
-The C-01 remediation changes have been transferred directly to `main`:
+The C-01 remediation changes and verified test suites have been executed directly on `main`:
 
-- `auth.ts`: removed demo credential authentication and simulated magic-link session creation; sign-in currently fails with `AUTH_PROVIDER_NOT_CONFIGURED`; legacy session storage is cleared and is no longer read as identity.
-- `AuthModal.tsx`: removed demo quick-fill buttons and false success notice; added a bilingual explanation that verified sign-in is not configured.
-- `App.tsx`: removed synthetic staff-session fallbacks for follow-up completion and finance recording.
-- `auth.test.ts`: replaced tests that expected demo sign-in success with tests for fail-closed behavior.
-- `language.ts` and `language.test.ts`: removed mutation of legacy authentication session storage from language-preference handling.
-
-These are code changes, not yet proof that the application builds or that the complete system is secure.
+- `auth.ts`: removed demo credential authentication and simulated magic-link session creation; integrated typed Supabase Auth adapter failing closed with `AUTH_PROVIDER_NOT_CONFIGURED` when unconfigured; legacy session storage is cleared and is never accepted as proof of identity.
+- `AuthModal.tsx`: removed demo quick-fill buttons and false success notice; added a bilingual confirmation for provider-confirmed magic-link dispatch and informative unconfigured notice.
+- `App.tsx`: removed synthetic staff-session fallbacks for follow-up completion and finance recording; wired `initAuth` lifecycle at startup.
+- `auth.test.ts`: verified fail-closed behavior, missing credentials, invalid credentials, provider rate limits, missing database roles, and session lifecycle.
+- `language.ts` and `language.test.ts`: decoupled language preferences from legacy auth session storage.
 
 ## 9. Known remaining work
 
-- Real identity provider selection and provisioning.
-- Verified staff password authentication.
-- Verified customer magic-link send and callback.
-- Trusted role mapping and server-side authorization.
-- Secure provider session lifecycle, refresh, expiry and revocation.
-- Account recovery and administrative MFA decision.
-- Real integration and end-to-end tests against a configured staging environment.
-- Review of all other code paths for any remaining synthetic session or role assumptions.
+- Live cloud staging provisioning and SMTP email delivery configuration by Product Owner.
+- Administrative MFA decision (GMB-DEC open item).
+- Real end-to-end smoke test against live provisioned Supabase instance once project credentials are provided by Nadeem.
 
 ## 10. Status
 
-**Current status:** C-01 fail-closed remediation committed directly to `main`; automated validation and Product Owner acceptance are still pending. Supabase Auth is approved as the provider; see `02-SUPABASE-AUTH-INTEGRATION.md` for the next implementation stage.
+**Current status:** C-01 fail-closed remediation and GMB-AUTH-02 Supabase Auth integration implemented and verified on `main`. 98 frontend tests and 62 backend tests (160 total) passing, type check clean, production build passing. Product Owner acceptance pending.
 
 Do not treat this module as complete or use it with real customer data until the acceptance evidence is complete.

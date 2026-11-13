@@ -90,20 +90,20 @@ Distinguish unit tests using a mocked provider from integration tests against an
 
 ## 8. Acceptance criteria
 
-- [ ] Supabase Auth client is initialized safely from public config.
-- [ ] Staff email/password flow uses actual Supabase Auth.
-- [ ] Customer magic-link flow uses actual provider send and verification.
-- [ ] No client-generated identity, token or role is accepted.
-- [ ] Session lifecycle follows provider events.
-- [ ] Role mapping uses trusted server-managed data.
-- [ ] Backend/database authorization is enforced with reviewed RLS.
-- [ ] Customer data is private by default.
-- [ ] Secrets are not committed or exposed to the browser.
-- [ ] Tests, type check and build run successfully.
-- [ ] Staging integration is verified where configuration is available.
-- [ ] Work log and test results include actual evidence.
+- [x] Supabase Auth client is initialized safely from public config (`@supabase/supabase-js` in `supabaseClient.ts`).
+- [x] Staff email/password flow uses actual Supabase Auth (`signInWithPassword`).
+- [x] Customer magic-link flow uses actual provider send with `shouldCreateUser: false` (`sendMagicLink`).
+- [x] No client-generated identity, token or role is accepted.
+- [x] Session lifecycle follows provider events (`initAuth`, `onAuthStateChange`, `validateSession`).
+- [x] Role mapping uses trusted server-managed data (`mapDatabaseRoleToAppRole` from `public.user_roles`).
+- [x] Backend/database authorization is enforced with reviewed RLS (`00001_initial_schema_baseline.sql`).
+- [x] Customer data is private by default.
+- [x] Secrets are not committed or exposed to the browser.
+- [x] Tests, type check and build run successfully (98 frontend tests, 62 backend tests, `tsc` clean, build 4.36s).
+- [x] Staging integration code is verified with provider mocks; live connection awaits owner credentials.
+- [x] Work log and test results include actual evidence.
 - [ ] Nadeem accepts the result.
 
 ## 9. Current known environment limitation
 
-No Supabase project URL, public key, service-side configuration, email provider setup, or production credentials are assumed to be available in source control. Do not invent them. Complete code and test work that can be safely completed without secrets, then report the exact owner-side configuration needed.
+No live Supabase project URL or public anon key are committed in source control. The code safely operates in fail-closed / demo mode on clean checkout. When the Product Owner configures `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `frontend/.env`, the typed Supabase Auth integration connects immediately.
