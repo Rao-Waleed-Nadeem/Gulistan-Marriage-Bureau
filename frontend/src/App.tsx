@@ -96,7 +96,12 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = subscribeToAuthChanges((newSession) => {
       setSession(newSession);
-      if (currentRole !== 'public' && !canAccessRole(newSession, currentRole)) {
+      if (newSession.isAuthenticated && newSession.role !== 'public') {
+        if (currentRole === 'public' || !canAccessRole(newSession, currentRole)) {
+          setCurrentRole(newSession.role);
+          setActiveNav('dashboard');
+        }
+      } else if (currentRole !== 'public' && !canAccessRole(newSession, currentRole)) {
         setCurrentRole('public');
         setActiveNav('home');
       }
