@@ -57,6 +57,10 @@ Never silently resolve a business ambiguity by inventing a policy. Record it in 
 - No production backend implementation or authoritative database migrations were found in the inspected repository tree.
 - Supabase remains a proposal pending provider/account/region/plan and recovery validation.
 
+## Refactoring programme (2026-11-13)
+
+The source-grounded comprehensive audit and implementation programme is maintained in [backend/docs/refactor/README.md](refactor/README.md). Read its audit, blueprint, acceptance gates, owner actions and universal Antigravity prompt before beginning the new remediation work. This programme supplements the existing numbered documentation and preserves its structure.
+
 ## Core rule
 
 **Preserve the existing frontend and integrate a backend incrementally.** Do not migrate to Next.js, replace Vite, redesign the UI, delete mock data, or change the animation as part of backend work unless the project owner explicitly approves a separate task.
