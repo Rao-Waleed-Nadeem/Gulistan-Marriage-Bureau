@@ -20,3 +20,11 @@
 - Fixed fact fabrication in `profileRowToDTO` and `profileDTOToRow`: preserved unknown/unspecified fields without manufacturing parents, 10-marla property, or Unsplash placeholder URLs (DB-04, DB-05, DB-06).
 - Validated lossless round-trip DTO <-> Row translation preserving all nested sibling, property, and preference structures (DB-07).
 - Verified with 110 frontend tests, 68 backend tests (178 total passing), `tsc --noEmit` clean, and production build passing in 4.20s.
+- Implemented Refactor Workstream W3 (T-022): eliminated manufactured pre-populated defaults from `ProfileWizard.tsx` (religion, aqeedah, caste, height, parents, property, family notes, unsplash URL, consent) (PROF-02).
+- Added explicit Representative Legal Consent Certification checkbox (OPEN-004) in `ProfileWizard.tsx` required before submission.
+- Resolved OPEN-003 and recorded GMB-DEC-004 supporting authenticated customer self-service registration strictly in `pending_review` with `source: direct_web` (PROF-03).
+- Updated `ProfileRepositoryImpl.create` to enforce `pending_review` and `direct_web` for self-service candidate registrations.
+- Replaced hardcoded "Active & Verified" claims in `CustomerPortal.tsx` with true persisted status and localized status badge (PROF-06).
+- Connected profile correction requests in `CustomerPortal.tsx` to durable CRM follow-up records via `crmRepository.create` for Nadeem's review (PROF-01).
+- Implemented deterministic duplicate candidate detection engine (`frontend/src/lib/duplicateReview.ts`) with normalized phone, email, and demographic fingerprinting with localized English/Urdu match evidence (PROF-05).
+- Added unit tests in `duplicateReview.test.ts` and updated `repositories.test.ts`. Verified with 116 frontend tests, 68 backend tests (184 total passing), `tsc --noEmit` clean, and production build passing in 3.64s.

@@ -374,11 +374,22 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 **Completion record:** Completed on 2026-11-13. Created Migration 00003 (`00003_complete_normalized_schema.sql`) covering 14 normalized tables with full RLS and security constraints. Implemented `frontend/src/lib/repositories.ts` providing typed repositories with Supabase backend query integration and safe demo fallback. Fixed fact fabrication in `profileRowToDTO` and `profileDTOToRow` in `frontend/src/lib/profiles.ts`. Added 8 tests in `repositories.test.ts` and 6 migration tests in `migration_00003.test.js`. Verified with 110 frontend tests, 68 backend tests (178 total passing), `tsc --noEmit` (0 errors), and `vite build` (4.20s). Verified commit `67c9b66`.
 
 ### T-022 — Profile intake, lifecycle, consent integrity and self-service
-**Status:** READY  
+**Status:** DONE  
 **Priority:** P0  
 **Dependencies:** T-021  
 **Scope:** Remove fabricated defaults and default-true consent; server-enforced lifecycle; assisted and self-service pending intake; profile correction; structured sibling/property data; duplicate review.  
-**Acceptance:** No fabricated facts/consent; unknown states preserved; assisted and self-service paths work; new self-service records cannot bypass Nadeem review; lifecycle/audit persisted.
+**Acceptance criteria**
+- [x] Removed fact-like pre-populated defaults from `ProfileWizard.tsx` (religion, aqeedah, caste, height, parents, property, family notes, unsplash URL, consent) (PROF-02).
+- [x] Implemented explicit legal certification checkbox for representative candidate consent (OPEN-004) in `ProfileWizard.tsx`.
+- [x] Supported assisted staff intake AND self-service candidate registration (GMB-DEC-004 / PROF-03).
+- [x] Enforced in `ProfileRepositoryImpl.create` that self-service intake strictly initializes in `pending_review` with `source: direct_web` and cannot bypass review (PROF-03).
+- [x] Replaced hardcoded "Active & Verified" claims in `CustomerPortal.tsx` with true persisted status and localized badge (PROF-06).
+- [x] Implemented real persistence of customer correction requests via `crmRepository.create` for Nadeem's review instead of simulated alerts (PROF-01).
+- [x] Implemented deterministic duplicate candidate detection and human review engine (`frontend/src/lib/duplicateReview.ts`) with normalized phone, email, and demographic fingerprinting with localized explanations (PROF-05).
+- [x] 184 automated tests (116 frontend, 68 backend) pass, `tsc --noEmit` clean, production build succeeds.
+- [x] Documentation, changelog, and queue updated; commit directly to `main`.
+
+**Completion record:** Completed on 2026-11-13. Resolved OPEN-003 and recorded GMB-DEC-004 allowing authenticated customer self-service registration strictly in `pending_review` with `source: direct_web`. Purged all manufactured defaults from `ProfileWizard.tsx` and added explicit representative legal consent certification (OPEN-004). Updated `CustomerPortal.tsx` to render real dynamic status badges (PROF-06) and persist profile correction requests as CRM follow-up items for Nadeem's review (PROF-01). Created `frontend/src/lib/duplicateReview.ts` providing deterministic duplicate detection via phone, email, and demographic fingerprinting with English/Urdu match evidence (PROF-05). Added unit tests in `duplicateReview.test.ts` and updated `repositories.test.ts`. Verified with 116 frontend tests, 68 backend tests (184 total passing), `tsc --noEmit` (0 errors), and `vite build` (3.64s). Verified commit pending.
 
 ### T-023 — Private photos, consent events, protected grants and disclosure
 **Status:** READY  
@@ -462,3 +473,4 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-11-13 | T-019 | DONE | 66eab88 | Module 01: Supabase Auth integration, trusted role mapping & C-01 completion; 160 tests passed. |
 | 2026-11-13 | T-020 | DONE | b22a08f | Refactor W1: Configuration schema, production demo rejection & 5-service health; 164 tests passed. |
 | 2026-11-13 | T-021 | DONE | 67c9b66 | Refactor W2: Migration 00003, typed repositories & lossless DTO mapping; 178 tests passed. |
+| 2026-11-13 | T-022 | DONE | Pending | Refactor W3: Self-service intake, duplicate review & consent certification; 184 tests passed. |

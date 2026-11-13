@@ -69,36 +69,55 @@ test('ProfileRepository: findById retrieves and sanitizes profile according to r
 test('ProfileRepository: create enforces validation and role authorization', async () => {
   resetRepositoriesForTesting();
 
-  // Customer cannot create profile directly (fails closed)
+  // 1. Unauthenticated caller fails closed
   await assert.rejects(
     async () => {
       await profileRepository.create(
         {
           fullName: 'Test Candidate',
-          displayName: 'Test C.',
           gender: 'female',
           age: 24,
-          maritalStatus: 'never_married',
-          religion: 'Islam',
-          aqeedah: 'Sunni',
-          caste: 'Sheikh',
-          education: 'Masters',
-          educationField: 'Finance',
-          occupation: 'Banker',
-          jobTitle: 'Analyst',
-          hometown: 'Lahore',
-          currentCity: 'Lahore',
-          residenceArea: 'Gulberg',
-          contactPerson: 'Father',
           contactPhone: '+92 300 1112233',
         },
-        customerSession
+        null
       );
     },
     /UNAUTHORIZED/
   );
 
-  // Staff can create profile
+  // 2. Customer self-service intake: allowed, but forces pending_review & direct_web (GMB-DEC-004 / PROF-03)
+  const customerCreated = await profileRepository.create(
+    {
+      fullName: 'Fatima Zahra',
+      displayName: 'Fatima Z.',
+      gender: 'female',
+      age: 26,
+      maritalStatus: 'never_married',
+      religion: 'Islam',
+      aqeedah: 'Sunni',
+      caste: 'Ansari',
+      education: 'MSc Computer Science',
+      educationField: 'Computer Science',
+      occupation: 'Software Engineer',
+      jobTitle: 'Frontend Engineer',
+      hometown: 'Lahore',
+      currentCity: 'Lahore',
+      residenceArea: 'Johar Town',
+      contactPerson: 'Father (Mr. Ansari)',
+      contactPhone: '+92 321 4455667',
+      // Attacker/customer attempts to bypass review or claim walk-in:
+      status: 'active',
+      source: 'walk_in',
+    },
+    customerSession
+  );
+
+  assert.ok(customerCreated.id.startsWith('GLS-'), 'Should assign GLS ID');
+  assert.equal(customerCreated.status, 'pending_review', 'Customer intake MUST force status to pending_review');
+  assert.equal(customerCreated.source, 'direct_web', 'Customer intake MUST force source to direct_web');
+  assert.equal(customerCreated.fullName, 'Fatima Zahra');
+
+  // 3. Staff can create profile with assisted intake
   const created = await profileRepository.create(
     {
       fullName: 'Ayesha Siddiqua',
@@ -119,12 +138,14 @@ test('ProfileRepository: create enforces validation and role authorization', asy
       residenceArea: 'F-8',
       contactPerson: 'Father (Dr. Siddiqui)',
       contactPhone: '+92 300 9988776',
+      source: 'walk_in',
     },
     staffSession
   );
 
   assert.ok(created.id.startsWith('GLS-'));
   assert.equal(created.status, 'pending_review');
+  assert.equal(created.source, 'walk_in');
   assert.equal(created.fullName, 'Ayesha Siddiqua');
 });
 

@@ -134,7 +134,7 @@ export interface FollowUpItem {
   candidateId?: string;
   personName: string;
   contactPhone: string;
-  type: 'initial_consult' | 'proposal_decision' | 'meeting_arrangement' | 'photo_request' | 'payment_reminder';
+  type: 'initial_consult' | 'proposal_decision' | 'meeting_arrangement' | 'photo_request' | 'payment_reminder' | 'profile_correction';
   dueDate: string;
   priority: 'high' | 'medium' | 'low';
   status: 'pending' | 'completed' | 'overdue';

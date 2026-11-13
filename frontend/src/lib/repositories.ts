@@ -184,8 +184,17 @@ class ProfileRepositoryImpl implements IProfileRepository {
   }
 
   async create(profileData: Partial<ProfileRecord>, session: AuthSession | null): Promise<ProfileRecord> {
-    if (!canAccessRole(session, 'nadeem')) {
-      throw new Error('UNAUTHORIZED: Only bureau matchmakers can register profiles.');
+    const isStaff = canAccessRole(session, 'nadeem');
+    const isCustomer = session?.isAuthenticated && session.user?.role === 'customer';
+
+    if (!isStaff && !isCustomer) {
+      throw new Error('UNAUTHORIZED: Must be signed in as staff or verified customer to register candidate profiles.');
+    }
+
+    // Force self-service constraints for customer registration (PROF-03)
+    if (!isStaff && isCustomer) {
+      profileData.status = 'pending_review';
+      profileData.source = 'direct_web';
     }
 
     const validation = validateProfileInput(profileData);
@@ -292,7 +301,7 @@ class ProfileRepositoryImpl implements IProfileRepository {
       },
       preferences: profileData.preferences || ({} as any),
       status: 'pending_review',
-      source: profileData.source || 'walk_in',
+      source: isStaff ? (profileData.source || 'walk_in') : 'direct_web',
       assignedMatchmakerId: session?.user?.id || 'usr-nadeem',
       assignedMatchmakerName: session?.user?.displayName || 'Nadeem Ahmed',
       contactPerson: profileData.contactPerson!.trim(),

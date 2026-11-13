@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ProfileRecord, MatchRecommendation, Language } from '../../types';
 import { translations } from '../../i18n/translations';
 import { ProfileCard } from '../../components/ui/ProfileCard';
+import { crmRepository } from '../../lib/repositories';
 import { 
   ShieldCheck, 
   Sparkles, 
@@ -67,15 +68,26 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
     (r) => r.requestingProfileId === currentProfile.id || r.candidateProfileId === currentProfile.id
   );
 
-  const handleSendCorrection = (e: React.FormEvent) => {
+  const handleSendCorrection = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!correctionNote.trim()) return;
     setIsRequestSent(true);
-    setTimeout(() => {
+    try {
+      await crmRepository.create({
+        profileId: currentProfile.id,
+        personName: currentProfile.fullName,
+        contactPhone: currentProfile.contactPhone,
+        type: 'profile_correction',
+        priority: 'high',
+        notes: `Correction request from customer: ${correctionNote.trim()}`,
+      }, null);
       setCorrectionNote('');
       setIsRequestSent(false);
-      alert(language === 'ur' ? 'آپ کی درخواست بیورو کو موصول ہو گئی ہے۔' : 'Your correction request has been submitted to Nadeem.');
-    }, 1500);
+      alert(language === 'ur' ? 'آپ کی درخواست بیورو کو موصول ہو گئی ہے۔ ندیم صاحب جائزہ لیں گے۔' : 'Your correction request has been submitted to Nadeem for review.');
+    } catch {
+      setIsRequestSent(false);
+      alert(language === 'ur' ? 'درخواست بھیجنے میں خرابی پیش آئی۔' : 'Failed to submit correction request.');
+    }
   };
 
   return (
@@ -86,7 +98,19 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-[#B69A62]/40 bg-[#182848]/80 px-3.5 py-1 text-xs text-[#B69A62] mb-3">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>{t.customerProfileStatus}: Active & Verified</span>
+              <span>
+                {t.customerProfileStatus}: {
+                  currentProfile.status === 'active'
+                    ? (language === 'ur' ? 'فعال و تصدیق شدہ' : 'Active & Verified')
+                    : currentProfile.status === 'approved'
+                    ? (language === 'ur' ? 'منظور شدہ' : 'Approved')
+                    : currentProfile.status === 'pending_review'
+                    ? (language === 'ur' ? 'زیرِ جائزہ' : 'Pending Review')
+                    : currentProfile.status === 'introduction_authorized'
+                    ? (language === 'ur' ? 'تعارف کی اجازت' : 'Introduction Authorized')
+                    : (language === 'ur' ? 'غیر فعال' : 'Inactive')
+                }
+              </span>
             </div>
             <h1 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight">
               {t.customerWelcome} {currentProfile.fullName}

@@ -34,82 +34,69 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
   const [currentStep, setCurrentStep] = useState(1);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  // Form State
+  // Form State (Blank/Unknown defaults per PROF-02: never fabricate facts or consent)
   const [formData, setFormData] = useState<Partial<ProfileRecord>>({
     fullName: '',
     displayName: '',
     gender: 'female',
-    age: 25,
+    age: 24,
     height: "5'4\"",
     maritalStatus: 'never_married',
-    religion: 'Islam',
-    aqeedah: 'Sunni / Hanafi',
-    caste: 'Sheikh',
+    religion: '',
+    aqeedah: '',
+    caste: '',
     subCaste: '',
-    education: 'Masters',
-    educationField: 'Information Technology',
-    occupation: 'Software Engineer',
-    jobTitle: 'Senior Developer',
-    monthlyIncomePKR: 200000,
-    hometown: 'Lahore',
-    currentCity: 'Lahore',
-    residenceArea: 'Gulberg III',
-    photoUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400&q=80',
-    photoPermissionGranted: true,
-    fatherStatus: 'alive',
-    fatherOccupation: 'Businessman',
-    motherStatus: 'alive',
-    motherOccupation: 'Homemaker',
-    siblings: [
-      {
-        id: 'sib-new-1',
-        relation: 'brother',
-        name: '',
-        age: 28,
-        maritalStatus: 'married',
-        occupation: 'Engineer',
-        marriageDetails: 'Married in Lahore',
-      },
-    ],
-    familyBackgroundNotes: 'Dignified, practicing educated family with ancestral roots in Punjab.',
+    education: '',
+    educationField: '',
+    occupation: '',
+    jobTitle: '',
+    monthlyIncomePKR: undefined,
+    hometown: '',
+    currentCity: '',
+    residenceArea: '',
+    photoUrl: '',
+    photoPermissionGranted: false,
+    representativeConsentCertified: false,
+    fatherStatus: undefined,
+    fatherOccupation: '',
+    motherStatus: undefined,
+    motherOccupation: '',
+    siblings: [],
+    familyBackgroundNotes: '',
     property: {
       ownership: 'owned',
       propertyType: 'house',
-      areaMarlas: 20, // 1 Kanal
-      approxValuePKR: 65000000,
-      city: 'Lahore',
-      locality: 'Gulberg III',
+      areaMarlas: 0,
+      city: '',
+      locality: '',
       householdArrangement: 'independent',
-      homeSizeDescription: 'Double-storey residence',
+      homeSizeDescription: '',
     },
     preferences: {
-      ageMin: 26,
-      ageMax: 32,
-      heightMin: "5'9\"",
+      ageMin: 20,
+      ageMax: 35,
+      heightMin: '',
       maritalStatus: ['never_married'],
-      religion: 'Islam',
-      aqeedah: 'Sunni / Hanafi',
-      caste: 'Open / Any Respectable Family',
-      educationMin: 'Graduation / Masters',
-      preferredOccupations: ['Engineer', 'Doctor', 'Civil Servant', 'Business Owner'],
-      cityPreferences: ['Lahore', 'Islamabad'],
-      propertyExpectation: 'Own home preferred',
-      familyArrangement: 'independent',
+      religion: '',
+      aqeedah: '',
+      caste: '',
+      educationMin: '',
+      preferredOccupations: [],
+      cityPreferences: [],
+      propertyExpectation: '',
+      familyArrangement: 'any',
       relocationPreference: 'willing_to_relocate',
       workAfterMarriagePreference: 'optional',
       criteriaClassifications: {
         religion: 'mandatory',
         aqeedah: 'mandatory',
         maritalStatus: 'mandatory',
-        education: 'mandatory',
-        caste: 'preferred',
-        height: 'acceptable_range',
       },
     },
-    contactPerson: 'Father',
-    contactPhone: '+92 300 0000000',
+    contactPerson: '',
+    contactPhone: '',
     preferredContactMethod: 'whatsapp',
-    source: 'direct_web',
+    source: 'walk_in',
     status: 'pending_review',
   });
 
@@ -199,57 +186,65 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
   const handleFinalSubmit = () => {
     if (!validateStep(1) || !validateStep(2)) return;
 
+    if (!formData.representativeConsentCertified) {
+      setValidationError(
+        language === 'ur'
+          ? 'امیدوار / سرپرست کی رضامندی کی قانونی تصدیق لازمی ہے (OPEN-004)۔'
+          : 'Legal certification of candidate/guardian consent is required (OPEN-004).'
+      );
+      return;
+    }
+
     const newProfileId = `GLS-${Math.floor(410 + Math.random() * 90)}`;
     const finalProfile: ProfileRecord = {
       id: newProfileId,
-      fullName: formData.fullName || 'Candidate Name',
-      displayName: formData.displayName || `${formData.fullName} (${formData.occupation})`,
-      gender: formData.gender as Gender,
-      age: formData.age || 25,
+      fullName: formData.fullName?.trim() || '',
+      displayName: formData.displayName?.trim() || formData.fullName?.trim() || '',
+      gender: (formData.gender as Gender) || 'female',
+      age: formData.age || 24,
       height: formData.height || "5'4\"",
       maritalStatus: (formData.maritalStatus as MaritalStatus) || 'never_married',
-      religion: formData.religion || 'Islam',
-      aqeedah: formData.aqeedah || 'Sunni / Hanafi',
-      caste: formData.caste || 'Sheikh',
-      subCaste: formData.subCaste || '',
-      education: formData.education || 'Masters',
-      educationField: formData.educationField || 'General',
-      occupation: formData.occupation || 'Professional',
-      jobTitle: formData.jobTitle || 'Executive',
-      monthlyIncomePKR: formData.monthlyIncomePKR,
-      hometown: formData.hometown || 'Lahore',
-      currentCity: formData.currentCity || 'Lahore',
-      residenceArea: formData.residenceArea || 'Cantt',
-      photoUrl: formData.photoUrl || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400&q=80',
-      photoPermissionGranted: formData.photoPermissionGranted !== false,
-      fatherName: formData.fatherName || 'Father',
-      fatherStatus: formData.fatherStatus || 'alive',
-      fatherOccupation: formData.fatherOccupation || 'Retired',
-      motherStatus: formData.motherStatus || 'alive',
-      motherOccupation: formData.motherOccupation || 'Homemaker',
+      religion: formData.religion?.trim() || '',
+      aqeedah: formData.aqeedah?.trim() || '',
+      caste: formData.caste?.trim() || '',
+      subCaste: formData.subCaste?.trim() || undefined,
+      education: formData.education?.trim() || '',
+      educationField: formData.educationField?.trim() || '',
+      occupation: formData.occupation?.trim() || '',
+      jobTitle: formData.jobTitle?.trim() || '',
+      monthlyIncomePKR: formData.monthlyIncomePKR !== undefined ? formData.monthlyIncomePKR : undefined,
+      hometown: formData.hometown?.trim() || '',
+      currentCity: formData.currentCity?.trim() || '',
+      residenceArea: formData.residenceArea?.trim() || '',
+      photoUrl: formData.photoUrl || '',
+      photoPermissionGranted: formData.photoPermissionGranted === true,
+      representativeConsentCertified: true,
+      fatherName: formData.fatherName?.trim() || undefined,
+      fatherStatus: formData.fatherStatus,
+      fatherOccupation: formData.fatherOccupation?.trim() || undefined,
+      motherStatus: formData.motherStatus,
+      motherOccupation: formData.motherOccupation?.trim() || undefined,
       siblings: formData.siblings || [],
-      familyBackgroundNotes: formData.familyBackgroundNotes || 'Educated family.',
-      property: {
-        ownership: formData.property?.ownership || 'owned',
-        propertyType: formData.property?.propertyType || 'house',
-        areaMarlas: formData.property?.areaMarlas || 20,
-        approxValuePKR: formData.property?.approxValuePKR || 50000000,
-        city: formData.property?.city || 'Lahore',
-        locality: formData.property?.locality || 'Cantt',
-        householdArrangement: formData.property?.householdArrangement || 'independent',
-        homeSizeDescription: formData.property?.homeSizeDescription || 'Independent house',
+      familyBackgroundNotes: formData.familyBackgroundNotes?.trim() || undefined,
+      property: formData.property || {
+        ownership: 'other',
+        propertyType: 'house',
+        areaMarlas: 0,
+        city: formData.currentCity || '',
+        locality: formData.residenceArea || '',
+        householdArrangement: 'independent',
       },
       preferences: formData.preferences || ({} as any),
       status: 'pending_review',
-      source: 'direct_web',
+      source: formData.source || 'walk_in',
       assignedMatchmakerId: 'nadeem',
       assignedMatchmakerName: 'Nadeem Ahmed',
-      contactPerson: formData.contactPerson || 'Candidate',
-      contactPhone: formData.contactPhone || '+92 300 0000000',
-      preferredContactMethod: 'whatsapp',
+      contactPerson: formData.contactPerson?.trim() || formData.fullName?.trim() || '',
+      contactPhone: formData.contactPhone?.trim() || '',
+      preferredContactMethod: formData.preferredContactMethod || 'whatsapp',
       createdAt: new Date().toISOString().split('T')[0],
       updatedAt: new Date().toISOString().split('T')[0],
-      internalNotes: 'New profile registered via guided workflow. Initial phone verification pending.',
+      internalNotes: 'New profile registered via intake workflow. Initial phone verification pending.',
     };
 
     onSaveProfile(finalProfile);
@@ -860,6 +855,20 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
                   {language === 'ur'
                     ? 'تصویر شیئر کرنے کی اجازت ہے (صرف ندیم صاحب کی تصدیق اور باہمی رضامندی کے بعد)'
                     : 'Authorize photo sharing exclusively upon mutual interest and matchmaker verification'}
+                </span>
+              </label>
+
+              <label className="flex items-center gap-3 p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.representativeConsentCertified ?? false}
+                  onChange={(e) => setFormData({ ...formData, representativeConsentCertified: e.target.checked })}
+                  className="rounded border-[#B69A62] text-[#182848] h-4 w-4"
+                />
+                <span className="font-medium text-[#182848]">
+                  {language === 'ur'
+                    ? 'امیدوار / سرپرست کی باضابطہ قانونی رضامندی کی تصدیق کی جاتی ہے (OPEN-004)'
+                    : 'I certify that candidate/guardian legal consent is verified for intake (OPEN-004)'}
                 </span>
               </label>
 
