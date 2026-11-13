@@ -319,6 +319,94 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 
 **Completion record:** Completed on 2026-11-06. Updated `frontend/src/lib/language.ts` so `resolveInitialLanguage` prioritizes persistent browser `localStorage` and `persistLanguagePreference` synchronizes across all stakeholder role profiles and active session storage. Added `updateUserPreferredLanguage` to `frontend/src/lib/auth.ts`. Added cold-load bootstrap script to `frontend/index.html`. Removed role-based language resets and blocking alerts in `frontend/src/App.tsx`. Verified with 92 frontend tests, 62 backend tests (154 total passing), `tsc --noEmit` (0 errors), and `vite build` (1.71s). Verified commit `2ac4091`.
 
+## Refactoring remediation queue (created 2026-11-13)
+
+The detailed findings, target boundaries and acceptance gates are in [docs/refactor/](docs/refactor/README.md). The following workstream tasks are the authoritative next delivery sequence. They deliberately supersede stale historical DONE claims where source evidence conflicts. Keep exactly one task IN PROGRESS per agent run.
+
+### T-019 — Reconcile and verify real authentication on main
+**Status:** READY  
+**Priority:** P0  
+**Dependencies:** T-018  
+**Scope:** Inspect the current local and remote auth implementation; resolve the documented T-006 DONE claim versus fail-closed source. Integrate approved Supabase Auth only if absent, map Nadeem to DB matchmaker, implement verified session lifecycle and trusted role resolution, and update all auth docs.
+**Acceptance:** Staff password and customer magic-link work in isolated staging; session refresh/signout/revocation tested; forged client roles denied; no service secret in browser; actual commands and commit recorded.
+
+### T-020 — Production-safe configuration and demo isolation
+**Status:** READY  
+**Priority:** P0  
+**Dependencies:** T-019  
+**Scope:** Explicit env validation, separate environments, no production mock fallback, demo fixture provider isolation, safe health diagnostics, bundle/secret scanning.
+**Acceptance:** Production fails closed for missing config/mock mode; no fixtures in production; no privileged key in bundle/log/source; staging health checks actually exercise services.
+
+### T-021 — Database schema completion and typed persistence repositories
+**Status:** READY  
+**Priority:** P0  
+**Dependencies:** T-020  
+**Scope:** Compare SRS, data model and actual migrations; additive migrations for missing domain entities; typed repositories and lossless DTO mappings; RLS/grants/indexes/negative tests.
+**Acceptance:** All source-required fields and repeating structures map losslessly; persistent reads/writes; no in-memory production store; migrations tested and applied to staging with evidence.
+
+### T-022 — Profile intake, lifecycle, consent integrity and self-service
+**Status:** READY  
+**Priority:** P0  
+**Dependencies:** T-021  
+**Scope:** Remove fabricated defaults and default-true consent; server-enforced lifecycle; assisted and self-service pending intake; profile correction; structured sibling/property data; duplicate review.
+**Acceptance:** No fabricated facts/consent; unknown states preserved; assisted and self-service paths work; new self-service records cannot bypass Nadeem review; lifecycle/audit persisted.
+
+### T-023 — Private photos, consent events, protected grants and disclosure
+**Status:** READY  
+**Priority:** P0  
+**Dependencies:** T-022  
+**Scope:** Private Storage integration, metadata, secure token hashes, expiry/revocation, server-side disclosure snapshots, retention/purge and privacy tests.
+**Acceptance:** Anonymous/public access denied; consent withdrawal blocks and purges; token never logged; only approved fields returned; expiry/revoke proven against staging.
+
+### T-024 — Deterministic matching, persisted evaluations and Nadeem approvals
+**Status:** READY  
+**Priority:** P0  
+**Dependencies:** T-023  
+**Scope:** Remove silent criterion/default assumptions; use persisted evaluations; eliminate fabricated MatchReview explanations/92% fallback; persist human decisions and recheck before sharing.
+**Acceptance:** Explicit criteria and unknown states; reproducible versioned evaluation; Nadeem approval persisted and mandatory; no AI authorization.
+
+### T-025 — External matchmaker agreements, CRM and follow-ups
+**Status:** READY  
+**Priority:** P1  
+**Dependencies:** T-021  
+**Scope:** Persistent partner records and per-partner agreement terms; durable follow-up/correction workflows, actor/time/audit/idempotency and reminders.
+**Acceptance:** Different partner terms supported; no simulated timeout; all CRM writes persistent and authorization tested.
+
+### T-026 — Financial ledger correctness and persistence
+**Status:** READY  
+**Priority:** P0  
+**Dependencies:** T-021  
+**Scope:** Align formula to approved OPEN-010 (Receivable minus Payable); obtain owner/accountant decision on true double-entry vs partner sub-ledger; persist partner-linked entries, settlement, reversal and reconciliation.
+**Acceptance:** Formula and sign examples pass; approved accounting model implemented; immutable atomic entries; reconciliation computed and fails on imbalance.
+
+### T-027 — Frontend application and feature-boundary refactor
+**Status:** READY  
+**Priority:** P1  
+**Dependencies:** T-022, T-023, T-024, T-025, T-026  
+**Scope:** Refactor App.tsx global state into feature boundaries and typed service hooks; persisted admin settings; sourced dashboard metrics; loading/error/empty states; preserve routes, UX and source semantics.
+**Acceptance:** No production mock state; all screens consume repositories; no fabricated status/metrics; existing workflows and UI parity retained.
+
+### T-028 — Staged WhatsApp and phone-gallery migration
+**Status:** READY  
+**Priority:** P1  
+**Dependencies:** T-022, T-023  
+**Scope:** Source inventory, consent/provenance, extraction templates, dedupe/quarantine, verification, dry-run, batch import, reconciliation and rollback.
+**Acceptance:** Every imported row has source/consent/actor provenance; duplicates/conflicts reviewed; no real data imported without owner approval; batch reconciles.
+
+### T-029 — Real integration tests, security tests, CI and capacity
+**Status:** READY  
+**Priority:** P0  
+**Dependencies:** T-019 through T-028  
+**Scope:** Replace hardcoded smoke booleans; CI gates; live RLS/storage/Edge Function tests; real 100k-active-profile PostgreSQL benchmarks; no sensitive offline caching.
+**Acceptance:** Anonymous/customer/matchmaker/admin negative tests; real query plans and p50/p95/p99; CI green; simulations clearly labelled.
+
+### T-030 — Backup, restore, monitoring, Android/RTL and final release
+**Status:** READY  
+**Priority:** P1  
+**Dependencies:** T-029  
+**Scope:** Real isolated backup/PITR restore; retention verification; monitoring/incident runbook; Android-first, Urdu RTL/English LTR and accessibility tests; design theme review; owner acceptance and dated release evidence.
+**Acceptance:** Actual restore and deletion invariants proven; device/locale/accessibility matrix passes; all release gates checked with evidence; owner explicitly approves launch.
+
 ## Task history
 
 | Date | Task | Outcome | Commit | Notes |
