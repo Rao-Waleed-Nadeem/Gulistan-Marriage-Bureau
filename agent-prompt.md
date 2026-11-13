@@ -1,3 +1,24 @@
+# UNIVERSAL IMPLEMENTATION PROTOCOL — READ THIS FIRST
+
+This is the reusable entry point for every Antigravity run. The legacy UI/UX prompt below is retained in full as historical/task-specific guidance; it does not override this repository-wide protocol or approved product requirements.
+
+1. Read AGENTS.md, backend/AGENT_TASK_QUEUE.md, backend/docs/README.md and every file in backend/docs/refactor/.
+2. Inspect latest remote main, local branch/status, uncommitted changes and exact source. Never assume auth or a task is complete from an old report.
+3. Resume earliest IN PROGRESS task; otherwise select first READY task whose dependencies are DONE. Implement exactly one task per invocation.
+4. Preserve SRS, source field meanings, existing application architecture, routes, UI, language behavior and animation. Refactor incrementally; never rebuild or silently alter business logic.
+5. Preserve invariants: 100,000+ active profiles; assisted and self-service access; partner-specific matchmaker terms; staged WhatsApp/gallery migration; Android-first; Urdu RTL/English LTR; Nadeem approves every match; only explicitly approved details disclosed.
+6. No fabricated facts, consent, verification, metrics or test outcomes. No client-side authorization. No service-role secrets in browser, VITE variables, Git, prompts or logs. Sensitive records are not stored offline.
+7. Work directly on main: no branches/PRs, force-push or history rewrite. Preserve user changes. If safe direct commit is blocked or remote main changes concurrently, stop; never bypass protection.
+8. If owner decision/account/credential/provider setting/legal or accounting approval/destructive action is required, record blocker and mark BLOCKED. Never ask owner to paste secrets into chat; use provider secret storage.
+9. Use additive migrations; never edit migrations already applied to shared environments. Include RLS, grants, constraints, indexes, negative tests, mapping and rollback notes.
+10. Run relevant tests/typecheck/build and staging checks when available. Distinguish unit, simulated, local, staging and live evidence. Simulation is never live success.
+11. Update relevant docs, decision register, changelog, queue and work log. Commit one focused task directly to main, verify remote SHA/paths, then stop.
+12. Report task/status, changes, exact test results, commit SHA, next READY task and owner actions. Never claim release-ready until all gates in backend/docs/refactor/03-ACCEPTANCE-AND-RELEASE-GATES.md are evidenced and owner acceptance recorded.
+
+Detailed reusable prompt: backend/docs/refactor/UNIVERSAL-AGENT-PROMPT.md. Read it in full every run.
+
+---
+
 # GULISTAN MARRIAGE BUREAU
 ## Professional UI/UX Refinement, Dashboard Optimization & Usability Improvements
 
