@@ -3,7 +3,7 @@
 ## 2026-11-07 — Initial remediation session
 
 **Task:** GMB-C01 — Disable demo authentication  
-**Branch:** `fix/c-01-disable-demo-auth`  
+**Branch:** `main`  
 **Base:** `main`  
 **Repository:** `Rao-Waleed-Nadeem/Gulistan-Marriage-Bureau`
 
@@ -70,16 +70,52 @@ Inspected the current source for authentication, authentication UI, app session 
 ### Next actions
 
 1. Run type check, targeted auth tests, full tests and production build.
-2. Review the complete branch diff and search for remaining demo credentials, fake tokens and synthetic staff sessions.
-3. Decide and approve the real authentication provider architecture.
-4. Implement real provider integration only after that approval.
-5. Complete staging integration and authorization tests.
+2. Review the main-branch diff and search for remaining demo credentials, fake tokens and synthetic staff sessions.
+3. Implement the approved Supabase Auth integration according to `02-SUPABASE-AUTH-INTEGRATION.md`.
+4. Complete staging integration and authorization tests after the owner supplies the required Supabase project configuration.
 
 
-### Review handoff
 
-- Draft pull request opened: [PR #2 — Fix C-01: disable simulated authentication](https://github.com/Rao-Waleed-Nadeem/Gulistan-Marriage-Bureau/pull/2).
-- PR status: Open, draft, not merged.
-- Files changed in the branch: 10.
-- Branch is 14 commits ahead of `main` at the time of handoff.
-- Merge is intentionally withheld pending actual test execution, technical review and Product Owner acceptance.
+## 2026-11-13 — Product Owner workflow decision and direct-main transfer
+
+**Task:** GMB-C01 transfer and GMB-AUTH-02 planning  
+**Target branch:** `main`  
+**Repository:** `Rao-Waleed-Nadeem/Gulistan-Marriage-Bureau`
+
+### Product Owner decisions
+
+- Supabase Auth approved as the project identity provider.
+- Staff sign-in method: email/password.
+- Customer/family sign-in method: verified email magic link.
+- Repository workflow: direct commits to `main`; do not create pull requests.
+- Production provisioning, secrets, live database migrations and deployment remain subject to explicit approval.
+
+### Direct-main transfer
+
+The reviewed C-01 remediation and project documentation were transferred from the closed, unmerged draft branch to `main` as direct commits. No pull request was merged.
+
+Files transferred:
+- `BIBLE/STATIC-RULES.md`
+- `MODULES/MODULE-01-AUTHENTICATION/01-AUTHENTICATION-REMEDIATION.md`
+- `MODULES/MODULE-01-AUTHENTICATION/TEST-RESULTS.md`
+- `MODULES/MODULE-01-AUTHENTICATION/WORK-LOG.md`
+- `frontend/src/App.tsx`
+- `frontend/src/components/auth/AuthModal.tsx`
+- `frontend/src/lib/auth.ts`
+- `frontend/src/lib/auth.test.ts`
+- `frontend/src/lib/language.ts`
+- `frontend/src/lib/language.test.ts`
+
+New guidance added directly to `main`:
+- `BIBLE/ANTIGRAVITY-MASTER-IMPLEMENTATION-PROMPT.md`
+- `MODULES/MODULE-01-AUTHENTICATION/02-SUPABASE-AUTH-INTEGRATION.md`
+
+### Validation and acceptance
+
+- Source/document commits to main: **Yes**
+- Tests/type check/build run during this transfer: **No**
+- Supabase project provisioned/configured: **Not verified**
+- Staging authentication tested: **No**
+- Product Owner acceptance of implementation: **Pending**
+
+The earlier draft PR #2 was closed without merging at the Product Owner's direction. Future implementation must follow the master Antigravity prompt and work directly on `main`.
