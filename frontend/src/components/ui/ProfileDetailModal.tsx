@@ -266,13 +266,13 @@ export const ProfileDetailModal: React.FC<ProfileDetailModalProps> = ({
               <div>
                 <span className="text-[#68716D] block">{t.fatherStatus} & Occupation</span>
                 <span className="font-semibold text-[#182848]">
-                  {profile.fatherStatus === 'alive' ? (isRTL ? 'حیات' : 'Alive') : (isRTL ? 'مرحوم' : 'Deceased')} — {profile.fatherOccupation}
+                  {profile.fatherStatus ? (profile.fatherStatus === 'alive' ? (isRTL ? 'حیات' : 'Alive') : (isRTL ? 'مرحوم' : 'Deceased')) : (isRTL ? 'غیر واضح' : 'Not Disclosed')} — {profile.fatherOccupation || (isRTL ? 'درج نہیں' : 'Not Specified')}
                 </span>
               </div>
               <div>
                 <span className="text-[#68716D] block">{t.motherStatus} & Occupation</span>
                 <span className="font-semibold text-[#182848]">
-                  {profile.motherStatus === 'alive' ? (isRTL ? 'حیات' : 'Alive') : (isRTL ? 'مرحوم' : 'Deceased')} — {profile.motherOccupation}
+                  {profile.motherStatus ? (profile.motherStatus === 'alive' ? (isRTL ? 'حیات' : 'Alive') : (isRTL ? 'مرحوم' : 'Deceased')) : (isRTL ? 'غیر واضح' : 'Not Disclosed')} — {profile.motherOccupation || (isRTL ? 'درج نہیں' : 'Not Specified')}
                 </span>
               </div>
             </div>

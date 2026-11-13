@@ -12,6 +12,8 @@ export interface FinancialTransaction {
   description: string;
   status: 'settled' | 'pending' | 'reversed';
   profileId?: string;
+  reversalOf?: string;
+  reversalReason?: string;
 }
 
 export interface MatchmakerLedgerSummary {

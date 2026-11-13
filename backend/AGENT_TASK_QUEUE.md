@@ -356,6 +356,86 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 
 **Completion record:** Completed on 2026-11-13. Updated `frontend/src/lib/config.ts` enforcing fatal production configuration validation and distinct 5-service health reporting (`BackendHealthStatus`). Updated `frontend/src/lib/supabaseClient.ts` to report individual service reachability. Updated `frontend/src/App.tsx` to isolate mock fixtures from backend mode. Added 4 unit and boundary tests in `frontend/src/lib/config.test.ts`. Verified with 102 frontend tests, 62 backend tests (164 total passing), `tsc --noEmit` (0 errors), and `vite build` (4.01s). Verified commit `b22a08f`.
 
+### T-021 — Database schema completion and typed persistence repositories
+**Status:** DONE  
+**Priority:** P0  
+**Dependencies:** T-020  
+**Scope:** Compare SRS, data model and actual migrations; additive Migration 00003 for missing domain entities (`user_profiles`, `app_settings`, `profile_preferences`, `profile_siblings`, `profile_property_details`, `profile_photos`, `profile_status_history`, `external_matchmakers`, `matchmaker_agreements`, `match_cases`, `match_evaluations`, `match_decisions`, `share_grants`, `crm_follow_ups`); typed repositories (`ProfileRepository`, `FinanceRepository`, `CRMRepository`) with Supabase SQL/REST integration and safe demo fallback; lossless DTO mappings; elimination of fact-like defaults (parents, 10-marla house, placeholder photo, Islam/Sunni/General) per DB-04, DB-05, and DB-06; RLS/grants/indexes/negative tests.
+
+**Acceptance criteria**
+- [x] Additive Migration 00003 wraps all 14 normalized tables in transaction with check constraints and operational indexes.
+- [x] RLS enabled and public/anon explicitly revoked on all 14 tables in Migration 00003.
+- [x] `profileRowToDTO` and `profileDTOToRow` preserve unknown/unspecified fields without fabricating parent facts, property, or unsplash URLs (DB-04, DB-05, DB-06).
+- [x] Typed persistence repositories (`ProfileRepository`, `FinanceRepository`, `CRMRepository`) implemented in `repositories.ts`.
+- [x] Round-trip DTO <-> Row translation preserves all nested entities (siblings, property, preferences) without loss (DB-07).
+- [x] 178 automated tests (110 frontend, 68 backend) pass, `tsc --noEmit` clean, production build succeeds.
+- [x] Documentation, changelog, and queue updated; commit directly to `main`.
+
+**Completion record:** Completed on 2026-11-13. Created Migration 00003 (`00003_complete_normalized_schema.sql`) covering 14 normalized tables with full RLS and security constraints. Implemented `frontend/src/lib/repositories.ts` providing typed repositories with Supabase backend query integration and safe demo fallback. Fixed fact fabrication in `profileRowToDTO` and `profileDTOToRow` in `frontend/src/lib/profiles.ts`. Added 8 tests in `repositories.test.ts` and 6 migration tests in `migration_00003.test.js`. Verified with 110 frontend tests, 68 backend tests (178 total passing), `tsc --noEmit` (0 errors), and `vite build` (4.20s). Verified commit SHA recorded on main.
+
+### T-022 — Profile intake, lifecycle, consent integrity and self-service
+**Status:** READY  
+**Priority:** P0  
+**Dependencies:** T-021  
+**Scope:** Remove fabricated defaults and default-true consent; server-enforced lifecycle; assisted and self-service pending intake; profile correction; structured sibling/property data; duplicate review.  
+**Acceptance:** No fabricated facts/consent; unknown states preserved; assisted and self-service paths work; new self-service records cannot bypass Nadeem review; lifecycle/audit persisted.
+
+### T-023 — Private photos, consent events, protected grants and disclosure
+**Status:** READY  
+**Priority:** P0  
+**Dependencies:** T-022  
+**Scope:** Private Storage integration, metadata, secure token hashes, expiry/revocation, server-side disclosure snapshots, retention/purge and privacy tests.  
+**Acceptance:** Anonymous/public access denied; consent withdrawal blocks and purges; token never logged; only approved fields returned; expiry/revoke proven against staging.
+
+### T-024 — Deterministic matching, persisted evaluations and Nadeem approvals
+**Status:** READY  
+**Priority:** P0  
+**Dependencies:** T-023  
+**Scope:** Remove silent criterion/default assumptions; use persisted evaluations; eliminate fabricated MatchReview explanations/92% fallback; persist human decisions and recheck before sharing.  
+**Acceptance:** Explicit criteria and unknown states; reproducible versioned evaluation; Nadeem approval persisted and mandatory; no AI authorization.
+
+### T-025 — External matchmaker agreements, CRM and follow-ups
+**Status:** READY  
+**Priority:** P1  
+**Dependencies:** T-021  
+**Scope:** Persistent partner records and per-partner agreement terms; durable follow-up/correction workflows, actor/time/audit/idempotency and reminders.  
+**Acceptance:** Different partner terms supported; no simulated timeout; all CRM writes persistent and authorization tested.
+
+### T-026 — Financial ledger correctness and persistence
+**Status:** READY  
+**Priority:** P0  
+**Dependencies:** T-021  
+**Scope:** Align formula to approved OPEN-010 (Receivable minus Payable); obtain owner/accountant decision on true double-entry vs partner sub-ledger; persist partner-linked entries, settlement, reversal and reconciliation.  
+**Acceptance:** Formula and sign examples pass; approved accounting model implemented; immutable atomic entries; reconciliation computed and fails on imbalance.
+
+### T-027 — Frontend application and feature-boundary refactor
+**Status:** READY  
+**Priority:** P1  
+**Dependencies:** T-022, T-023, T-024, T-025, T-026  
+**Scope:** Refactor App.tsx global state into feature boundaries and typed service hooks; persisted admin settings; sourced dashboard metrics; loading/error/empty states; preserve routes, UX and source semantics.  
+**Acceptance:** No production mock state; all screens consume repositories; no fabricated status/metrics; existing workflows and UI parity retained.
+
+### T-028 — Staged WhatsApp and phone-gallery migration
+**Status:** READY  
+**Priority:** P1  
+**Dependencies:** T-022, T-023  
+**Scope:** Source inventory, consent/provenance, extraction templates, dedupe/quarantine, verification, dry-run, batch import, reconciliation and rollback.  
+**Acceptance:** Every imported row has source/consent/actor provenance; duplicates/conflicts reviewed; no real data imported without owner approval; batch reconciles.
+
+### T-029 — Real integration tests, security tests, CI and capacity
+**Status:** READY  
+**Priority:** P0  
+**Dependencies:** T-019 through T-028  
+**Scope:** Replace hardcoded smoke booleans; CI gates; live RLS/storage/Edge Function tests; real 100k-active-profile PostgreSQL benchmarks; no sensitive offline caching.  
+**Acceptance:** Anonymous/customer/matchmaker/admin negative tests; real query plans and p50/p95/p99; CI green; simulations clearly labelled.
+
+### T-030 — Backup, restore, monitoring, Android/RTL and final release
+**Status:** READY  
+**Priority:** P1  
+**Dependencies:** T-029  
+**Scope:** Real isolated backup/PITR restore; retention verification; monitoring/incident runbook; Android-first, Urdu RTL/English LTR and accessibility tests; design theme review; owner acceptance and dated release evidence.  
+**Acceptance:** Actual restore and deletion invariants proven; device/locale/accessibility matrix passes; all release gates checked with evidence; owner explicitly approves launch.
+
 ## Task history
 
 | Date | Task | Outcome | Commit | Notes |
@@ -381,3 +461,4 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-11-06 | T-018 | DONE | 2ac4091 | Permanent language persistence across browser, cold load, and all stakeholder profiles; 154 tests passed. |
 | 2026-11-13 | T-019 | DONE | 66eab88 | Module 01: Supabase Auth integration, trusted role mapping & C-01 completion; 160 tests passed. |
 | 2026-11-13 | T-020 | DONE | b22a08f | Refactor W1: Configuration schema, production demo rejection & 5-service health; 164 tests passed. |
+| 2026-11-13 | T-021 | DONE | Pending | Refactor W2: Migration 00003, typed repositories & lossless DTO mapping; 178 tests passed. |

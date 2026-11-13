@@ -188,12 +188,14 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
               <h4 className="font-semibold text-[#182848] flex items-center justify-between">
                 <span>{language === 'ur' ? 'خاندانی پس منظر' : 'Family Background & Lineage'}</span>
                 <span className="text-[10px] text-[#68716D]">
-                  Father: {profile.fatherStatus === 'alive' ? 'Alive' : 'Deceased'} ({profile.fatherOccupation})
+                  Father: {profile.fatherStatus ? (profile.fatherStatus === 'alive' ? 'Alive' : 'Deceased') : 'Not Disclosed'} ({profile.fatherOccupation || 'Not Specified'})
                 </span>
               </h4>
-              <p className="text-[#252E2C] leading-relaxed italic">
-                "{profile.familyBackgroundNotes}"
-              </p>
+              {profile.familyBackgroundNotes && (
+                <p className="text-[#252E2C] leading-relaxed italic">
+                  "{profile.familyBackgroundNotes}"
+                </p>
+              )}
 
               {/* Sibling Detailed Records */}
               <div className="pt-2">

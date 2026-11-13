@@ -12,7 +12,7 @@
  * 5. Safe Demo Mode: Operates offline on synthetic fixtures with local mutation support.
  */
 
-import { ProfileRecord, ProfileStatus, Role, Gender, MaritalStatus, SiblingRecord, PropertyDetails } from '../types';
+import { ProfileRecord, ProfileStatus, Role, Gender, MaritalStatus, SiblingRecord, PropertyDetails, PartnerPreference } from '../types';
 import { AuthSession, canAccessRole } from './auth';
 import { getClientConfig } from './config';
 import { INITIAL_PROFILES } from '../data/mockData';
@@ -134,10 +134,13 @@ export function formatInchesToHeight(inches: number): string {
 export function profileRowToDTO(
   row: ProfileRow,
   nested?: {
-    siblings?: any[];
-    property?: any;
-    preferences?: any;
+    siblings?: SiblingRecord[];
+    property?: PropertyDetails;
+    preferences?: PartnerPreference;
     photoUrl?: string;
+    fatherStatus?: 'alive' | 'deceased';
+    motherStatus?: 'alive' | 'deceased';
+    familyBackgroundNotes?: string;
   }
 ): ProfileRecord {
   return {
@@ -162,32 +165,33 @@ export function profileRowToDTO(
     hometown: row.hometown,
     currentCity: row.current_city,
     residenceArea: row.residence_area,
-    photoUrl: nested?.photoUrl || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400&q=80',
-    photoPermissionGranted: row.photo_permission_granted,
-    fatherStatus: 'alive',
-    motherStatus: 'alive',
+    photoUrl: nested?.photoUrl || '',
+    photoPermissionGranted: row.photo_permission_granted ?? false,
+    representativeConsentCertified: row.representative_consent_certified ?? false,
+    fatherStatus: nested?.fatherStatus,
+    motherStatus: nested?.motherStatus,
     siblings: nested?.siblings || [],
-    familyBackgroundNotes: 'Family background recorded in bureau.',
+    familyBackgroundNotes: nested?.familyBackgroundNotes,
     property: nested?.property || {
-      ownership: 'owned',
+      ownership: 'other',
       propertyType: 'house',
-      areaMarlas: 10,
-      city: row.current_city,
-      locality: row.residence_area,
+      areaMarlas: 0,
+      city: row.current_city || '',
+      locality: row.residence_area || '',
       householdArrangement: 'independent',
     },
     preferences: nested?.preferences || {
-      ageMin: Math.max(18, row.age - 5),
-      ageMax: row.age + 5,
-      heightMin: "5'2\"",
-      maritalStatus: ['never_married'],
-      religion: row.religion,
-      aqeedah: row.aqeedah,
-      caste: row.caste,
-      educationMin: 'Bachelors',
-      preferredOccupations: ['Professional'],
-      cityPreferences: [row.current_city],
-      propertyExpectation: 'Owned Home',
+      ageMin: 0,
+      ageMax: 0,
+      heightMin: '',
+      maritalStatus: [],
+      religion: '',
+      aqeedah: '',
+      caste: '',
+      educationMin: '',
+      preferredOccupations: [],
+      cityPreferences: [],
+      propertyExpectation: '',
       familyArrangement: 'any',
       criteriaClassifications: {},
     },
@@ -223,9 +227,9 @@ export function profileDTOToRow(
     height_inches: heightInches,
     height_display: dto.height || formatInchesToHeight(heightInches),
     marital_status: dto.maritalStatus,
-    religion: dto.religion?.trim() || 'Islam',
-    aqeedah: dto.aqeedah?.trim() || 'Sunni / Hanafi',
-    caste: dto.caste?.trim() || 'General',
+    religion: dto.religion?.trim() || '',
+    aqeedah: dto.aqeedah?.trim() || '',
+    caste: dto.caste?.trim() || '',
     sub_caste: dto.subCaste?.trim() || null,
     education_level: dto.education?.trim(),
     education_field: dto.educationField?.trim(),
@@ -244,7 +248,7 @@ export function profileDTOToRow(
     contact_email: dto.contactEmail?.trim() || null,
     preferred_contact_method: dto.preferredContactMethod || 'whatsapp',
     photo_permission_granted: dto.photoPermissionGranted ?? false,
-    representative_consent_certified: true, // Required by OPEN-004
+    representative_consent_certified: dto.representativeConsentCertified ?? false,
     internal_notes: dto.internalNotes?.trim() || null,
     created_by: createdById || null,
   };

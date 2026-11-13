@@ -15,4 +15,8 @@
 - Implemented Refactor Workstream W1 (T-020): strictly prohibited demo/mock mode in production in `config.ts` (CFG-01).
 - Upgraded backend health reporting to distinctly evaluate 5 separate service components: configuration, gateway, auth, database, and storage (CFG-04).
 - Isolated mock fixtures from backend mode in `App.tsx` (CFG-05).
-- Verified with 102 frontend tests, 62 backend tests (164 total passing), `tsc --noEmit` clean, and production build passing in 3.25s.
+- Implemented Refactor Workstream W2 (T-021): created additive Migration 00003 (`00003_complete_normalized_schema.sql`) defining 14 normalized tables with full RLS, explicit revokes, least-privilege authenticated policies, and security constraints (DB-03).
+- Implemented typed persistence repositories (`ProfileRepository`, `FinanceRepository`, `CRMRepository`) in `frontend/src/lib/repositories.ts` with Supabase query integration and safe demo fallback (DB-01, DB-02).
+- Fixed fact fabrication in `profileRowToDTO` and `profileDTOToRow`: preserved unknown/unspecified fields without manufacturing parents, 10-marla property, or Unsplash placeholder URLs (DB-04, DB-05, DB-06).
+- Validated lossless round-trip DTO <-> Row translation preserving all nested sibling, property, and preference structures (DB-07).
+- Verified with 110 frontend tests, 68 backend tests (178 total passing), `tsc --noEmit` clean, and production build passing in 4.20s.

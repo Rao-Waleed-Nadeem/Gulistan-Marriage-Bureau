@@ -84,18 +84,21 @@ export interface ProfileRecord {
   
   // Family
   fatherName?: string;
-  fatherStatus: 'alive' | 'deceased';
+  fatherStatus?: 'alive' | 'deceased';
   fatherOccupation?: string;
-  motherStatus: 'alive' | 'deceased';
+  motherStatus?: 'alive' | 'deceased';
   motherOccupation?: string;
   siblings: SiblingRecord[];
-  familyBackgroundNotes: string;
+  familyBackgroundNotes?: string;
 
   // Property
   property: PropertyDetails;
 
   // Preferences
   preferences: PartnerPreference;
+
+  // Consent & Verification
+  representativeConsentCertified?: boolean;
 
   // Admin / Operational
   status: ProfileStatus;

@@ -71,7 +71,7 @@ export const ControlledSharingModal: React.FC<ControlledSharingModalProps> = ({
     city: `${candidate.currentCity} (${candidate.residenceArea})`,
     caste: candidate.caste,
     sect: candidate.aqeedah,
-    familySummary: candidate.familyBackgroundNotes,
+    familySummary: candidate.familyBackgroundNotes || '',
     propertySummary: `${candidate.property.areaMarlas} Marla (${candidate.property.propertyType}) in ${candidate.property.locality}`,
     contactNumber: candidate.contactPhone,
   };
