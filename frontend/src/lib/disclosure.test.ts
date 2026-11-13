@@ -5,6 +5,8 @@ import {
   generateAuthorizedWhatsAppDraft,
   createDisclosureAuditRecord,
   validateShareGrant,
+  revokeShareGrant,
+  resetDisclosureForTesting,
   sanitizeCustomNote,
   DEFAULT_SHARE_GRANT_EXPIRY_MS,
   BUREAU_OFFICE_PHONE,
@@ -355,4 +357,41 @@ test('sanitizeCustomNote sanitizes HTML tags, script attempts, and truncates len
   const longNote = 'A'.repeat(500);
   const truncated = sanitizeCustomNote(longNote);
   assert.equal(truncated?.length, 300);
+});
+
+test('authorizeDisclosure issues SHA-256 tokenHash at rest and validates by token or hash (PRIV-05, SHARE-03)', () => {
+  resetDisclosureForTesting();
+
+  const profile = createTestProfile({ status: 'active', id: 'GLS-D09' });
+  const result = authorizeDisclosure(profile, { includeRefNumber: true, includeAge: true }, staffSession);
+
+  assert.equal(result.success, true);
+  assert.ok(result.snapshot);
+  assert.ok(result.snapshot.token);
+  assert.ok(result.snapshot.tokenHash);
+
+  // 64-character SHA-256 hex hash
+  assert.equal(result.snapshot.tokenHash.length, 64);
+
+  // Validate by raw token
+  const checkToken = validateShareGrant(result.snapshot.token);
+  assert.equal(checkToken.valid, true);
+  assert.ok(checkToken.snapshot);
+
+  // Validate by token hash
+  const checkHash = validateShareGrant(result.snapshot.tokenHash);
+  assert.equal(checkHash.valid, true);
+
+  // Rechecks candidate profile freshness: if candidate becomes restricted, access fails closed (MATCH-04)
+  const restrictedCheck = validateShareGrant(result.snapshot.token, 'restricted');
+  assert.equal(restrictedCheck.valid, false);
+  assert.equal(restrictedCheck.reason, 'profile_not_shareable');
+
+  // Revoke grant by token
+  const revoked = revokeShareGrant(result.snapshot.token);
+  assert.equal(revoked, true);
+
+  const postRevoke = validateShareGrant(result.snapshot.token);
+  assert.equal(postRevoke.valid, false);
+  assert.equal(postRevoke.reason, 'revoked');
 });

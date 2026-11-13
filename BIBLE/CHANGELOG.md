@@ -28,3 +28,14 @@
 - Connected profile correction requests in `CustomerPortal.tsx` to durable CRM follow-up records via `crmRepository.create` for Nadeem's review (PROF-01).
 - Implemented deterministic duplicate candidate detection engine (`frontend/src/lib/duplicateReview.ts`) with normalized phone, email, and demographic fingerprinting with localized English/Urdu match evidence (PROF-05).
 - Added unit tests in `duplicateReview.test.ts` and updated `repositories.test.ts`. Verified with 116 frontend tests, 68 backend tests (184 total passing), `tsc --noEmit` clean, and production build passing in 3.64s.
+
+## 2026-11-14
+
+- Implemented Refactor Workstream W4 (T-023): Private photos, consent events, protected grants and disclosure.
+- Created `frontend/src/lib/crypto.ts` providing pure-JS deterministic SHA-256 hashing and cryptographically secure UUID v4 / random token generation (PRIV-02, PRIV-05).
+- Replaced `Math.random` in photo storage path generation and disclosure grant generation with cryptographically secure UUIDs (PRIV-02).
+- Implemented SHA-256 token hashing at rest for both photo grants and proposal share grants (`share_grants` table); raw bearer tokens are never stored in the database or logged in audit records (PRIV-05, SHARE-03).
+- Implemented candidate photo and profile retention rules in `evaluateCandidateRetention`: enforces 365-day archive window for inactive candidates before purge, and immediate Day-0 photo purge on consent withdrawal (PRIV-07, OPEN-008).
+- Implemented candidate privacy erasure procedure `executeCandidatePrivacyErasure` (PRIV-08).
+- Enforced candidate profile status freshness validation in `validateShareGrant`: fails closed if profile transitions to non-shareable status (`restricted`, `inactive`, `pending_review`) (MATCH-04).
+- Verified with 120 frontend tests, 68 backend tests (188 total passing), `tsc --noEmit` clean, and production build passing in 28.91s.

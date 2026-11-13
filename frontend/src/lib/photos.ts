@@ -1,27 +1,32 @@
 /**
  * Private Photo Storage & Consent-Gated Access — Gulistan Marriage Bureau
  * 
- * ARCHITECTURAL POLICIES (DECIDED: OPEN-004, OPEN-006, OPEN-008):
+ * ARCHITECTURAL POLICIES (DECIDED: OPEN-004, OPEN-006, OPEN-008, PRIV-01..PRIV-08):
  * 1. Private Buckets Only: All photographs are stored in a private bucket with zero public access.
  * 2. Short-Lived Signed URLs: 48-hour default expiry for WhatsApp family sharing (OPEN-006).
  * 3. Consent Gating: Photographs cannot be uploaded or viewed unless explicit candidate consent exists.
  * 4. Immediate Purge: Photos are purged immediately from storage upon consent withdrawal or profile deletion (OPEN-008).
  * 5. Privacy Zero-Logging: Signed URLs and bearer tokens are NEVER written to logs or audit payloads.
- * 6. Non-Guessable Paths: Storage paths use isolated UUIDs; never candidate names or phone numbers.
+ * 6. Non-Guessable Paths: Storage paths use isolated UUIDs; never candidate names or phone numbers (PRIV-02).
+ * 7. Token Hashing at Rest: Bearer tokens are hashed with SHA-256 at rest (PRIV-05).
+ * 8. Retention Invariant: Inactive profiles archived 1 year then purged; audit/finance retained permanently (PRIV-07).
  */
 
 import { Role } from '../types';
 import { AuthSession, canAccessRole } from './auth';
 import { getClientConfig } from './config';
+import { getSupabaseClient } from './supabaseClient';
+import { computeSha256, generateCryptoUUID, generateSecureToken } from './crypto';
 
 export const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 export const DEFAULT_PHOTO_EXPIRY_MS = 48 * 60 * 60 * 1000; // 48 hours (OPEN-006)
 export const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+export const INACTIVE_RETENTION_MAX_DAYS = 365; // 1 year before purge (PRIV-07)
 
 export interface PhotoRecord {
   id: string;
   profileId: string;
-  storagePath: string; // e.g., 'private-photos/GLS-401/f81d4fae-7dec.jpg'
+  storagePath: string; // e.g., 'private-photos/GLS-401/f81d4fae-7dec-4a11-89b2-a42e5684.jpg'
   fileName: string;
   fileSizeBytes: number;
   mimeType: string;
@@ -33,6 +38,7 @@ export interface PhotoRecord {
 
 export interface SignedPhotoGrant {
   token: string;
+  tokenHash: string; // 64-char SHA-256 hex hash for at-rest storage & lookup (PRIV-05)
   signedUrl: string;
   photoId: string;
   profileId: string;
@@ -51,9 +57,19 @@ export interface PhotoValidationResult {
   };
 }
 
+export interface RetentionEvaluationResult {
+  isEligibleForArchive: boolean;
+  isEligibleForPurge: boolean;
+  daysInactive: number;
+  actionRequired: 'none' | 'archive' | 'purge';
+  explanationEn: string;
+  explanationUrdu: string;
+}
+
 // In-Memory Storage & Token Registry for Local Demo & Offline Mode
 const demoPhotos: Map<string, PhotoRecord> = new Map();
-const activeGrants: Map<string, SignedPhotoGrant> = new Map();
+const activeGrantsByToken: Map<string, SignedPhotoGrant> = new Map();
+const activeGrantsByHash: Map<string, SignedPhotoGrant> = new Map();
 
 /**
  * Validates candidate photo file before upload.
@@ -104,16 +120,18 @@ export function validatePhotoFile(file: {
 
 /**
  * Generates an isolated, non-guessable storage path that conceals personal identity.
+ * Uses cryptographically secure UUID v4 (PRIV-02).
  */
 export function generateIsolatedStoragePath(profileId: string, extension: string): string {
   const safeProfileId = profileId.replace(/[^a-zA-Z0-9_-]/g, '');
-  const randomSuffix = Math.random().toString(36).substring(2, 10);
+  const randomSuffix = generateCryptoUUID();
   const cleanExt = extension.replace(/[^a-z0-9]/gi, '').toLowerCase() || 'jpg';
-  return `private-photos/${safeProfileId}/${Date.now()}-${randomSuffix}.${cleanExt}`;
+  return `private-photos/${safeProfileId}/${randomSuffix}.${cleanExt}`;
 }
 
 /**
  * Generates a high-entropy signed bearer URL with 48-hour expiration.
+ * Stores 64-char SHA-256 hash at rest (PRIV-05).
  * FAILS CLOSED if consent is absent or caller lacks permission.
  */
 export function generateSignedPhotoGrant(
@@ -150,11 +168,13 @@ export function generateSignedPhotoGrant(
 
   // 3. Generate high-entropy bearer token & 48-hour expiration
   const now = Date.now();
-  const token = `sig_${now}_${Math.random().toString(36).substring(2, 12)}`;
+  const token = generateSecureToken('sig', 24);
+  const tokenHash = computeSha256(token);
   const expiresAt = now + DEFAULT_PHOTO_EXPIRY_MS;
 
   const grant: SignedPhotoGrant = {
     token,
+    tokenHash,
     signedUrl: `https://gulistan.pk/secure-photo?token=${token}&scope=${photo.profileId}`,
     photoId: photo.id,
     profileId: photo.profileId,
@@ -164,7 +184,8 @@ export function generateSignedPhotoGrant(
     recipientContext,
   };
 
-  activeGrants.set(token, grant);
+  activeGrantsByToken.set(token, grant);
+  activeGrantsByHash.set(tokenHash, grant);
 
   return {
     success: true,
@@ -174,12 +195,18 @@ export function generateSignedPhotoGrant(
 
 /**
  * Validates a signed bearer token. Fails closed if expired, revoked, or consent withdrawn.
+ * Supports lookup by raw bearer token or token hash (PRIV-05).
  */
 export function validateSignedPhotoAccess(
-  token: string,
+  tokenOrHash: string,
   isConsentActive: boolean
 ): { valid: boolean; reason?: 'missing' | 'expired' | 'revoked' | 'consent_withdrawn' } {
-  const grant = activeGrants.get(token);
+  let grant = activeGrantsByToken.get(tokenOrHash);
+  if (!grant) {
+    const hash = tokenOrHash.length === 64 ? tokenOrHash : computeSha256(tokenOrHash);
+    grant = activeGrantsByHash.get(hash);
+  }
+
   if (!grant) {
     return { valid: false, reason: 'missing' };
   }
@@ -203,10 +230,15 @@ export function validateSignedPhotoAccess(
 }
 
 /**
- * Revokes an issued signed photo grant immediately.
+ * Revokes an issued signed photo grant immediately by token or hash.
  */
-export function revokeSignedPhotoGrant(token: string): boolean {
-  const grant = activeGrants.get(token);
+export function revokeSignedPhotoGrant(tokenOrHash: string): boolean {
+  let grant = activeGrantsByToken.get(tokenOrHash);
+  if (!grant) {
+    const hash = tokenOrHash.length === 64 ? tokenOrHash : computeSha256(tokenOrHash);
+    grant = activeGrantsByHash.get(hash);
+  }
+
   if (grant) {
     grant.isRevoked = true;
     return true;
@@ -220,7 +252,7 @@ export function revokeSignedPhotoGrant(token: string): boolean {
 export function purgeCandidatePhoto(
   profileId: string,
   session: AuthSession | null
-): { success: boolean; purgedPhotoId: string | null; error?: { code: string; messageEn: string; messageUrdu: string } } {
+): { success: boolean; purgedPhotoId: string | null; grantsRevokedCount?: number; error?: { code: string; messageEn: string; messageUrdu: string } } {
   const isStaff = canAccessRole(session, 'nadeem');
   const isOwner = session?.isAuthenticated && session.user?.role === 'customer';
 
@@ -254,8 +286,12 @@ export function purgeCandidatePhoto(
   demoPhotos.delete(profileId);
 
   // Revoke all existing signed grants for this photo
-  for (const grant of activeGrants.values()) {
+  let revokedCount = 0;
+  for (const grant of activeGrantsByToken.values()) {
     if (grant.profileId === profileId) {
+      if (!grant.isRevoked) {
+        revokedCount++;
+      }
       grant.isRevoked = true;
     }
   }
@@ -263,6 +299,7 @@ export function purgeCandidatePhoto(
   return {
     success: true,
     purgedPhotoId: photo.id,
+    grantsRevokedCount: revokedCount,
   };
 }
 
@@ -338,7 +375,103 @@ export function uploadPrivatePhoto(
 }
 
 /**
- * Sanitizes audit payload: ensures photo URLs, tokens, and raw credentials are NEVER logged.
+ * Evaluates candidate photo and profile data retention rules (PRIV-07).
+ * - Inactive profiles archive for 1 year (365 days), then purge.
+ * - Consent withdrawal triggers immediate purge (Day 0).
+ * - Permanent retention for financial and audit logs.
+ */
+export function evaluateCandidateRetention(
+  profile: { status: string; updatedAt?: string; lastActiveAt?: string },
+  photo?: PhotoRecord | null,
+  currentTimestamp: number = Date.now()
+): RetentionEvaluationResult {
+  // 1. Consent withdrawal immediate purge
+  if (photo && (photo.isPurged || !photo.consentCertified)) {
+    return {
+      isEligibleForArchive: false,
+      isEligibleForPurge: true,
+      daysInactive: 0,
+      actionRequired: 'purge',
+      explanationEn: 'Photo consent has been withdrawn. Photo must be purged immediately (OPEN-008).',
+      explanationUrdu: 'تصویر کی اجازت واپس لے لی گئی ہے۔ تصویر فوری ڈیلیٹ کرنا لازمی ہے۔',
+    };
+  }
+
+  // 2. Active profile: retain
+  if (profile.status === 'active' || profile.status === 'introduction_authorized') {
+    return {
+      isEligibleForArchive: false,
+      isEligibleForPurge: false,
+      daysInactive: 0,
+      actionRequired: 'none',
+      explanationEn: 'Profile is active. Retention period is compliant.',
+      explanationUrdu: 'پروفائل فعال ہے۔ ریکارڈ برقرار رہے گا۔',
+    };
+  }
+
+  // 3. Inactive profile evaluation
+  if (profile.status === 'inactive') {
+    const referenceDate = new Date(profile.lastActiveAt || profile.updatedAt || currentTimestamp).getTime();
+    const daysInactive = Math.max(0, Math.floor((currentTimestamp - referenceDate) / (1000 * 60 * 60 * 24)));
+
+    if (daysInactive >= INACTIVE_RETENTION_MAX_DAYS) {
+      return {
+        isEligibleForArchive: true,
+        isEligibleForPurge: true,
+        daysInactive,
+        actionRequired: 'purge',
+        explanationEn: `Profile has been inactive for ${daysInactive} days (exceeds 365-day archive limit). Candidate data is due for scheduled purge (PRIV-07).`,
+        explanationUrdu: `پروفائل ${daysInactive} دنوں سے غیر فعال ہے۔ ڈیٹا مستقل ڈیلیٹ کرنے کی حد پوری ہو چکی ہے۔`,
+      };
+    }
+
+    return {
+      isEligibleForArchive: true,
+      isEligibleForPurge: false,
+      daysInactive,
+      actionRequired: 'archive',
+      explanationEn: `Profile is inactive (${daysInactive} days). Retained under 1-year archive window.`,
+      explanationUrdu: `پروفائل غیر فعال ہے۔ ۱ سالہ آرکائیو پالیسی کے تحت محفوظ ہے۔`,
+    };
+  }
+
+  return {
+    isEligibleForArchive: false,
+    isEligibleForPurge: false,
+    daysInactive: 0,
+    actionRequired: 'none',
+    explanationEn: `Profile status '${profile.status}' retains standard processing state.`,
+    explanationUrdu: `پروفائل معمول کے مطابق محفوظ ہے۔`,
+  };
+}
+
+/**
+ * Executes a controlled candidate privacy erasure request (PRIV-08).
+ * Immediately purges the photo and revokes all active signed photo and share grants.
+ */
+export function executeCandidatePrivacyErasure(
+  profileId: string,
+  session: AuthSession | null
+): { success: boolean; purgedPhotoId: string | null; grantsRevokedCount: number; error?: { code: string; messageEn: string; messageUrdu: string } } {
+  const purgeResult = purgeCandidatePhoto(profileId, session);
+  if (!purgeResult.success) {
+    return {
+      success: false,
+      purgedPhotoId: null,
+      grantsRevokedCount: 0,
+      error: purgeResult.error,
+    };
+  }
+
+  return {
+    success: true,
+    purgedPhotoId: purgeResult.purgedPhotoId,
+    grantsRevokedCount: purgeResult.grantsRevokedCount ?? 0,
+  };
+}
+
+/**
+ * Sanitizes audit payload: ensures photo URLs, tokens, and raw credentials are NEVER logged (PRIV-05).
  */
 export function sanitizePhotoAuditPayload(payload: Record<string, any>): Record<string, any> {
   const safe = { ...payload };
@@ -346,10 +479,12 @@ export function sanitizePhotoAuditPayload(payload: Record<string, any>): Record<
   delete safe.signedUrl;
   delete safe.rawToken;
   delete safe.secret;
+  delete safe.tokenHash;
   return safe;
 }
 
 export function resetPhotosForTesting(): void {
   demoPhotos.clear();
-  activeGrants.clear();
+  activeGrantsByToken.clear();
+  activeGrantsByHash.clear();
 }

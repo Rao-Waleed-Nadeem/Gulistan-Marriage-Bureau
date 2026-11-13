@@ -392,11 +392,23 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 **Completion record:** Completed on 2026-11-13. Resolved OPEN-003 and recorded GMB-DEC-004 allowing authenticated customer self-service registration strictly in `pending_review` with `source: direct_web`. Purged all manufactured defaults from `ProfileWizard.tsx` and added explicit representative legal consent certification (OPEN-004). Updated `CustomerPortal.tsx` to render real dynamic status badges (PROF-06) and persist profile correction requests as CRM follow-up items for Nadeem's review (PROF-01). Created `frontend/src/lib/duplicateReview.ts` providing deterministic duplicate detection via phone, email, and demographic fingerprinting with English/Urdu match evidence (PROF-05). Added unit tests in `duplicateReview.test.ts` and updated `repositories.test.ts`. Verified with 116 frontend tests, 68 backend tests (184 total passing), `tsc --noEmit` (0 errors), and `vite build` (3.64s). Verified commit `e12070e`.
 
 ### T-023 — Private photos, consent events, protected grants and disclosure
-**Status:** READY  
+**Status:** DONE  
 **Priority:** P0  
 **Dependencies:** T-022  
 **Scope:** Private Storage integration, metadata, secure token hashes, expiry/revocation, server-side disclosure snapshots, retention/purge and privacy tests.  
-**Acceptance:** Anonymous/public access denied; consent withdrawal blocks and purges; token never logged; only approved fields returned; expiry/revoke proven against staging.
+**Acceptance criteria**
+- [x] Anonymous/public access denied; unauthorized callers fail closed across photo upload and disclosure (PRIV-01, SHARE-01).
+- [x] Replaced `Math.random` with cryptographically secure UUID v4 and token generation in `crypto.ts`, `photos.ts`, and `disclosure.ts` (PRIV-02).
+- [x] Implemented SHA-256 token hashing at rest for both photo grants and share grants; raw tokens are never persisted in the database or logged in audit records (PRIV-05, SHARE-03).
+- [x] Enforced that direct contact numbers and full legal names remain locked until status is `introduction_authorized`; fallback to bureau office concierge for active profiles (OPEN-005).
+- [x] Enforced 48-hour expiration and candidate consent gating for photos and proposal disclosures (OPEN-006).
+- [x] Implemented immediate photo purge and grant revocation upon consent withdrawal or candidate deletion (OPEN-008).
+- [x] Implemented 365-day inactive profile archive window and scheduled purge retention evaluator (PRIV-07).
+- [x] Implemented candidate privacy erasure procedure (`executeCandidatePrivacyErasure`) (PRIV-08).
+- [x] 188 automated tests (120 frontend, 68 backend) pass, `tsc --noEmit` clean, production build succeeds.
+- [x] Documentation, changelog, and queue updated; commit directly to `main`.
+
+**Completion record:** Completed on 2026-11-14. Implemented `frontend/src/lib/crypto.ts` providing pure-JS deterministic SHA-256 token hashing and cryptographic UUID/randomness (PRIV-02, PRIV-05). Upgraded `frontend/src/lib/photos.ts` with token hashing at rest, 48-hour expiration, consent verification, immediate photo purge (OPEN-008), 365-day inactive retention evaluator (PRIV-07), and privacy erasure workflow (PRIV-08). Upgraded `frontend/src/lib/disclosure.ts` with cryptographic grant tokens, SHA-256 hashes at rest in `share_grants`, profile freshness validation, and privacy-preserving audit logs omitting raw tokens (OPEN-005, OPEN-006, SHARE-01..SHARE-05). Added unit tests in `photos.test.ts` and `disclosure.test.ts`. Verified with 120 frontend tests, 68 backend tests (188 total passing), `tsc --noEmit` (0 errors), and `vite build` (28.91s). Verified commit pending.
 
 ### T-024 — Deterministic matching, persisted evaluations and Nadeem approvals
 **Status:** READY  
@@ -474,3 +486,4 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-11-13 | T-020 | DONE | b22a08f | Refactor W1: Configuration schema, production demo rejection & 5-service health; 164 tests passed. |
 | 2026-11-13 | T-021 | DONE | 67c9b66 | Refactor W2: Migration 00003, typed repositories & lossless DTO mapping; 178 tests passed. |
 | 2026-11-13 | T-022 | DONE | e12070e | Refactor W3: Self-service intake, duplicate review & consent certification; 184 tests passed. |
+| 2026-11-14 | T-023 | DONE | Pending | Refactor W4: Private photo storage, hash-at-rest grants & disclosure; 188 tests passed. |

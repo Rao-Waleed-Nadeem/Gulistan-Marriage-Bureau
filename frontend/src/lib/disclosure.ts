@@ -1,10 +1,10 @@
 /**
  * Controlled Disclosure & WhatsApp Proposal Draft Engine — Gulistan Marriage Bureau
  * 
- * ARCHITECTURAL SPECIFICATION & POLICY (OPEN-005 & OPEN-006):
+ * ARCHITECTURAL SPECIFICATION & POLICY (OPEN-005, OPEN-006, PRIV-05, SHARE-01..SHARE-05):
  * 1. Server-Side Field Authorization: Client choices are treated strictly as requests;
  *    every disclosed field is evaluated and authorized against profile status, consent,
- *    and caller credentials.
+ *    and caller credentials (SHARE-01).
  * 2. Injection Prevention: Client payload cannot inject disallowed or tampered fields.
  *    Attributes are read exclusively from verified database/repository records.
  * 3. Human-Gated Introduction (OPEN-005): Direct contact details and full legal names
@@ -13,18 +13,22 @@
  *    and contact defaults to bureau office concierge.
  * 4. Time-Limited Signed Bearer Grants (OPEN-006): When a photo or profile link is shared,
  *    it is backed by a 48-hour cryptographic grant with instant revocation support.
- * 5. Audit Minimization: Generated share actions are logged with minimal metadata
+ * 5. Token Hashing at Rest (PRIV-05, SHARE-03): Bearer tokens are stored as 64-char SHA-256 hashes
+ *    in public.share_grants; raw tokens are never persisted in the database.
+ * 6. Audit Minimization: Generated share actions are logged with minimal metadata
  *    (grantId, authorized field names, timestamp) while strictly omitting raw phone numbers,
  *    tokens, photo URLs, or full message bodies.
  */
 
 import { ProfileRecord, ProfileStatus } from '../types';
 import { AuthSession, canAccessRole } from './auth';
+import { computeSha256, generateCryptoUUID, generateSecureToken } from './crypto';
 
 export const DEFAULT_SHARE_GRANT_EXPIRY_MS = 48 * 60 * 60 * 1000; // 48 hours per OPEN-006
 export const BUREAU_OFFICE_PHONE = '+92 300 0000000';
 export const BUREAU_OFFICE_TITLE_EN = 'Gulistan Bureau Concierge';
 export const BUREAU_OFFICE_TITLE_UR = 'گلستان بیورو رابطہ دفتر';
+export const IS_BUREAU_OFFICE_PHONE_CONFIGURED = false; // SHARE-02: Designated unconfigured until owner supplies verified number
 
 export type DisclosureFieldName =
   | 'ref_number'
@@ -91,6 +95,8 @@ export interface AuthorizedDisclosureSnapshot {
   candidateId: string;
   profileStatus: ProfileStatus;
   grantId: string;
+  token?: string; // High-entropy bearer token for recipient delivery (never logged/stored raw)
+  tokenHash: string; // 64-char SHA-256 hash stored at rest in public.share_grants (PRIV-05, SHARE-03)
   issuedAt: string;
   expiresAt: string;
   expiresAtMs: number;
@@ -115,6 +121,10 @@ export interface DisclosureAuditRecord {
   target_id: string;
   details: string; // JSON string with zero sensitive leaks
 }
+
+// In-Memory Token Registry for Local Demo & Offline Mode
+const activeShareGrantsByToken: Map<string, AuthorizedDisclosureSnapshot> = new Map();
+const activeShareGrantsByHash: Map<string, AuthorizedDisclosureSnapshot> = new Map();
 
 /**
  * Sanitizes optional matchmaker custom note against XSS or disallowed payload injections.
@@ -185,8 +195,10 @@ export function authorizeDisclosure(
     isDirectContactDisclosed: false,
   };
 
-  const grantId = `grnt-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  const grantId = `grnt-${generateCryptoUUID()}`;
   const now = Date.now();
+  const token = generateSecureToken('shg', 24);
+  const tokenHash = computeSha256(token);
   const expiresAtMs = now + DEFAULT_SHARE_GRANT_EXPIRY_MS;
   const issuedAt = new Date(now).toISOString();
   const expiresAt = new Date(expiresAtMs).toISOString();
@@ -357,6 +369,8 @@ export function authorizeDisclosure(
     candidateId: profile.id,
     profileStatus: profile.status,
     grantId,
+    token,
+    tokenHash,
     issuedAt,
     expiresAt,
     expiresAtMs,
@@ -365,6 +379,10 @@ export function authorizeDisclosure(
     withheldReasons,
     disclosedData,
   };
+
+  // Register in memory store
+  activeShareGrantsByToken.set(token, snapshot);
+  activeShareGrantsByHash.set(tokenHash, snapshot);
 
   return {
     success: true,
@@ -481,6 +499,7 @@ export function createDisclosureAuditRecord(
 ): DisclosureAuditRecord {
   const detailsObject = {
     grantId: snapshot.grantId,
+    tokenHash: snapshot.tokenHash,
     authorizedFieldCount: snapshot.authorizedFields.length,
     authorizedFields: snapshot.authorizedFields,
     withheldCount: snapshot.withheldReasons.length,
@@ -502,16 +521,82 @@ export function createDisclosureAuditRecord(
 
 /**
  * Validates whether a time-limited share grant is currently active and unrevoked.
+ * Supports validation via grant object or bearer token/tokenHash lookup (OPEN-006, PRIV-05).
  */
-export function validateShareGrant(grant: {
-  expiresAtMs: number;
-  isRevoked: boolean;
-}): { valid: boolean; reason?: 'expired' | 'revoked' } {
-  if (grant.isRevoked) {
+export function validateShareGrant(
+  grantOrToken: { expiresAtMs: number; isRevoked: boolean; profileStatus?: ProfileStatus } | string,
+  currentProfileStatus?: ProfileStatus
+): { valid: boolean; reason?: 'expired' | 'revoked' | 'missing' | 'profile_not_shareable'; snapshot?: AuthorizedDisclosureSnapshot } {
+  if (typeof grantOrToken === 'string') {
+    let grant = activeShareGrantsByToken.get(grantOrToken);
+    if (!grant) {
+      const hash = grantOrToken.length === 64 ? grantOrToken : computeSha256(grantOrToken);
+      grant = activeShareGrantsByHash.get(hash);
+    }
+
+    if (!grant) {
+      return { valid: false, reason: 'missing' };
+    }
+
+    if (grant.isRevoked) {
+      return { valid: false, reason: 'revoked' };
+    }
+
+    if (Date.now() > grant.expiresAtMs) {
+      return { valid: false, reason: 'expired' };
+    }
+
+    const effectiveStatus = currentProfileStatus || grant.profileStatus;
+    if (effectiveStatus === 'restricted' || effectiveStatus === 'inactive' || effectiveStatus === 'pending_review') {
+      return { valid: false, reason: 'profile_not_shareable' };
+    }
+
+    return { valid: true, snapshot: grant };
+  }
+
+  // Object-based validation
+  if (grantOrToken.isRevoked) {
     return { valid: false, reason: 'revoked' };
   }
-  if (Date.now() > grant.expiresAtMs) {
+  if (Date.now() > grantOrToken.expiresAtMs) {
     return { valid: false, reason: 'expired' };
   }
+
+  const effectiveStatus = currentProfileStatus || grantOrToken.profileStatus;
+  if (effectiveStatus === 'restricted' || effectiveStatus === 'inactive' || effectiveStatus === 'pending_review') {
+    return { valid: false, reason: 'profile_not_shareable' };
+  }
+
   return { valid: true };
+}
+
+/**
+ * Revokes an issued share grant immediately by token, tokenHash, or grantId.
+ */
+export function revokeShareGrant(tokenOrHashOrGrantId: string): boolean {
+  let grant = activeShareGrantsByToken.get(tokenOrHashOrGrantId);
+  if (!grant) {
+    const hash = tokenOrHashOrGrantId.length === 64 ? tokenOrHashOrGrantId : computeSha256(tokenOrHashOrGrantId);
+    grant = activeShareGrantsByHash.get(hash);
+  }
+
+  if (!grant) {
+    for (const g of activeShareGrantsByHash.values()) {
+      if (g.grantId === tokenOrHashOrGrantId) {
+        grant = g;
+        break;
+      }
+    }
+  }
+
+  if (grant) {
+    grant.isRevoked = true;
+    return true;
+  }
+  return false;
+}
+
+export function resetDisclosureForTesting(): void {
+  activeShareGrantsByToken.clear();
+  activeShareGrantsByHash.clear();
 }
