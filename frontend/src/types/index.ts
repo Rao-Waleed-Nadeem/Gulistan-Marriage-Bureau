@@ -102,7 +102,7 @@ export interface ProfileRecord {
 
   // Admin / Operational
   status: ProfileStatus;
-  source: 'direct_web' | 'walk_in' | 'external_matchmaker' | 'phone_referral';
+  source: 'direct_web' | 'walk_in' | 'external_matchmaker' | 'phone_referral' | 'whatsapp_migration' | 'gallery_migration';
   assignedMatchmakerId?: string;
   assignedMatchmakerName?: string;
   contactPerson: string;

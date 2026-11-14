@@ -76,3 +76,14 @@
 - Added comprehensive unit tests in `frontend/src/lib/repositories.test.ts` for settings and audit repositories.
 - Updated graphify code graph (`1266 nodes, 2585 edges, 76 communities`).
 - Verified with 132 frontend tests, 68 backend tests (200 total passing), `tsc --noEmit` clean (0 errors), and production build passing in 3.14s.
+- Implemented Refactor Workstream W8 / T-028 (Gate H): Staged WhatsApp and phone-gallery migration.
+- Created additive database migration `00004_staged_migration_batches.sql` creating `public.migration_batches` and `public.migration_staged_records` with check constraints, SHA-256 source checksums, RLS enabled, anon/public access revoked, and staff-only access policies.
+- Implemented complete 8-stage migration engine in `frontend/src/lib/migration.ts` (`createMigrationBatch`, `parseWhatsAppChatExport`, `parsePhoneGalleryMetadata`, `evaluateDeduplicationAndQuarantine`, `simulateMigrationDryRun`, `resolveQuarantinedRecord`, `approveMigrationBatchByOwner`, `executeBatchImport`, `reconcileMigrationBatch`, `rollbackMigrationBatch`).
+- Verified Pakistani matrimonial biodata parsing (English & Urdu labels: نام, عمر, جنس, قد, ازدواجی حیثیت, مذہب, مسلک, ذات, تعلیم, پیشہ, شہر, رابطہ نمبر, والد) without hallucinating missing values.
+- Enforced strict photo asset constraints (<5MB, JPEG/PNG/WebP) and intake consent gating for gallery archives.
+- Enforced zero silent overwrites in deduplication and quarantine engine (`conflict -> review`).
+- Enforced affirmative owner approval gate (`approveMigrationBatchByOwner` & `executeBatchImport`): real candidate data cannot be imported without explicit owner authorization; imported profiles initialize in `pending_review` with audit logging.
+- Enforced mathematical row count conservation in `reconcileMigrationBatch` and safe atomic rollback (`rollbackMigrationBatch`) deactivating imported records with audit trail.
+- Added 4 backend tests in `backend/tests/migration_00004.test.js` and 10 frontend unit tests in `frontend/src/lib/migration.test.ts`.
+- Updated graphify code graph (`1305 nodes, 2711 edges, 82 communities`).
+- Verified with 142 frontend tests, 72 backend tests (214 total passing), `tsc --noEmit` clean (0 errors), and production build passing in 2.62s.

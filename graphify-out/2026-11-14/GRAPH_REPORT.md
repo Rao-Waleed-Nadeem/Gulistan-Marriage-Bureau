@@ -1,17 +1,17 @@
 # Graph Report - gulistan-marriage-bureau  (2026-11-14)
 
 ## Corpus Check
-- 122 files · ~131,019 words
+- 129 files · ~134,698 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 6 file(s) not represented in the graph (top: (none) 4, .example 1, .css 1)
 
 ## Summary
-- 1222 nodes · 2444 edges · 79 communities (76 shown, 3 thin omitted)
-- Extraction: 95% EXTRACTED · 5% INFERRED · 0% AMBIGUOUS · INFERRED: 110 edges (avg confidence: 0.95)
+- 1266 nodes · 2585 edges · 76 communities (72 shown, 4 thin omitted)
+- Extraction: 95% EXTRACTED · 5% INFERRED · 0% AMBIGUOUS · INFERRED: 117 edges (avg confidence: 0.95)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `95506abf`
+- Built from commit: `985a89bd`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -21,13 +21,13 @@
 - Database Schema & Migrations
 - auth.ts
 - Backend Tests & QA Verification
-- 10. Frontend Domain Inventory for Backend Mapping
-- Backend Tests & QA Verification
+- ProfileStatus
+- photos.ts
 - Database Schema & Migrations
 - Backend Tests & QA Verification
+- FinancialTransaction
 - Backend Tests & QA Verification
-- Backend Tests & QA Verification
-- appearance.test.ts
+- MockStorage
 - Frontend Components & UI Layout
 - Infrastructure & Operations
 - Infrastructure & Operations
@@ -53,10 +53,10 @@
 - Subsystem Community 35
 - Architecture & Specifications
 - Architecture & Specifications
-- 14. Release Readiness and Security Review
+- AuthSession
 - Subsystem Community 39
 - Architecture & Specifications
-- Architecture & Specifications
+- FollowUpItem
 - Architecture & Specifications
 - Architecture & Specifications
 - Frontend Components & UI Layout
@@ -72,7 +72,7 @@
 - Architecture & Specifications
 - Database Schema & Migrations
 - 3. Authorization, Privacy and Threat Model
-- ControlledSharingModal.tsx
+- Module 01 — Supabase Auth Integration Specification
 - Database Schema & Migrations
 - Backend Tests & QA Verification
 - Architecture & Specifications
@@ -86,91 +86,84 @@
 - Architecture & Specifications
 - Frontend Components & UI Layout
 - language.test.ts
-- Tasks
 - repositories.ts
 - restore-drill.js
 - duplicateReview.ts
-- profileRowToDTO
-- repositories.test.ts
-- canTransitionStatus
-- AI Agent Task Queue — Gulistan Marriage Bureau
+- getClientConfig
+- canAccessRole
 
 ## God Nodes (most connected - your core abstractions)
-1. `AuthSession` - 72 edges
-2. `ProfileRecord` - 46 edges
-3. `canAccessRole()` - 41 edges
-4. `getClientConfig()` - 39 edges
-5. `getSupabaseClient()` - 34 edges
-6. `Language` - 32 edges
-7. `Tasks` - 31 edges
-8. `App()` - 30 edges
-9. `FinancialTransaction` - 23 edges
-10. `react` - 21 edges
+1. `AuthSession` - 88 edges
+2. `ProfileRecord` - 48 edges
+3. `getClientConfig()` - 43 edges
+4. `canAccessRole()` - 42 edges
+5. `getSupabaseClient()` - 38 edges
+6. `App()` - 34 edges
+7. `Language` - 32 edges
+8. `Tasks` - 31 edges
+9. `react` - 27 edges
+10. `FollowUpItem` - 22 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `2.3 Profile field mapping from the current UI` --references--> `ProfileRecord`  [INFERRED]
-  backend/docs/02-data-model.md → frontend/src/types/index.ts
 - `T-006 — Authentication and session integration` --references--> `canAccessRole()`  [INFERRED]
   backend/AGENT_TASK_QUEUE.md → frontend/src/lib/auth.ts
-- `T-023 — Private photos, consent events, protected grants and disclosure` --references--> `executeCandidatePrivacyErasure()`  [INFERRED]
-  backend/AGENT_TASK_QUEUE.md → frontend/src/lib/photos.ts
+- `T-019 — Module 01 / Workstream W0: Supabase Auth integration, trusted role mapping & C-01 completion` --references--> `initAuth()`  [INFERRED]
+  backend/AGENT_TASK_QUEUE.md → frontend/src/lib/auth.ts
+- `2.3 Profile field mapping from the current UI` --references--> `ProfileRecord`  [INFERRED]
+  backend/docs/02-data-model.md → frontend/src/types/index.ts
+- `3.2 Sibling Repeating Structure (`SiblingRecord`)` --references--> `SiblingRecord`  [INFERRED]
+  backend/docs/10-frontend-domain-inventory.md → frontend/src/types/index.ts
 - `Land Unit Conversion Invariants & Regional Variations` --references--> `convertMarlaToKanal()`  [INFERRED]
   backend/docs/10-frontend-domain-inventory.md → frontend/src/utils/units.ts
-- `8. Current implementation notes` --references--> `initAuth()`  [INFERRED]
-  MODULES/MODULE-01-AUTHENTICATION/01-AUTHENTICATION-REMEDIATION.md → frontend/src/lib/auth.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (79 total, 3 thin omitted)
+## Communities (76 total, 4 thin omitted)
 
 ### Community 0 - "Backend Tests & QA Verification"
-Cohesion: 0.08
-Nodes (73): 6.6 Existing domain mismatches to address deliberately, 3.1 Candidate Profile Entity (`ProfileRecord`), 3.2 Sibling Repeating Structure (`SiblingRecord`), 3.5 Match Recommendation & Review Lifecycle (`MatchRecommendation`), 3.8 Collaborative Financial Ledger (`FinancialTransaction`, `ExternalMatchmaker`), 3.9 Audit Trail (`AuditLogItem`), 3. Detailed Domain Model Inventory, Fields (+65 more)
+Cohesion: 0.07
+Nodes (78): App(), App(), AuthModalProps, Footer(), FooterProps, Navbar(), NavbarProps, ControlledSharingModal() (+70 more)
 
 ### Community 1 - "profiles.ts"
-Cohesion: 0.19
-Nodes (19): T-015 — Sibling profiles and structured property holdings integration, Sibling and Property Validation (Approved & Implemented in T-015 / OPEN-011), createProfile(), demoProfiles, enrichPropertyDetails(), fetchProfiles(), formatInchesToHeight(), parseHeightToInches() (+11 more)
+Cohesion: 0.10
+Nodes (38): T-007 — Profile create/read/update and review lifecycle, T-015 — Sibling profiles and structured property holdings integration, T-021 — Database schema completion and typed persistence repositories, 4.2 Profile registration and review, Customer registration, DTO and Database Row Separation (T-007), Review transitions (Approved & Implemented in T-007), Sibling and Property Validation (Approved & Implemented in T-015 / OPEN-011) (+30 more)
 
 ### Community 2 - "Database Schema & Migrations"
 Cohesion: 0.07
 Nodes (51): idx_audit_events_created_at, idx_audit_events_target, idx_candidate_consents_profile_id, idx_profiles_caste, idx_profiles_created_at, idx_profiles_created_by, idx_profiles_current_city, idx_profiles_gender (+43 more)
 
 ### Community 3 - "auth.ts"
-Cohesion: 0.07
-Nodes (48): T-019 — Module 01 / Workstream W0: Supabase Auth integration, trusted role mapping & C-01 completion, T-020 — Refactor Workstream W1: Configuration schema, production demo-mode rejection & distinct service health, 3.9 Client session and access control integration (T-006), AuthModal(), AuthResult, AuthUser, buildSessionFromProvider(), currentSession (+40 more)
+Cohesion: 0.09
+Nodes (41): T-020 — Refactor Workstream W1: Configuration schema, production demo-mode rejection & distinct service health, 3.9 Client session and access control integration (T-006), AuthModal(), AuthResult, buildSessionFromProvider(), currentSession, DEFAULT_SESSION_DURATION_MS, fetchUserTrustedRole() (+33 more)
 
 ### Community 4 - "Backend Tests & QA Verification"
 Cohesion: 0.08
 Nodes (28): T-009 — Preferences and deterministic matching, 5.10 Implemented Deterministic Matching Specification (T-009), 5.1 Purpose and non-goals, 5.2 Matching pipeline, 5.3 Existing frontend logic is not authoritative, 5.4 Required evaluation record, 5.5 Fairness and sensitive criteria, 5.6 Controlled WhatsApp message (+20 more)
 
-### Community 5 - "10. Frontend Domain Inventory for Backend Mapping"
-Cohesion: 0.22
-Nodes (9): 10. Frontend Domain Inventory for Backend Mapping, 1. Executive Summary & Purpose, 2. Frontend Tooling & Runtime Environment Baseline, 4.1 Prototype Persona Switching vs. Trusted Authentication, 4.2 Photo Privacy & Storage Boundary, 4. Security, Authorization & Privacy Boundaries, 5. Cross-Reference to Open Decisions, 6. Verification & Traceability Summary (+1 more)
+### Community 5 - "ProfileStatus"
+Cohesion: 0.04
+Nodes (43): 6.1 Goal, 6.2 Do not rewrite the app, 6.3 Introduce a typed data-access boundary, 6.4 Suggested migration sequence, 6.5 UI and state rules, 6.6 Existing domain mismatches to address deliberately, 6.7 Demo data, 6. Frontend Integration Guide (+35 more)
 
-### Community 6 - "Backend Tests & QA Verification"
-Cohesion: 0.11
-Nodes (30): T-008 — Private photos and consent-gated access, 3.10 Private photo storage and consent-gated access (T-008), 2026-11-14, computeSha256(), generateSecureToken(), revokeShareGrant(), activeGrantsByHash, activeGrantsByToken (+22 more)
+### Community 6 - "photos.ts"
+Cohesion: 0.05
+Nodes (58): T-008 — Private photos and consent-gated access, T-010 — Controlled disclosure and WhatsApp draft generation, T-023 — Private photos, consent events, protected grants and disclosure, 3.10 Private photo storage and consent-gated access (T-008), 5.11 Implemented Controlled Disclosure & WhatsApp Proposal Engine (T-010), 14. Release Readiness and Security Review, 1. Executive Summary, 2. Complete Task Ledger Status (T-001 through T-013) (+50 more)
 
 ### Community 7 - "Database Schema & Migrations"
 Cohesion: 0.09
 Nodes (23): __dirname, DISCLOSURE_CODE_PATH, __filename, MIGRATION_PATH, OPEN_DECISIONS_PATH, REPO_ROOT, __dirname, __filename (+15 more)
 
 ### Community 8 - "Backend Tests & QA Verification"
-Cohesion: 0.12
-Nodes (27): T-012 — Auditable financial ledger, 4.1 API approach, 4.3 Profile update and duplicate review, 4.4 Search, 4.5 Match review, 4.6 Controlled sharing, 4.7 Financial workflows (T-012 — Auditable Financial Ledger), 4.9 Error contract (+19 more)
+Cohesion: 0.05
+Nodes (49): AI Agent Task Queue — Gulistan Marriage Bureau, Execution protocol, Status meanings, T-001 — Inventory frontend domain contracts for backend mapping, T-002 — Prepare minimum owner decision sheet, T-003 — Establish backend tooling without production connections, T-004 — First approved database migration and access-control baseline, T-005 — Typed backend client/configuration boundary (+41 more)
 
-### Community 9 - "Backend Tests & QA Verification"
-Cohesion: 0.12
-Nodes (21): T-010 — Controlled disclosure and WhatsApp draft generation, 5.11 Implemented Controlled Disclosure & WhatsApp Proposal Engine (T-010), activeShareGrantsByHash, activeShareGrantsByToken, AuthorizedDisclosedData, BUREAU_OFFICE_PHONE, BUREAU_OFFICE_TITLE_EN, BUREAU_OFFICE_TITLE_UR (+13 more)
+### Community 9 - "FinancialTransaction"
+Cohesion: 0.14
+Nodes (8): UseFinanceResult, BureauReconciliationSummary, PartnerLedgerSummary, financeRepository, FinanceRepositoryImpl, IFinanceRepository, resetFinanceRepositoryForTesting(), FinancialTransaction
 
 ### Community 10 - "Backend Tests & QA Verification"
-Cohesion: 0.13
-Nodes (29): T-011 — Follow-ups and external matchmaker attribution, T-025 — External matchmaker agreements, CRM and follow-ups, 4.8 Follow-ups and External Matchmaker Attribution (T-011), attributeProfileToMatchmaker(), auditEventsStore, canAccessCRM(), completeFollowUp(), computeFollowUpStatus() (+21 more)
-
-### Community 11 - "appearance.test.ts"
-Cohesion: 0.18
-Nodes (9): ScrollAnimationBackground(), CLARITY_CHANGE_EVENT, CLARITY_STORAGE_KEY, ClarityMode, persistClarityPreference(), resolveInitialClarity(), eventListeners, MockStorage (+1 more)
+Cohesion: 0.12
+Nodes (31): T-011 — Follow-ups and external matchmaker attribution, T-025 — External matchmaker agreements, CRM and follow-ups, 4.8 Follow-ups and External Matchmaker Attribution (T-011), 2026-11-14, Project Changelog, attributeProfileToMatchmaker(), auditEventsStore, canAccessCRM() (+23 more)
 
 ### Community 12 - "Frontend Components & UI Layout"
 Cohesion: 0.13
@@ -272,9 +265,9 @@ Nodes (9): 1.1 Product context, 1.2 Current frontend — preserve it, 1.3 Backen
 Cohesion: 0.20
 Nodes (9): 1. Authority and ownership, 2. Truthfulness and customer data, 3. Privacy and security, 4. Business authority and AI, 5. Engineering boundaries, 6. Mandatory task workflow, 7. Status vocabulary, 8. Module completion rule (+1 more)
 
-### Community 38 - "14. Release Readiness and Security Review"
-Cohesion: 0.29
-Nodes (7): 14. Release Readiness and Security Review, 1. Executive Summary, 2. Complete Task Ledger Status (T-001 through T-013), 3. Decision Log & Policy Resolutions (16 Architectural Decisions), 4. Security Posture & Threat Model Verification, 5. Capacity & Scale Verification Summary, 6. Pre-Launch Owner Authorization Checklist
+### Community 38 - "AuthSession"
+Cohesion: 0.19
+Nodes (5): T-024 — Deterministic matching, persisted evaluations and Nadeem approvals, AuthSession, IMatchRepository, IProfileRepository, ISettingsRepository
 
 ### Community 39 - "Subsystem Community 39"
 Cohesion: 0.22
@@ -284,9 +277,9 @@ Nodes (9): 12. REQUIRED TESTING, A. Language persistence, B. Dashboard, C. Activ
 Cohesion: 0.22
 Nodes (8): 8.1 Mandatory first steps, 8.2 Preserve existing work, 8.3 Security rules, 8.4 Database and migration rules, 8.5 Coding standards, 8.6 Required completion report, 8.7 Definition of done, 8. AI Agent Operating Contract
 
-### Community 41 - "Architecture & Specifications"
-Cohesion: 0.25
-Nodes (7): 6.1 Goal, 6.2 Do not rewrite the app, 6.3 Introduce a typed data-access boundary, 6.4 Suggested migration sequence, 6.5 UI and state rules, 6.7 Demo data, 6. Frontend Integration Guide
+### Community 41 - "FollowUpItem"
+Cohesion: 0.21
+Nodes (7): UseCRMResult, DetailedFollowUpItem, crmRepository, CRMRepositoryImpl, ICRMRepository, resetCRMRepositoryForTesting(), FollowUpItem
 
 ### Community 42 - "Architecture & Specifications"
 Cohesion: 0.25
@@ -348,9 +341,9 @@ Nodes (5): idx_financial_tx_created_at, idx_financial_tx_matchmaker, idx_financi
 Cohesion: 0.22
 Nodes (9): 3.1 Security posture, 3.2 Role model, 3.3 Authorization matrix (minimum baseline), 3.4 Supabase implementation rules, 3.5 Consent and privacy, 3.6 Photos and files, 3.7 Audit and logging, 3.8 Threats to test (+1 more)
 
-### Community 57 - "ControlledSharingModal.tsx"
-Cohesion: 0.16
-Nodes (16): 3.6 Controlled Sharing & Granular Disclosure (`DisclosureOptions`), Disclosed Field Toggles, Invariants & Classification Enum, ControlledSharingModal(), ControlledSharingModalProps, getCurrentSession(), authorizeDisclosure(), generateAuthorizedWhatsAppDraft() (+8 more)
+### Community 57 - "Module 01 — Supabase Auth Integration Specification"
+Cohesion: 0.20
+Nodes (9): 1. Approved decision, 2. Pre-existing C-01 work, 3. Technical integration requirements, 4. Account creation policy is unresolved unless the SRS explicitly answers it, 5. Authorization and RLS, 6. Redirects and email delivery, 7. Tests, 9. Current known environment limitation (+1 more)
 
 ### Community 58 - "Database Schema & Migrations"
 Cohesion: 0.33
@@ -396,13 +389,9 @@ Nodes (3): GULISTAN MARRIAGE BUREAU, Professional UI/UX Refinement, Dashboard Op
 Cohesion: 0.15
 Nodes (12): T-018 — Permanent language persistence across browser, cold load, and all stakeholder profiles, applyDocumentLanguage(), LANGUAGE_CHANGE_EVENT, LANGUAGE_STORAGE_KEY, persistLanguagePreference(), resolveInitialLanguage(), ROLE_LANGUAGE_KEYS, eventListeners (+4 more)
 
-### Community 71 - "Tasks"
-Cohesion: 0.11
-Nodes (18): T-001 — Inventory frontend domain contracts for backend mapping, T-002 — Prepare minimum owner decision sheet, T-003 — Establish backend tooling without production connections, T-004 — First approved database migration and access-control baseline, T-005 — Typed backend client/configuration boundary, T-006 — Authentication and session integration, T-013 — Security, scale, backup and release review, T-014 — Staging deployment automation, live Supabase migration script, and production smoke-test harness (+10 more)
-
 ### Community 72 - "repositories.ts"
-Cohesion: 0.05
-Nodes (43): T-024 — Deterministic matching, persisted evaluations and Nadeem approvals, 3.7 Follow-Up & CRM Task Engine (`FollowUpItem`), Fields & Types, AuthSession, canAccessRole(), getClientConfig(), generateCryptoUUID(), BureauReconciliationSummary (+35 more)
+Cohesion: 0.06
+Nodes (30): UseAuditLogsResult, UseSettingsResult, AppSettings, auditRepository, AuditRepositoryImpl, demoAgreementsStore, demoAuditLogsStore, demoFollowUpsStore (+22 more)
 
 ### Community 73 - "restore-drill.js"
 Cohesion: 0.73
@@ -412,39 +401,31 @@ Nodes (4): computeChecksum(), createSyntheticDatabaseState(), executeRestoreDril
 Cohesion: 0.46
 Nodes (6): checkDuplicateProfile(), DuplicateDetectionResult, DuplicateMatchReason, DuplicateReviewCandidate, normalizePersonName(), normalizePhoneNumber()
 
-### Community 75 - "profileRowToDTO"
-Cohesion: 0.29
-Nodes (6): T-021 — Database schema completion and typed persistence repositories, 2026-11-13, Project Changelog, profileRowToDTO(), sanitizeProfileForRole(), ProfileRepositoryImpl
+### Community 75 - "getClientConfig"
+Cohesion: 0.24
+Nodes (5): getClientConfig(), generateCryptoUUID(), MatchRepositoryImpl, ProfileRepositoryImpl, getSupabaseClient()
 
-### Community 76 - "repositories.test.ts"
-Cohesion: 0.15
-Nodes (12): 3.3 Property Details & Pakistani Land Measurement (`PropertyDetails`), 3.4 Partner Preferences & Multi-Tier Criteria Classification (`PartnerPreference`), Field Inventory, Land Unit Conversion Invariants & Regional Variations, crmRepository, financeRepository, matchmakerRepository, profileRepository (+4 more)
-
-### Community 77 - "canTransitionStatus"
-Cohesion: 0.25
-Nodes (9): T-007 — Profile create/read/update and review lifecycle, 4.2 Profile registration and review, Customer registration, DTO and Database Row Separation (T-007), Review transitions (Approved & Implemented in T-007), Staff-created profile, canTransitionStatus(), ProfileRow (+1 more)
-
-### Community 78 - "AI Agent Task Queue — Gulistan Marriage Bureau"
-Cohesion: 0.40
-Nodes (4): AI Agent Task Queue — Gulistan Marriage Bureau, Execution protocol, Status meanings, Task history
+### Community 76 - "canAccessRole"
+Cohesion: 0.17
+Nodes (8): UseMatchmakersResult, canAccessRole(), IMatchmakerRepository, matchmakerRepository, MatchmakerRepositoryImpl, resetMatchmakerRepositoryForTesting(), DetailedExternalMatchmaker, PartnerAgreement
 
 ## Knowledge Gaps
-- **3 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **4 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `ProfileRecord` connect `Backend Tests & QA Verification` to `profiles.ts`, `Backend Tests & QA Verification`, `repositories.ts`, `Backend Tests & QA Verification`, `duplicateReview.ts`, `profileRowToDTO`, `repositories.test.ts`, `canTransitionStatus`, `ControlledSharingModal.tsx`, `Architecture & Specifications`?**
-  _High betweenness centrality (0.075) - this node is a cross-community bridge._
+- **Why does `ProfileRecord` connect `Backend Tests & QA Verification` to `profiles.ts`, `Backend Tests & QA Verification`, `ProfileStatus`, `photos.ts`, `AuthSession`, `repositories.ts`, `duplicateReview.ts`, `getClientConfig`, `Architecture & Specifications`?**
+  _High betweenness centrality (0.081) - this node is a cross-community bridge._
 - **Are the 4 inferred relationships involving `ProfileRecord` (e.g. with `T-007 — Profile create/read/update and review lifecycle` and `2.3 Profile field mapping from the current UI`) actually correct?**
   _`ProfileRecord` has 4 INFERRED edges - model-reasoned connections that need verification._
 - **Should `Backend Tests & QA Verification` be split into smaller, more focused modules?**
-  _Cohesion score 0.07936507936507936 - nodes in this community are weakly interconnected._
-- **Why does `Tasks` connect `Tasks` to `profiles.ts`, `auth.ts`, `Backend Tests & QA Verification`, `Backend Tests & QA Verification`, `language.test.ts`, `Backend Tests & QA Verification`, `Backend Tests & QA Verification`, `Backend Tests & QA Verification`, `profileRowToDTO`, `repositories.ts`, `canTransitionStatus`, `AI Agent Task Queue — Gulistan Marriage Bureau`?**
-  _High betweenness centrality (0.059) - this node is a cross-community bridge._
+  _Cohesion score 0.07016649677200136 - nodes in this community are weakly interconnected._
+- **Why does `Tasks` connect `Backend Tests & QA Verification` to `profiles.ts`, `auth.ts`, `Backend Tests & QA Verification`, `photos.ts`, `language.test.ts`, `AuthSession`, `Backend Tests & QA Verification`?**
+  _High betweenness centrality (0.066) - this node is a cross-community bridge._
+- **Should `profiles.ts` be split into smaller, more focused modules?**
+  _Cohesion score 0.10121951219512196 - nodes in this community are weakly interconnected._
 - **Should `Database Schema & Migrations` be split into smaller, more focused modules?**
   _Cohesion score 0.06918238993710692 - nodes in this community are weakly interconnected._
 - **Should `auth.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.06829573934837092 - nodes in this community are weakly interconnected._
-- **Should `Backend Tests & QA Verification` be split into smaller, more focused modules?**
-  _Cohesion score 0.08172043010752689 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08979591836734693 - nodes in this community are weakly interconnected._
