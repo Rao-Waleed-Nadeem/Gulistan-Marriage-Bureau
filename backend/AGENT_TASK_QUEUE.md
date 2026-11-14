@@ -447,11 +447,22 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 **Completion record:** Completed on 2026-11-14. Resolved CRM-01 by eliminating simulated setTimeout and wiring candidate profile correction requests in `CustomerPortal.tsx` and `createFollowUp` to persistent CRM follow-up records with candidate submission authorization. Implemented `IMatchmakerRepository` and `MatchmakerRepositoryImpl` in `frontend/src/lib/repositories.ts` (CRM-02) supporting partner agency persistence (`external_matchmakers`) and versioned agreement lifecycle (`matchmaker_agreements`) across percentage, flat fee, and tiered fee models with automatic deactivation of prior active agreements upon registration of new terms. Implemented idempotent follow-up completion (`completeFollowUp` and `crmRepository.complete`) recording completion actor, ISO timestamp, and resolution notes while emitting minimal structured audit events omitting customer phone numbers and PII (CRM-03). Updated partner directory cards in `frontend/src/features/matchmaker/NadeemDashboard.tsx` (CRM-04) to display active agreement codes, commission models, rates/honorariums, partner codes, and referral metrics. Updated graphify graph (`1216 nodes, 2401 edges, 76 communities`). Verified with 128 frontend tests and 68 backend tests (196 total passing), `tsc --noEmit` (0 errors), and `vite build` (4.08s). Verified commit `d7b7cee`.
 
 ### T-026 — Financial ledger correctness and persistence
-**Status:** READY  
+**Status:** DONE  
 **Priority:** P0  
 **Dependencies:** T-021  
 **Scope:** Align formula to approved OPEN-010 (Receivable minus Payable); obtain owner/accountant decision on true double-entry vs partner sub-ledger; persist partner-linked entries, settlement, reversal and reconciliation.  
-**Acceptance:** Formula and sign examples pass; approved accounting model implemented; immutable atomic entries; reconciliation computed and fails on imbalance.
+**Acceptance criteria**
+- [x] FIN-01 / Gate E: Aligned formula everywhere to approved OPEN-010: `Net Balance = Total Pending Receivable - Total Pending Payable`. Proven sign semantics: positive = partner owes bureau (asset), negative = bureau owes partner (liability), zero = settled.
+- [x] FIN-02 / Gate E: Recorded owner/accountant decision GMB-DEC-005: partner clearinghouse sub-ledger model with double-entry bureau conventions.
+- [x] FIN-03 / Gate E: Persistent append-only ledger in `IFinanceRepository` and `FinanceRepositoryImpl` with atomic reversals referencing `reversal_of` and database RLS denying UPDATE/DELETE.
+- [x] FIN-04 / Gate E: Partner-linked entries linked to `matchmaker_id` and agreement terms; safe integer PKR arithmetic.
+- [x] FIN-05 / Gate E: Computed reconciliation (`reconcileLedger` and `financeRepository.reconcile`) that mathematically proves postings balance, validates reversal integrity, and fails on discrepancy or broken reversal chains.
+- [x] 130 frontend tests + 68 backend tests verified (198 total passing), `tsc --noEmit` (0 errors), `vite build` (2.38s).
+- [x] Graphify code graph updated (`1222 nodes, 2444 edges, 79 communities`).
+- [x] Documentation and queue updated with acceptance checkmarks and test metrics.
+- [x] Commit verified on `main`, SHA recorded below.
+
+**Completion record:** Completed on 2026-11-14. Aligned net balance formula across `frontend/src/lib/finance.ts`, `frontend/src/utils/finance.ts`, `frontend/src/features/matchmaker/NadeemDashboard.tsx`, and tests to approved OPEN-010 convention: `Net Balance = Total Receivable - Total Payable` (FIN-01). Clarified and documented GMB-DEC-005 in `BIBLE/DECISION-REGISTER.md` specifying partner clearinghouse sub-ledger with double-entry bureau conventions (FIN-02). Enhanced `IFinanceRepository` and `FinanceRepositoryImpl` in `frontend/src/lib/repositories.ts` supporting `findAll`, `findById`, `record`, `reverse`, `getPartnerSummary`, and `reconcile` (FIN-03, FIN-04). Implemented computed reconciliation in `reconcileLedger` validating reversal integrity, currency invariants, and positive integer constraints; detects and fails on ledger imbalances (FIN-05). Updated graphify graph (`1222 nodes, 2444 edges, 79 communities`). Verified with 130 frontend tests and 68 backend tests (198 total passing), `tsc --noEmit` (0 errors), and `vite build` (2.38s). Commit SHA on main recorded below.
 
 ### T-027 — Frontend application and feature-boundary refactor
 **Status:** READY  

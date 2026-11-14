@@ -163,11 +163,12 @@ test('calculatePartnerLedger enforces double-entry sign convention per OPEN-010'
   assert.equal(ledger.totalPendingPayable, 40000);
   // Total Pending Receivable = 15,000
   assert.equal(ledger.totalPendingReceivable, 15000);
-  // Net Balance = 40,000 - 15,000 = 25,000 (Bureau owes partner 25,000 PKR)
-  assert.equal(ledger.netBalance, 25000);
+  // OPEN-010: Net Balance = Total Receivable (15,000) - Total Payable (40,000) = -25,000 (Bureau owes partner 25,000 PKR)
+  assert.equal(ledger.netBalance, -25000);
   assert.equal(ledger.currency, 'PKR');
   assert.equal(ledger.totalSettledVolume, 20000);
   assert.equal(ledger.activeTransactionCount, 3);
+  assert.equal(ledger.reversedTransactionCount, 0);
 });
 
 test('recordTransaction appends new ledger entry and logs minimal audit record', () => {
@@ -221,10 +222,10 @@ test('reverseTransaction preserves historical entry, appends reversal, and recon
   assert.ok(recordRes.transaction);
   const origId = recordRes.transaction.id;
 
-  // Verify initial ledger balance is 50,000
+  // Verify initial ledger balance is -50,000 (Receivable 0 - Payable 50,000 = -50,000)
   const allTxBefore = getTransactions(staffSession).transactions || [];
   const ledgerBefore = calculatePartnerLedger('mm-rev-test', 'Test Agency', allTxBefore);
-  assert.equal(ledgerBefore.netBalance, 50000);
+  assert.equal(ledgerBefore.netBalance, -50000);
 
   // 2. Reverse the transaction with reason
   const revRes = reverseTransaction(origId, 'Duplicate billing created in error', staffSession);
@@ -294,8 +295,175 @@ test('reconcileLedger verifies total global bureau balances and net liabilities'
   assert.equal(reconciliation.reconciled, true);
   assert.equal(reconciliation.totalPayablePending, 60000);
   assert.equal(reconciliation.totalReceivablePending, 25000);
-  // Net Bureau liability = 60,000 - 25,000 = 35,000 PKR
+  // OPEN-010: Net Bureau Asset = Receivable (25,000) - Payable (60,000) = -35,000 PKR
+  assert.equal(reconciliation.netBureauAsset, -35000);
   assert.equal(reconciliation.netBureauLiability, 35000);
   assert.equal(reconciliation.totalSettledPaid, 10000);
   assert.equal(reconciliation.totalTransactionsCount, 3);
+  assert.equal(reconciliation.discrepancies.length, 0);
+});
+
+test('OPEN-010: formula and sign examples pass for positive, negative, and zero balances (FIN-01, Gate E)', () => {
+  // Case A: Partner owes Bureau (Receivable > Payable) -> Positive Net Balance (Asset)
+  const assetTransactions: LedgerTransaction[] = [
+    {
+      id: 'tx-asset-1',
+      matchmakerId: 'mm-asset',
+      matchmakerName: 'Asset Partner',
+      type: 'receivable',
+      amount: 70000,
+      status: 'pending',
+      currency: 'PKR',
+      date: '2026-11-01',
+      description: 'Candidate fee share',
+      createdAt: '2026-11-01T10:00:00Z',
+    },
+    {
+      id: 'tx-asset-2',
+      matchmakerId: 'mm-asset',
+      matchmakerName: 'Asset Partner',
+      type: 'payable',
+      amount: 20000,
+      status: 'pending',
+      currency: 'PKR',
+      date: '2026-11-02',
+      description: 'Referral bonus',
+      createdAt: '2026-11-02T10:00:00Z',
+    },
+  ];
+  const assetLedger = calculatePartnerLedger('mm-asset', 'Asset Partner', assetTransactions);
+  assert.equal(assetLedger.netBalance, 50000, 'Receivable 70k - Payable 20k = +50k (Asset position)');
+
+  // Case B: Bureau owes Partner (Payable > Receivable) -> Negative Net Balance (Liability)
+  const liabilityTransactions: LedgerTransaction[] = [
+    {
+      id: 'tx-liab-1',
+      matchmakerId: 'mm-liab',
+      matchmakerName: 'Liability Partner',
+      type: 'receivable',
+      amount: 10000,
+      status: 'pending',
+      currency: 'PKR',
+      date: '2026-11-01',
+      description: 'Candidate fee share',
+      createdAt: '2026-11-01T10:00:00Z',
+    },
+    {
+      id: 'tx-liab-2',
+      matchmakerId: 'mm-liab',
+      matchmakerName: 'Liability Partner',
+      type: 'payable',
+      amount: 35000,
+      status: 'pending',
+      currency: 'PKR',
+      date: '2026-11-02',
+      description: 'Matchmaker success fee',
+      createdAt: '2026-11-02T10:00:00Z',
+    },
+  ];
+  const liabLedger = calculatePartnerLedger('mm-liab', 'Liability Partner', liabilityTransactions);
+  assert.equal(liabLedger.netBalance, -25000, 'Receivable 10k - Payable 35k = -25k (Liability position)');
+
+  // Case C: Balanced / Settled (Receivable === Payable) -> Zero Net Balance
+  const balancedTransactions: LedgerTransaction[] = [
+    {
+      id: 'tx-bal-1',
+      matchmakerId: 'mm-bal',
+      matchmakerName: 'Balanced Partner',
+      type: 'receivable',
+      amount: 30000,
+      status: 'pending',
+      currency: 'PKR',
+      date: '2026-11-01',
+      description: 'Share',
+      createdAt: '2026-11-01T10:00:00Z',
+    },
+    {
+      id: 'tx-bal-2',
+      matchmakerId: 'mm-bal',
+      matchmakerName: 'Balanced Partner',
+      type: 'payable',
+      amount: 30000,
+      status: 'pending',
+      currency: 'PKR',
+      date: '2026-11-02',
+      description: 'Share',
+      createdAt: '2026-11-02T10:00:00Z',
+    },
+  ];
+  const balLedger = calculatePartnerLedger('mm-bal', 'Balanced Partner', balancedTransactions);
+  assert.equal(balLedger.netBalance, 0, 'Receivable 30k - Payable 30k = 0 (Settled position)');
+});
+
+test('reconcileLedger detects imbalances, broken reversal integrity, and non-PKR entries (FIN-05, Gate E)', () => {
+  // 1. Transaction marked 'reversed' but missing any corresponding reversal transaction
+  const brokenReversalTransactions: LedgerTransaction[] = [
+    {
+      id: 'tx-unbalanced-1',
+      matchmakerId: 'mm-err',
+      matchmakerName: 'Error Agency',
+      type: 'payable',
+      amount: 50000,
+      status: 'reversed', // Marked reversed without reversal row!
+      currency: 'PKR',
+      date: '2026-11-01',
+      description: 'Phantom reversal target',
+      createdAt: '2026-11-01T10:00:00Z',
+    },
+  ];
+  const unbalRecon = reconcileLedger(brokenReversalTransactions);
+  assert.equal(unbalRecon.reconciled, false, 'Must fail reconciliation when reversed row lacks reversal partner');
+  assert.ok(unbalRecon.discrepancies.length > 0);
+  assert.ok(unbalRecon.discrepancies[0].includes('no corresponding reversal transaction'));
+
+  // 2. Reversal transaction amount mismatch
+  const mismatchTransactions: LedgerTransaction[] = [
+    {
+      id: 'tx-orig',
+      matchmakerId: 'mm-err',
+      matchmakerName: 'Error Agency',
+      type: 'payable',
+      amount: 40000,
+      status: 'reversed',
+      currency: 'PKR',
+      date: '2026-11-01',
+      description: 'Original 40k',
+      createdAt: '2026-11-01T10:00:00Z',
+    },
+    {
+      id: 'tx-rev-mismatch',
+      matchmakerId: 'mm-err',
+      matchmakerName: 'Error Agency',
+      type: 'reversal',
+      amount: 35000, // Amount mismatch (35k vs 40k)
+      status: 'settled',
+      currency: 'PKR',
+      date: '2026-11-02',
+      description: 'Partial reversal',
+      reversalOf: 'tx-orig',
+      createdAt: '2026-11-02T10:00:00Z',
+    },
+  ];
+  const mismatchRecon = reconcileLedger(mismatchTransactions);
+  assert.equal(mismatchRecon.reconciled, false, 'Must fail reconciliation when reversal amount mismatches original');
+  assert.ok(mismatchRecon.discrepancies.some((d) => d.includes('mismatch')));
+
+  // 3. Foreign currency error
+  const foreignCurrencyTx: LedgerTransaction[] = [
+    {
+      id: 'tx-usd',
+      matchmakerId: 'mm-err',
+      matchmakerName: 'Error Agency',
+      type: 'payable',
+      amount: 1000,
+      status: 'pending',
+      currency: 'USD' as any, // Disallowed currency
+      date: '2026-11-01',
+      description: 'Foreign currency entry',
+      createdAt: '2026-11-01T10:00:00Z',
+    },
+  ];
+  const currRecon = reconcileLedger(foreignCurrencyTx);
+  assert.equal(currRecon.reconciled, false);
+  assert.ok(currRecon.discrepancies.some((d) => d.includes('invalid currency')));
 });

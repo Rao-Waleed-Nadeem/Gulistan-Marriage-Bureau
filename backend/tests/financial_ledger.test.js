@@ -48,7 +48,7 @@ test('Finance engine service enforces OPEN-010 double-entry conventions and trac
   const code = fs.readFileSync(FINANCE_CODE_PATH, 'utf8');
 
   assert.ok(code.includes('calculatePartnerLedger'), 'Must export calculatePartnerLedger');
-  assert.ok(code.includes('totalPendingPayable - totalPendingReceivable'), 'Must compute net balance as payable - receivable per OPEN-010');
+  assert.ok(code.includes('totalPendingReceivable - totalPendingPayable'), 'Must compute net balance as receivable - payable per OPEN-010');
   assert.ok(code.includes('reverseTransaction'), 'Must export reverseTransaction');
   assert.ok(code.includes('reconcileLedger'), 'Must export reconcileLedger');
 });

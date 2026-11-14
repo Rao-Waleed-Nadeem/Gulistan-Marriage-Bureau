@@ -555,7 +555,7 @@ export const INITIAL_MATCHMAKERS: ExternalMatchmaker[] = [
     agencyName: 'Qureshi Matchmaking Services',
     profilesReferredCount: 28,
     successfulMatchesCount: 6,
-    outstandingBalancePKR: 45000, // We owe him
+    outstandingBalancePKR: -45000, // OPEN-010: Negative = Bureau owes him 45,000 PKR (Payable liability)
     commissionRatePercent: 20,
     status: 'active',
   },
@@ -567,7 +567,7 @@ export const INITIAL_MATCHMAKERS: ExternalMatchmaker[] = [
     agencyName: 'Khandani Rishtay Bureau',
     profilesReferredCount: 19,
     successfulMatchesCount: 4,
-    outstandingBalancePKR: -15000, // She owes us shared fee
+    outstandingBalancePKR: 15000, // OPEN-010: Positive = She owes bureau 15,000 PKR (Receivable asset)
     commissionRatePercent: 25,
     status: 'active',
   },

@@ -172,6 +172,7 @@ test('calculateMatchmakerLedger accurately computes pending payable and receivab
   const ledger = calculateMatchmakerLedger('mm-101', 'Haji Aslam (Multan)', transactions);
   assert.equal(ledger.totalOwedToAgent, 15000);
   assert.equal(ledger.totalOwedByAgent, 5000);
-  assert.equal(ledger.netBalance, 10000);
-  assert.equal(formatPKR(10000), '₨ 10,000');
+  // OPEN-010: Net Balance = Total Receivable (5000) - Total Payable (15000) = -10000 (Bureau owes agent 10,000 PKR)
+  assert.equal(ledger.netBalance, -10000);
+  assert.equal(formatPKR(Math.abs(ledger.netBalance)), '₨ 10,000');
 });

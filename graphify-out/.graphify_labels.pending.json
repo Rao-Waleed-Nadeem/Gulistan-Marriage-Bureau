@@ -1,14 +1,18 @@
 {
   "1": "profiles.ts",
   "3": "auth.ts",
+  "5": "10. Frontend Domain Inventory for Backend Mapping",
   "11": "appearance.test.ts",
   "38": "14. Release Readiness and Security Review",
   "56": "3. Authorization, Privacy and Threat Model",
   "57": "ControlledSharingModal.tsx",
-  "70": "Tasks",
-  "71": "Module 01 — Supabase Auth Integration Specification",
+  "70": "language.test.ts",
+  "71": "Tasks",
   "72": "repositories.ts",
   "73": "restore-drill.js",
   "74": "duplicateReview.ts",
-  "75": "2026-11-14"
+  "75": "profileRowToDTO",
+  "76": "repositories.test.ts",
+  "77": "canTransitionStatus",
+  "78": "AI Agent Task Queue — Gulistan Marriage Bureau"
 }

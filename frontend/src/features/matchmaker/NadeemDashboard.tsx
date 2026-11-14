@@ -618,11 +618,11 @@ export const NadeemDashboard: React.FC<NadeemDashboardProps> = ({
 
                     <div className="pt-2 border-t border-[#E7E2D8] flex items-center justify-between">
                       <span className="text-[#68716D]">Balance:</span>
-                      <span className={`font-bold ${mm.outstandingBalancePKR > 0 ? 'text-amber-800' : 'text-emerald-800'}`}>
+                      <span className={`font-bold ${mm.outstandingBalancePKR > 0 ? 'text-emerald-800' : mm.outstandingBalancePKR < 0 ? 'text-amber-800' : 'text-[#68716D]'}`}>
                         {mm.outstandingBalancePKR > 0
-                          ? `Payable: ${formatPKR(mm.outstandingBalancePKR)}`
+                          ? `Receivable: ${formatPKR(mm.outstandingBalancePKR)}`
                           : mm.outstandingBalancePKR < 0
-                          ? `Receivable: ${formatPKR(Math.abs(mm.outstandingBalancePKR))}`
+                          ? `Payable: ${formatPKR(Math.abs(mm.outstandingBalancePKR))}`
                           : 'Settled'}
                       </span>
                     </div>

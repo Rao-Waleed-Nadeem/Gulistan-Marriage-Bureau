@@ -168,10 +168,10 @@
     "semantic_hash": "197cb9a653ccaf341e2a7aa9eae46a79"
   },
   "frontend/src/App.tsx": {
-    "mtime": 1794573137.358278,
-    "seen": 1794580988.7395577,
-    "ast_hash": "5b77e7bf164183a078d4277b8655ec7f",
-    "semantic_hash": "5b77e7bf164183a078d4277b8655ec7f"
+    "mtime": 1794649786.7949922,
+    "seen": 1794649969.9290001,
+    "ast_hash": "fa9b94ea3732820edab11cd43ac492ac",
+    "semantic_hash": ""
   },
   "frontend/src/components/auth/AuthModal.tsx": {
     "mtime": 1794566721.4772508,
@@ -258,10 +258,10 @@
     "semantic_hash": ""
   },
   "frontend/src/features/matchmaker/NadeemDashboard.tsx": {
-    "mtime": 1793477268.3785162,
-    "seen": 1794580988.7395577,
-    "ast_hash": "a89bc06c9fd4563377af1c9840834a04",
-    "semantic_hash": "a89bc06c9fd4563377af1c9840834a04"
+    "mtime": 1794649764.6853747,
+    "seen": 1794649969.9290001,
+    "ast_hash": "b7b22c031684ec8d3019f3d493a1c20a",
+    "semantic_hash": ""
   },
   "frontend/src/features/matchmaker/ProfileWizard.tsx": {
     "mtime": 1794586983.4331882,
@@ -348,16 +348,16 @@
     "semantic_hash": "b2c4761b144021d447becc74c3d4852b"
   },
   "frontend/src/lib/followUps.test.ts": {
-    "mtime": 1792843282.6392717,
-    "seen": 1794580988.7395577,
-    "ast_hash": "64d2eaa580938143699a05f7b13111e0",
-    "semantic_hash": "64d2eaa580938143699a05f7b13111e0"
+    "mtime": 1794649829.9097753,
+    "seen": 1794649969.9290001,
+    "ast_hash": "64e5c1dc4a0e9443ce94f75f96a35118",
+    "semantic_hash": ""
   },
   "frontend/src/lib/followUps.ts": {
-    "mtime": 1792843169.1775053,
-    "seen": 1794580988.7395577,
-    "ast_hash": "29372ec0efcff872144c18a1b8b9fe44",
-    "semantic_hash": "29372ec0efcff872144c18a1b8b9fe44"
+    "mtime": 1794649724.4579315,
+    "seen": 1794649969.9290001,
+    "ast_hash": "71a9d0772b84d9b6c36af4898cfda649",
+    "semantic_hash": ""
   },
   "frontend/src/lib/language.test.ts": {
     "mtime": 1794565294.7074227,
@@ -408,15 +408,15 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/repositories.test.ts": {
-    "mtime": 1794588642.008004,
-    "seen": 1794592657.6099265,
-    "ast_hash": "7ea7725242c2502c4b1c0e5e9c9bf619",
+    "mtime": 1794649871.8292024,
+    "seen": 1794649969.9290001,
+    "ast_hash": "276e6843db4906b990138c03f0a92fb6",
     "semantic_hash": ""
   },
   "frontend/src/lib/repositories.ts": {
-    "mtime": 1794647557.3346026,
-    "seen": 1794648019.634055,
-    "ast_hash": "ac3540d08b6ed57e98ada636bcd270a3",
+    "mtime": 1794649370.6712039,
+    "seen": 1794649969.9290001,
+    "ast_hash": "dbecfc4d318b3b2a80bdc30731fe5af6",
     "semantic_hash": ""
   },
   "frontend/src/lib/supabaseClient.ts": {
@@ -432,9 +432,9 @@
     "semantic_hash": "c54bc4338b4552045d4ff81e948ad087"
   },
   "frontend/src/types/index.ts": {
-    "mtime": 1794590109.5593333,
-    "seen": 1794592657.6099265,
-    "ast_hash": "78a200382e180847c58056cf0b644925",
+    "mtime": 1794649929.6346362,
+    "seen": 1794649969.9290001,
+    "ast_hash": "385d414dc7abc742d05592501f0634a0",
     "semantic_hash": ""
   },
   "frontend/src/utils/finance.ts": {

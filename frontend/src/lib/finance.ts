@@ -4,21 +4,21 @@
  * ARCHITECTURAL SPECIFICATION & POLICY (OPEN-010 & Section 4.7):
  * 1. Explicit Currency & Precision: All monetary transactions are explicitly PKR (Pakistani Rupee)
  *    and represented as positive integers (> 0). Fractional or floating-point values are prohibited.
- * 2. Sign Convention (Double-Entry Bureau Standard):
+ * 2. Sign Convention (Double-Entry Bureau Standard per approved OPEN-010):
  *    - 'payable': Liability incurred (Bureau owes partner matchmaker or referral agent).
  *    - 'receivable': Asset expected (Partner matchmaker or client owes Bureau).
  *    - 'paid': Disbursement settlement reducing a payable liability.
  *    - 'received': Inbound settlement reducing a receivable asset.
  *    - 'reversal': Traceable adjustment counteracting an erroneous prior entry.
- *    - Formula: Net Balance = Total Pending Payable - Total Pending Receivable.
- *      * Positive: Bureau owes partner agent.
- *      * Negative: Partner agent owes Bureau.
- *      * Zero: Account fully reconciled and settled.
+ *    - Formula: Net Balance = Total Pending Receivable - Total Pending Payable.
+ *      * Positive (> 0): Partner agent owes Bureau (Asset position).
+ *      * Negative (< 0): Bureau owes partner agent (Liability position).
+ *      * Zero (=== 0): Account fully reconciled and settled.
  * 3. Append-Only Ledger & Traceable Corrections: Historical entries cannot be silently
  *    overwritten or deleted. Errors are corrected exclusively by appending inverse reversal
  *    transactions referencing the original entry (reversalOf).
  * 4. Reconciliation: Totals across partner accounts and the global bureau ledger
- *    must reconcile deterministically.
+ *    must reconcile deterministically. Mismatches or broken reversal chains fail reconciliation.
  * 5. Role-Based Access & Minimal Audit: Ledger access is restricted to staff (Nadeem / Admin).
  *    Every write operation generates an audit event omitting customer PII (Section 3.7).
  */
@@ -26,6 +26,7 @@
 import { FinancialTransaction } from '../types';
 import { AuthSession, canAccessRole } from './auth';
 import { INITIAL_TRANSACTIONS } from '../data/mockData';
+import { generateCryptoUUID } from './crypto';
 
 export type TransactionType = 'payable' | 'receivable' | 'paid' | 'received' | 'reversal';
 export type TransactionStatus = 'pending' | 'settled' | 'reversed';
@@ -56,7 +57,7 @@ export interface PartnerLedgerSummary {
   totalPendingPayable: number;
   totalPendingReceivable: number;
   totalSettledVolume: number;
-  netBalance: number; // positive = bureau owes partner, negative = partner owes bureau
+  netBalance: number; // OPEN-010: positive = partner owes bureau (asset), negative = bureau owes partner (liability)
   activeTransactionCount: number;
   reversedTransactionCount: number;
 }
@@ -65,11 +66,14 @@ export interface BureauReconciliationSummary {
   currency: 'PKR';
   totalPayablePending: number;
   totalReceivablePending: number;
-  netBureauLiability: number;
+  netBureauAsset: number; // positive = net asset, negative = net liability (Receivable - Payable)
+  netBureauLiability: number; // positive = net liability, negative = net asset (Payable - Receivable)
   totalSettledPaid: number;
   totalSettledReceived: number;
   totalTransactionsCount: number;
+  reversedTransactionsCount: number;
   reconciled: boolean;
+  discrepancies: string[];
   reconciledAt: string;
 }
 
@@ -146,6 +150,10 @@ export function validateTransactionInput(input: Partial<TransactionInput>): {
 
 /**
  * Calculates a partner's ledger summary according to the approved double-entry convention (OPEN-010).
+ * Formula: Net Balance = Total Pending Receivable - Total Pending Payable
+ * Positive (> 0): Partner owes bureau (Receivable Asset)
+ * Negative (< 0): Bureau owes partner (Payable Liability)
+ * Zero (=== 0): Settled / Reconciled
  */
 export function calculatePartnerLedger(
   matchmakerId: string,
@@ -158,10 +166,21 @@ export function calculatePartnerLedger(
   let activeCount = 0;
   let reversedCount = 0;
 
+  // Build a set of reversed transaction IDs from status or reversalOf references
+  const reversedIds = new Set<string>();
+  for (const t of transactions) {
+    if (t.status === 'reversed') reversedIds.add(t.id);
+    if (t.type === 'reversal' && t.reversalOf) reversedIds.add(t.reversalOf);
+  }
+
   for (const t of transactions) {
     if (t.matchmakerId !== matchmakerId) continue;
 
-    if (t.status === 'reversed') {
+    if (t.type === 'reversal') {
+      continue;
+    }
+
+    if (t.status === 'reversed' || reversedIds.has(t.id)) {
       reversedCount++;
       continue;
     }
@@ -179,6 +198,9 @@ export function calculatePartnerLedger(
     }
   }
 
+  // OPEN-010 approved formula: Net Balance = Total Receivable - Total Payable
+  const netBalance = totalPendingReceivable - totalPendingPayable;
+
   return {
     matchmakerId,
     matchmakerName,
@@ -186,23 +208,84 @@ export function calculatePartnerLedger(
     totalPendingPayable,
     totalPendingReceivable,
     totalSettledVolume,
-    netBalance: totalPendingPayable - totalPendingReceivable,
+    netBalance,
     activeTransactionCount: activeCount,
     reversedTransactionCount: reversedCount,
   };
 }
 
 /**
- * Reconciles global bureau ledger transactions and verifies total balance arithmetic.
+ * Reconciles global bureau ledger transactions, verifies reversal integrity,
+ * and detects imbalances or broken transaction links (OPEN-010, FIN-05).
  */
 export function reconcileLedger(transactions: LedgerTransaction[]): BureauReconciliationSummary {
   let totalPayablePending = 0;
   let totalReceivablePending = 0;
   let totalSettledPaid = 0;
   let totalSettledReceived = 0;
+  let reversedCount = 0;
+  const discrepancies: string[] = [];
+
+  const txMap = new Map<string, LedgerTransaction>();
+  const reversedIds = new Set<string>();
+  const reversalsByTarget = new Map<string, LedgerTransaction[]>();
 
   for (const t of transactions) {
-    if (t.status === 'reversed') continue;
+    txMap.set(t.id, t);
+    if (t.status === 'reversed') {
+      reversedIds.add(t.id);
+    }
+    if (t.type === 'reversal') {
+      if (t.reversalOf) {
+        reversedIds.add(t.reversalOf);
+        const list = reversalsByTarget.get(t.reversalOf) || [];
+        list.push(t);
+        reversalsByTarget.set(t.reversalOf, list);
+      } else {
+        discrepancies.push(`Reversal transaction '${t.id}' missing required reversalOf reference.`);
+      }
+    }
+
+    // Invariant check: Currency must be PKR
+    if (t.currency && t.currency !== 'PKR') {
+      discrepancies.push(`Transaction '${t.id}' has invalid currency '${t.currency}' (must be PKR).`);
+    }
+
+    // Invariant check: Amount must be a positive integer
+    if (typeof t.amount !== 'number' || !Number.isInteger(t.amount) || t.amount <= 0) {
+      discrepancies.push(`Transaction '${t.id}' has non-positive or fractional amount '${t.amount}'.`);
+    }
+  }
+
+  // Reversal integrity check: For every reversed transaction, verify corresponding reversal matches amount
+  for (const [revTargetId, revList] of reversalsByTarget.entries()) {
+    const target = txMap.get(revTargetId);
+    if (!target) {
+      discrepancies.push(`Reversal refers to non-existent transaction '${revTargetId}'.`);
+    } else {
+      const totalReversedAmount = revList.reduce((sum, r) => sum + r.amount, 0);
+      if (totalReversedAmount !== target.amount) {
+        discrepancies.push(
+          `Reversal amount mismatch for '${revTargetId}': expected ${target.amount} PKR, got ${totalReversedAmount} PKR.`
+        );
+      }
+    }
+  }
+
+  // Check if any transaction is marked status === 'reversed' without a reversal record
+  for (const [id, t] of txMap.entries()) {
+    if (t.status === 'reversed' && t.type !== 'reversal') {
+      if (!reversalsByTarget.has(id)) {
+        discrepancies.push(`Transaction '${id}' is marked reversed but has no corresponding reversal transaction.`);
+      }
+    }
+  }
+
+  for (const t of transactions) {
+    if (t.type === 'reversal' || t.status === 'reversed' || reversedIds.has(t.id)) {
+      reversedCount++;
+      continue;
+    }
 
     if (t.status === 'pending') {
       if (t.type === 'payable') totalPayablePending += t.amount;
@@ -213,15 +296,22 @@ export function reconcileLedger(transactions: LedgerTransaction[]): BureauReconc
     }
   }
 
+  const netBureauAsset = totalReceivablePending - totalPayablePending;
+  const netBureauLiability = totalPayablePending - totalReceivablePending;
+  const reconciled = discrepancies.length === 0;
+
   return {
     currency: 'PKR',
     totalPayablePending,
     totalReceivablePending,
-    netBureauLiability: totalPayablePending - totalReceivablePending,
+    netBureauAsset,
+    netBureauLiability,
     totalSettledPaid,
     totalSettledReceived,
     totalTransactionsCount: transactions.length,
-    reconciled: true,
+    reversedTransactionsCount: reversedCount,
+    reconciled,
+    discrepancies,
     reconciledAt: new Date().toISOString(),
   };
 }
@@ -301,7 +391,7 @@ export function recordTransaction(
     };
   }
 
-  const id = `tx-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const id = `tx-${Date.now()}-${generateCryptoUUID().slice(0, 8)}`;
   const now = new Date().toISOString();
 
   const newTx: LedgerTransaction = {
@@ -411,7 +501,7 @@ export function reverseTransaction(
   ledgerStore[originalIndex] = updatedOriginal;
 
   // Append new traceable reversal transaction
-  const reversalId = `rev-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const reversalId = `rev-${Date.now()}-${generateCryptoUUID().slice(0, 8)}`;
   const now = new Date().toISOString();
 
   const reversalTx: LedgerTransaction = {

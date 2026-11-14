@@ -57,3 +57,11 @@
 - Added comprehensive unit tests in `frontend/src/lib/followUps.test.ts` and `frontend/src/lib/repositories.test.ts` verifying agreement versioning, auto-deactivation, profile corrections, idempotent completions, referral attribution, and RLS/role denials.
 - Updated graphify code graph (`1216 nodes, 2401 edges, 76 communities`).
 - Verified with 128 frontend tests, 68 backend tests (196 total passing), `tsc --noEmit` clean (0 errors), and production build passing in 4.08s.
+- Implemented Refactor Workstream W7 (T-026): Financial ledger correctness, accounting model and persistence.
+- Resolved FIN-01 / Gate E: Aligned formula across `finance.ts`, `utils/finance.ts`, `NadeemDashboard.tsx`, and tests to approved OPEN-010 convention: `Net Balance = Total Pending Receivable - Total Pending Payable`. Verified sign semantics: positive = partner owes bureau (asset), negative = bureau owes partner (liability), zero = settled.
+- Resolved FIN-02 / Gate E: Recorded owner/accountant decision GMB-DEC-005 in `BIBLE/DECISION-REGISTER.md` defining partner clearinghouse sub-ledger model with double-entry bureau conventions.
+- Resolved FIN-03 & FIN-04 / Gate E: Implemented full `IFinanceRepository` and `FinanceRepositoryImpl` methods (`findAll`, `findById`, `record`, `reverse`, `getPartnerSummary`, and `reconcile`) backed by append-only `public.financial_transactions` with database-level RLS strictly prohibiting UPDATE and DELETE.
+- Resolved FIN-05 / Gate E: Implemented computed reconciliation in `reconcileLedger` that proves postings balance, validates reversal integrity (detecting unlinked reversals, missing reversal entries, or amount mismatches), enforces PKR currency, and fails with descriptive discrepancies upon imbalance.
+- Expanded test suites in `frontend/src/lib/finance.test.ts`, `frontend/src/utils/logic.test.ts`, and `backend/tests/financial_ledger.test.js`.
+- Updated graphify code graph (`1222 nodes, 2444 edges, 79 communities`).
+- Verified with 130 frontend tests, 68 backend tests (198 total passing), `tsc --noEmit` clean (0 errors), and production build passing in 2.38s.

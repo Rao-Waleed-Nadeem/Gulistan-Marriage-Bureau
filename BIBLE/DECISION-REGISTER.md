@@ -6,6 +6,7 @@
 | GMB-DEC-002 | 2026-11-13 | Work directly on the GitHub `main` branch; do not create pull requests. | Approved | Product Owner instruction. Do not bypass branch protection or force-push. If direct push is blocked, stop and report. |
 | GMB-DEC-003 | 2026-11-13 | Disable all simulated/demo authentication until real provider verification is integrated. | Approved | C-01 fail-closed remediation. |
 | GMB-DEC-004 | 2026-11-13 | Assisted & Self-Service Intake Workflow: Support assisted staff intake and self-service registration. Self-service intake strictly creates records in `pending_review` with `source: direct_web` and cannot bypass Nadeem verification/approval. | Approved | Resolves PROF-03 and clarifies OPEN-003. |
+| GMB-DEC-005 | 2026-11-14 | Matchmaker Finance Accounting Model & Semantics: Matrimonial partner clearinghouse sub-ledger with double-entry bureau conventions. Formula: Net Balance = Total Pending Receivable - Total Pending Payable. Sign semantics: positive = net asset (partner owes bureau), negative = net liability (bureau owes partner), zero = settled. Immutable append-only ledger with traceable reversals referencing original transaction. Computed reconciliation with mismatch detection. | Approved | Resolves OPEN-010, FIN-01, FIN-02, and FIN-05. |
 
 ## Open decisions — do not assume
 

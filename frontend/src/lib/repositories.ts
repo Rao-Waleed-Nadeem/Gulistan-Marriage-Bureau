@@ -40,6 +40,12 @@ import {
   INITIAL_TRANSACTIONS,
   INITIAL_MATCHMAKERS,
 } from '../data/mockData';
+import {
+  PartnerLedgerSummary,
+  BureauReconciliationSummary,
+  calculatePartnerLedger,
+  reconcileLedger,
+} from './finance';
 
 // =============================================================================
 // Interfaces
@@ -59,9 +65,15 @@ export interface IProfileRepository {
 }
 
 export interface IFinanceRepository {
-  findAll(session: AuthSession | null): Promise<FinancialTransaction[]>;
+  findAll(
+    session: AuthSession | null,
+    filters?: { matchmakerId?: string; status?: string; type?: string }
+  ): Promise<FinancialTransaction[]>;
+  findById(id: string, session: AuthSession | null): Promise<FinancialTransaction | null>;
   record(txData: Partial<FinancialTransaction>, session: AuthSession | null): Promise<FinancialTransaction>;
   reverse(id: string, reason: string, session: AuthSession | null): Promise<FinancialTransaction>;
+  getPartnerSummary(matchmakerId: string, session: AuthSession | null): Promise<PartnerLedgerSummary>;
+  reconcile(session: AuthSession | null): Promise<BureauReconciliationSummary>;
 }
 
 export interface ICRMRepository {
@@ -563,7 +575,10 @@ class ProfileRepositoryImpl implements IProfileRepository {
 // =============================================================================
 
 class FinanceRepositoryImpl implements IFinanceRepository {
-  async findAll(session: AuthSession | null): Promise<FinancialTransaction[]> {
+  async findAll(
+    session: AuthSession | null,
+    filters?: { matchmakerId?: string; status?: string; type?: string }
+  ): Promise<FinancialTransaction[]> {
     if (!canAccessRole(session, 'nadeem')) {
       throw new Error('UNAUTHORIZED: Only bureau staff can access financial records.');
     }
@@ -574,11 +589,16 @@ class FinanceRepositoryImpl implements IFinanceRepository {
       const client = getSupabaseClient();
       if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
 
-      const { data, error } = await client
+      let query = client
         .from('financial_transactions')
         .select('*')
         .order('created_at', { ascending: false });
 
+      if (filters?.matchmakerId) query = query.eq('matchmaker_id', filters.matchmakerId);
+      if (filters?.status) query = query.eq('status', filters.status);
+      if (filters?.type) query = query.eq('transaction_type', filters.type);
+
+      const { data, error } = await query;
       if (error || !data) return [];
 
       return data.map((d: any) => ({
@@ -596,7 +616,49 @@ class FinanceRepositoryImpl implements IFinanceRepository {
       }));
     }
 
-    return [...demoTransactionsStore];
+    let items = [...demoTransactionsStore];
+    if (filters?.matchmakerId) items = items.filter((t) => t.matchmakerId === filters.matchmakerId);
+    if (filters?.status) items = items.filter((t) => t.status === filters.status);
+    if (filters?.type) items = items.filter((t) => t.type === filters.type);
+    return items;
+  }
+
+  async findById(id: string, session: AuthSession | null): Promise<FinancialTransaction | null> {
+    if (!canAccessRole(session, 'nadeem')) {
+      throw new Error('UNAUTHORIZED: Only bureau staff can access financial records.');
+    }
+
+    const config = getClientConfig();
+
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+
+      const { data, error } = await client
+        .from('financial_transactions')
+        .select('*')
+        .or(`reference_code.eq.${id},id.eq.${id}`)
+        .maybeSingle();
+
+      if (error || !data) return null;
+
+      return {
+        id: data.reference_code || data.id,
+        matchmakerId: data.matchmaker_id,
+        matchmakerName: data.matchmaker_name,
+        profileId: data.profile_id || undefined,
+        type: data.transaction_type,
+        amount: Number(data.amount_pkr),
+        status: data.status,
+        description: data.description,
+        date: data.effective_date,
+        reversalOf: data.reversal_of || undefined,
+        reversalReason: data.reversal_reason || undefined,
+      };
+    }
+
+    const item = demoTransactionsStore.find((t) => t.id === id);
+    return item || null;
   }
 
   async record(txData: Partial<FinancialTransaction>, session: AuthSession | null): Promise<FinancialTransaction> {
@@ -660,10 +722,11 @@ class FinanceRepositoryImpl implements IFinanceRepository {
       const { data: original, error: fetchErr } = await client
         .from('financial_transactions')
         .select('*')
-        .eq('reference_code', id)
+        .or(`reference_code.eq.${id},id.eq.${id}`)
         .single();
 
       if (fetchErr || !original) throw new Error(`NOT_FOUND: Transaction ${id} not found.`);
+      if (original.status === 'reversed') throw new Error(`ALREADY_REVERSED: Transaction ${id} has already been reversed.`);
 
       const reversalRef = `REV-${Date.now().toString().slice(-6)}`;
       const now = new Date().toISOString().split('T')[0];
@@ -678,8 +741,8 @@ class FinanceRepositoryImpl implements IFinanceRepository {
         currency: 'PKR',
         status: 'settled',
         reversal_of: original.id,
-        reversal_reason: reason,
-        description: `Reversal of ${id}: ${reason}`,
+        reversal_reason: reason.trim(),
+        description: `Reversal of ${id}: ${reason.trim()}`,
         effective_date: now,
         created_by: session?.user?.id || null,
       }).select().single();
@@ -694,15 +757,18 @@ class FinanceRepositoryImpl implements IFinanceRepository {
         type: 'reversal',
         amount: Number(original.amount_pkr),
         status: 'settled',
-        description: `Reversal of ${id}: ${reason}`,
+        description: `Reversal of ${id}: ${reason.trim()}`,
         date: now,
         reversalOf: original.reference_code,
-        reversalReason: reason,
+        reversalReason: reason.trim(),
       };
     }
 
     const original = demoTransactionsStore.find((t) => t.id === id);
     if (!original) throw new Error(`NOT_FOUND: Transaction ${id} not found.`);
+    if (original.status === 'reversed') throw new Error(`ALREADY_REVERSED: Transaction ${id} has already been reversed.`);
+
+    original.status = 'reversed';
 
     const reversalRef = `REV-${1000 + demoTransactionsStore.length + 1}`;
     const now = new Date().toISOString().split('T')[0];
@@ -715,14 +781,33 @@ class FinanceRepositoryImpl implements IFinanceRepository {
       type: 'reversal',
       amount: original.amount,
       status: 'settled',
-      description: `Reversal of ${id}: ${reason}`,
+      description: `Reversal of ${id}: ${reason.trim()}`,
       date: now,
       reversalOf: original.id,
-      reversalReason: reason,
+      reversalReason: reason.trim(),
     };
 
     demoTransactionsStore = [reversalTx, ...demoTransactionsStore];
     return reversalTx;
+  }
+
+  async getPartnerSummary(matchmakerId: string, session: AuthSession | null): Promise<PartnerLedgerSummary> {
+    if (!canAccessRole(session, 'nadeem')) {
+      throw new Error('UNAUTHORIZED: Only bureau staff can access partner financial summaries.');
+    }
+    const all = await this.findAll(session);
+    const mmTx = all.map((t) => ({ ...t, currency: 'PKR' as const, createdAt: `${t.date}T10:00:00Z` }));
+    const partnerName = all.find((t) => t.matchmakerId === matchmakerId)?.matchmakerName || 'Partner Agency';
+    return calculatePartnerLedger(matchmakerId, partnerName, mmTx);
+  }
+
+  async reconcile(session: AuthSession | null): Promise<BureauReconciliationSummary> {
+    if (!canAccessRole(session, 'nadeem')) {
+      throw new Error('UNAUTHORIZED: Only bureau staff can reconcile the financial ledger.');
+    }
+    const all = await this.findAll(session);
+    const ledgerTx = all.map((t) => ({ ...t, currency: 'PKR' as const, createdAt: `${t.date}T10:00:00Z` }));
+    return reconcileLedger(ledgerTx);
   }
 }
 

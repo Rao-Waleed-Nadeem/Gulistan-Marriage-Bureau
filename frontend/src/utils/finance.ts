@@ -19,9 +19,9 @@ export interface FinancialTransaction {
 export interface MatchmakerLedgerSummary {
   matchmakerId: string;
   matchmakerName: string;
-  totalOwedToAgent: number; // We need to pay agent
-  totalOwedByAgent: number; // Agent needs to pay us
-  netBalance: number; // Positive means we owe them, negative means they owe us
+  totalOwedToAgent: number; // We need to pay agent (Payable liability)
+  totalOwedByAgent: number; // Agent needs to pay us (Receivable asset)
+  netBalance: number; // OPEN-010: Positive = agent owes bureau (asset), negative = bureau owes agent (liability)
 }
 
 export function calculateMatchmakerLedger(
@@ -32,8 +32,15 @@ export function calculateMatchmakerLedger(
   let totalOwedToAgent = 0;
   let totalOwedByAgent = 0;
 
+  const reversedIds = new Set<string>();
+  for (const t of transactions) {
+    if (t.status === 'reversed') reversedIds.add(t.id);
+    if (t.type === 'reversal' && t.reversalOf) reversedIds.add(t.reversalOf);
+  }
+
   for (const t of transactions) {
     if (t.matchmakerId !== matchmakerId) continue;
+    if (t.type === 'reversal' || t.status === 'reversed' || reversedIds.has(t.id)) continue;
 
     if (t.type === 'payable' && t.status === 'pending') {
       totalOwedToAgent += t.amount;
@@ -42,12 +49,13 @@ export function calculateMatchmakerLedger(
     }
   }
 
+  // OPEN-010 approved formula: Net Balance = Total Receivable (owed by agent) - Total Payable (owed to agent)
   return {
     matchmakerId,
     matchmakerName,
     totalOwedToAgent,
     totalOwedByAgent,
-    netBalance: totalOwedToAgent - totalOwedByAgent,
+    netBalance: totalOwedByAgent - totalOwedToAgent,
   };
 }
 

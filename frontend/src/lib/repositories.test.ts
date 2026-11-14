@@ -174,7 +174,7 @@ test('ProfileRepository: updateStatus enforces state machine lifecycle', async (
   );
 });
 
-test('FinanceRepository: enforces role security, records transactions and reversals', async () => {
+test('FinanceRepository: enforces role security, records transactions, reversals, partner summaries, and reconciliation (OPEN-010, FIN-01..FIN-05)', async () => {
   resetRepositoriesForTesting();
 
   // Customer denied access
@@ -189,10 +189,16 @@ test('FinanceRepository: enforces role security, records transactions and revers
   const txs = await financeRepository.findAll(staffSession);
   assert.ok(txs.length > 0);
 
+  // Staff can find by ID
+  const firstTx = txs[0];
+  const found = await financeRepository.findById(firstTx.id, staffSession);
+  assert.ok(found);
+  assert.equal(found.id, firstTx.id);
+
   // Staff can append transaction
   const newTx = await financeRepository.record(
     {
-      matchmakerId: 'mm-02',
+      matchmakerId: 'mm-rep-test',
       matchmakerName: 'Rawalpindi Associates',
       type: 'receivable',
       amount: 45000,
@@ -203,10 +209,34 @@ test('FinanceRepository: enforces role security, records transactions and revers
   assert.ok(newTx.id);
   assert.equal(newTx.amount, 45000);
 
+  // getPartnerSummary computes OPEN-010 formula (Receivable - Payable)
+  const summaryBefore = await financeRepository.getPartnerSummary('mm-rep-test', staffSession);
+  assert.equal(summaryBefore.totalPendingReceivable, 45000);
+  assert.equal(summaryBefore.totalPendingPayable, 0);
+  assert.equal(summaryBefore.netBalance, 45000, 'OPEN-010: Receivable 45k - Payable 0 = +45k asset');
+
   // Staff can reverse transaction
   const reversal = await financeRepository.reverse(newTx.id, 'Duplicate entry correction', staffSession);
   assert.equal(reversal.type, 'reversal');
   assert.equal(reversal.reversalOf, newTx.id);
+
+  // Reversing again fails with ALREADY_REVERSED
+  await assert.rejects(
+    async () => {
+      await financeRepository.reverse(newTx.id, 'Duplicate reversal attempt', staffSession);
+    },
+    /ALREADY_REVERSED/
+  );
+
+  // getPartnerSummary after reversal reconciles to 0
+  const summaryAfter = await financeRepository.getPartnerSummary('mm-rep-test', staffSession);
+  assert.equal(summaryAfter.netBalance, 0);
+  assert.equal(summaryAfter.reversedTransactionCount, 1);
+
+  // Bureau reconciliation
+  const recon = await financeRepository.reconcile(staffSession);
+  assert.equal(recon.currency, 'PKR');
+  assert.equal(recon.reconciled, true);
 });
 
 test('CRMRepository: enforces role security, creates and completes follow-ups (CRM-01, CRM-03)', async () => {

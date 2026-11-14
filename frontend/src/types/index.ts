@@ -149,7 +149,7 @@ export interface ExternalMatchmaker {
   agencyName?: string;
   profilesReferredCount: number;
   successfulMatchesCount: number;
-  outstandingBalancePKR: number; // positive = we owe them, negative = they owe us
+  outstandingBalancePKR: number; // OPEN-010: positive = partner owes bureau (asset), negative = bureau owes partner (liability)
   commissionRatePercent: number;
   status: 'active' | 'inactive' | 'suspended';
 }
