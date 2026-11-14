@@ -540,7 +540,7 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 - [x] Documentation and queue updated with acceptance checkmarks and test metrics.
 - [x] Commit verified on `main`, SHA recorded below.
 
-**Completion record:** Completed on 2026-11-14. Enhanced disaster restore drill in `backend/scripts/restore-drill.js` with Point-in-Time Recovery simulation (`executePointInTimeRestore`) and verified via `backend/tests/backup_restore.test.js` (5 tests). Created `frontend/src/lib/accessibility.ts` and test suite `frontend/src/lib/accessibility.test.ts` (7 tests) verifying bilingual RTL/LTR isolates, Android 44px touch targets, and WCAG AA contrast. Produced `backend/docs/16-monitoring-and-incident-runbook.md`, `backend/docs/17-design-theme-review.md`, and updated `backend/docs/14-release-readiness-review.md` with Section 7 Dated Release Evidence Addendum verifying all release gates A through J. Verified with 149 frontend tests and 85 backend tests (234 total passing), `tsc --noEmit` (0 errors), and `vite build` (3.90s). Commit SHA on main recorded below: `[pending commit]`.
+**Completion record:** Completed on 2026-11-14. Enhanced disaster restore drill in `backend/scripts/restore-drill.js` with Point-in-Time Recovery simulation (`executePointInTimeRestore`) and verified via `backend/tests/backup_restore.test.js` (5 tests). Created `frontend/src/lib/accessibility.ts` and test suite `frontend/src/lib/accessibility.test.ts` (7 tests) verifying bilingual RTL/LTR isolates, Android 44px touch targets, and WCAG AA contrast. Produced `backend/docs/16-monitoring-and-incident-runbook.md`, `backend/docs/17-design-theme-review.md`, and updated `backend/docs/14-release-readiness-review.md` with Section 7 Dated Release Evidence Addendum verifying all release gates A through J. Verified with 149 frontend tests and 85 backend tests (234 total passing), `tsc --noEmit` (0 errors), and `vite build` (3.90s). Commit SHA on main recorded below: `cf3d0a2`.
 
 ## Task history
 
@@ -576,4 +576,4 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-11-14 | T-027 | DONE | 497670a | Refactor W7: Frontend app & feature-boundary refactor; 200 tests passed. |
 | 2026-11-14 | T-028 | DONE | 01baf99 | Refactor W8: Staged WhatsApp and phone-gallery migration; 214 tests passed. |
 | 2026-11-14 | T-029 | DONE | 8388e3e | Refactor W9: Real integration tests, security tests, CI & capacity; 226 tests passed. |
-| 2026-11-14 | T-030 | DONE | [pending] | Refactor W9: Backup, restore, monitoring, Android/RTL & final release; 234 tests passed. |
+| 2026-11-14 | T-030 | DONE | cf3d0a2 | Refactor W9: Backup, restore, monitoring, Android/RTL & final release; 234 tests passed. |
