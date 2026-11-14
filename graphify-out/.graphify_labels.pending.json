@@ -1,7 +1,7 @@
 {
-  "1": "profiles.ts",
+  "1": "profiles.test.ts",
   "3": "auth.ts",
-  "5": "ProfileStatus",
+  "5": "3. Detailed Domain Model Inventory",
   "6": "disclosure.ts",
   "9": "FinancialTransaction",
   "11": "appearance.test.ts",
@@ -15,11 +15,17 @@
   "72": "repositories.ts",
   "73": "restore-drill.js",
   "74": "migration.ts",
-  "75": "canAccessRole",
+  "75": "getClientConfig",
   "76": "canAccessRole",
-  "77": "profileRowToDTO",
+  "77": "steps",
   "78": "computeSha256",
   "79": "14. Release Readiness and Security Review",
-  "80": "AI Agent Task Queue — Gulistan Marriage Bureau",
-  "81": "matching_engine.test.js"
+  "80": "supabaseClient.ts",
+  "81": "ref_node_assert",
+  "82": "repositories.test.ts",
+  "83": "canTransitionStatus",
+  "84": "ProfileStatus",
+  "85": "10. Frontend Domain Inventory for Backend Mapping",
+  "86": "profiles.ts",
+  "87": "followups_crm.test.js"
 }

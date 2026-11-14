@@ -156,9 +156,9 @@
     "semantic_hash": "b5142779885499fd356387bf800c988c"
   },
   "frontend/package.json": {
-    "mtime": 1794588994.811946,
-    "seen": 1794592657.6089206,
-    "ast_hash": "687fd3a5a755f9b1dc5c22b551791be7",
+    "mtime": 1794653974.565367,
+    "seen": 1794654302.3452032,
+    "ast_hash": "8a2beb0adbaac157b010604d8a67e33c",
     "semantic_hash": ""
   },
   "frontend/src/App.original.tsx": {
@@ -432,9 +432,9 @@
     "semantic_hash": "c54bc4338b4552045d4ff81e948ad087"
   },
   "frontend/src/types/index.ts": {
-    "mtime": 1794651032.6622796,
-    "seen": 1794651456.7810402,
-    "ast_hash": "2fb3f9ff846457c398cb3a1d8de6fadd",
+    "mtime": 1794653721.3485527,
+    "seen": 1794654302.3452032,
+    "ast_hash": "aa3e6ba9308ff199e6498f697a435359",
     "semantic_hash": ""
   },
   "frontend/src/utils/finance.ts": {
@@ -498,9 +498,9 @@
     "semantic_hash": "fc8693b1181e22fd075f3b6a398ccb1e"
   },
   "BIBLE/CHANGELOG.md": {
-    "mtime": 1794651511.2220979,
-    "seen": 1794653162.7751765,
-    "ast_hash": "0a636eca969ea5b224fb4d490ee4e964",
+    "mtime": 1794653221.664976,
+    "seen": 1794654302.3462102,
+    "ast_hash": "03ec7fb72d0114c29ec01b9a5500b2b3",
     "semantic_hash": ""
   },
   "BIBLE/DECISION-REGISTER.md": {
@@ -552,9 +552,9 @@
     "semantic_hash": "90ed0df6b9ec018107ca7def5db8c206"
   },
   "backend/AGENT_TASK_QUEUE.md": {
-    "mtime": 1794651637.102765,
-    "seen": 1794653162.7751765,
-    "ast_hash": "6553f0e0c68616436e020e2cfb0f6da1",
+    "mtime": 1794653323.4158833,
+    "seen": 1794654302.3462102,
+    "ast_hash": "43ff352fe801bf9a24a66c8c01aac952",
     "semantic_hash": ""
   },
   "backend/README.md": {
@@ -783,6 +783,30 @@
     "mtime": 1794652502.3675077,
     "seen": 1794653162.7751765,
     "ast_hash": "b05962398c067a95a89ca63430d24b6f",
+    "semantic_hash": ""
+  },
+  "backend/migrations/00004_staged_migration_batches.sql": {
+    "mtime": 1794653616.1465604,
+    "seen": 1794654302.3452032,
+    "ast_hash": "fd799ff2bb2e6ff5c94884c31442ae25",
+    "semantic_hash": ""
+  },
+  "backend/tests/migration_00004.test.js": {
+    "mtime": 1794653654.051551,
+    "seen": 1794654302.3452032,
+    "ast_hash": "86ee43cfea13f5c968fb365dff70358b",
+    "semantic_hash": ""
+  },
+  "frontend/src/lib/migration.test.ts": {
+    "mtime": 1794654238.0181744,
+    "seen": 1794654302.3452032,
+    "ast_hash": "5b5b9e29317ec0b7585676199586cc2a",
+    "semantic_hash": ""
+  },
+  "frontend/src/lib/migration.ts": {
+    "mtime": 1794654230.1980927,
+    "seen": 1794654302.3452032,
+    "ast_hash": "8618f2b05e2a1fd3755184d8abf59ee8",
     "semantic_hash": ""
   },
   "frontend/package-lock.json": {

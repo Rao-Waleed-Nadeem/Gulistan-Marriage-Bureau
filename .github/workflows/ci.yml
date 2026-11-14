@@ -1,0 +1,72 @@
+name: CI Quality Gate & Release Verification
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-gate:
+    name: Verify Quality Gates (Lint, Tests, Build, Migrations, Security)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: |
+            frontend/package.json
+            backend/package.json
+
+      - name: Install backend dependencies
+        run: npm --prefix backend install
+
+      - name: Install frontend dependencies
+        run: npm --prefix frontend install
+
+      - name: Audit secret hygiene and verify zero live credentials
+        run: |
+          echo "Auditing tracked files for forbidden live secrets..."
+          if git ls-files | grep -E "(^\.env$|\.env\.local$|\.env\.production$)"; then
+            echo "ERROR: Untracked live .env file committed to git!"
+            exit 1
+          fi
+          if git grep -i "VITE_.*SERVICE_ROLE" frontend/src/; then
+            echo "ERROR: Service role key detected in frontend source!"
+            exit 1
+          fi
+          echo "Secret hygiene verification passed."
+
+      - name: Validate database migrations
+        run: node backend/scripts/validate-migrations.js
+
+      - name: Run frontend TypeScript linting
+        run: npm --prefix frontend run lint
+
+      - name: Run frontend automated test suite
+        run: npm --prefix frontend test
+
+      - name: Run backend automated contract and security test suite
+        run: npm --prefix backend test
+
+      - name: Build frontend production bundle
+        run: npm --prefix frontend run build
+
+      - name: Run staging smoke-test simulation harness
+        run: node backend/scripts/smoke-test.js --demo
+
+      - name: Run 100k synthetic capacity benchmark verification
+        run: node backend/scripts/capacity-benchmark.js

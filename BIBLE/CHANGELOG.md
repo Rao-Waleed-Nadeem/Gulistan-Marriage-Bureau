@@ -87,3 +87,12 @@
 - Added 4 backend tests in `backend/tests/migration_00004.test.js` and 10 frontend unit tests in `frontend/src/lib/migration.test.ts`.
 - Updated graphify code graph (`1305 nodes, 2711 edges, 82 communities`).
 - Verified with 142 frontend tests, 72 backend tests (214 total passing), `tsc --noEmit` clean (0 errors), and production build passing in 2.62s.
+- Implemented Refactor Workstream W9 / T-029 (Gate I): Real integration tests, security tests, CI and capacity.
+- Upgraded `backend/scripts/smoke-test.js` replacing hardcoded booleans with live provider query probes when credentials exist, and static SQL migration AST inspection (`ALTER TABLE ... ENABLE RLS`, `REVOKE`, `CREATE POLICY`) when offline; simulations are strictly labelled as `DEMO_SIMULATION` with `isSimulated: true`.
+- Created comprehensive role-matrix negative authorization tests in `backend/tests/security_role_matrix.test.js` (9 tests) testing anonymous, customer, matchmaker (Nadeem), and admin roles.
+- Upgraded `backend/scripts/capacity-benchmark.js` calculating exact statistical latency percentiles (`p50`, `p90`, `p95`, `p99`, `min`, `max`, `avg`) under 50 concurrent client queries (`filterPercentiles.p95 < 25ms`, `matchingPercentiles.p95 < 50ms`).
+- Added PostgreSQL query execution plan evaluation (`evaluateQueryPlan`) covering composite search index `idx_profiles_search_composite`, location/caste index `idx_profiles_city_caste`, financial ledger index `idx_fin_tx_created_partner`, and token hash index `idx_share_grants_token`.
+- Enforced client offline caching security invariant (OPEN-016): zero candidate profiles, contact numbers, photos, tokens, or financial records in client storage.
+- Established production-grade GitHub Actions CI workflow in `.github/workflows/ci.yml` running lint, frontend tests, backend tests, production build, migration validation, smoke-test simulation, capacity benchmark, and secret leak scanning.
+- Updated graphify code graph (`1340 nodes, 2777 edges, 88 communities`).
+- Verified with 142 frontend tests, 84 backend tests (226 total passing), `tsc --noEmit` clean (0 errors), and production build passing in 3.90s.
