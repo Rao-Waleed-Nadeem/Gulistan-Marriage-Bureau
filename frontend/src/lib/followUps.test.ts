@@ -8,6 +8,8 @@ import {
   createFollowUp,
   completeFollowUp,
   getExternalMatchmakers,
+  getPartnerAgreements,
+  createPartnerAgreement,
   attributeProfileToMatchmaker,
   resetCRMStoreForTesting,
   getCRMAuditEventsForTesting,
@@ -225,4 +227,169 @@ test('attributeProfileToMatchmaker rejects inactive partner agencies', () => {
     assert.equal(res.success, false);
     assert.equal(res.error?.code, 'MATCHMAKER_INACTIVE');
   }
+});
+
+test('createFollowUp allows candidate/customer profile_correction submissions without staff session (CRM-01)', () => {
+  const correctionPayload: FollowUpInput = {
+    profileId: 'GLS-101',
+    personName: 'Fatima Zahra',
+    contactPhone: '+92 300 1122334',
+    type: 'profile_correction',
+    dueDate: '2026-11-15',
+    priority: 'high',
+    notes: 'Please update my educational degree from Master to MPhil.',
+  };
+
+  // Customer session can submit
+  const custRes = createFollowUp(correctionPayload, customerSession);
+  assert.equal(custRes.success, true);
+  assert.ok(custRes.followUp);
+  assert.equal(custRes.followUp.type, 'profile_correction');
+  assert.equal(custRes.followUp.profileId, 'GLS-101');
+
+  // Anonymous/unauthenticated candidate can also submit profile correction
+  const anonRes = createFollowUp(
+    {
+      ...correctionPayload,
+      notes: 'Please update my location to Islamabad.',
+    },
+    null
+  );
+  assert.equal(anonRes.success, true);
+  assert.ok(anonRes.followUp);
+
+  // But customer CANNOT submit a general follow-up (fails closed)
+  const deniedRes = createFollowUp(
+    {
+      ...correctionPayload,
+      type: 'initial_consult',
+    },
+    customerSession
+  );
+  assert.equal(deniedRes.success, false);
+  assert.equal(deniedRes.error?.code, 'UNAUTHORIZED');
+});
+
+test('getPartnerAgreements and createPartnerAgreement enforce role security and least privilege (CRM-02)', () => {
+  // 1. Customer denied viewing agreements
+  const custGet = getPartnerAgreements('mm-101', customerSession);
+  assert.equal(custGet.success, false);
+  assert.equal(custGet.error?.code, 'UNAUTHORIZED');
+
+  // 2. Customer denied creating agreements
+  const custCreate = createPartnerAgreement(
+    'mm-101',
+    { feeType: 'percentage', percentageRate: 15 },
+    customerSession
+  );
+  assert.equal(custCreate.success, false);
+  assert.equal(custCreate.error?.code, 'UNAUTHORIZED');
+
+  // 3. Staff can view agreements
+  const staffGet = getPartnerAgreements('mm-101', staffSession);
+  assert.equal(staffGet.success, true);
+  assert.ok(staffGet.agreements && staffGet.agreements.length > 0);
+  assert.equal(staffGet.agreements[0].matchmakerId, 'mm-101');
+});
+
+test('createPartnerAgreement deactivates superseded agreements and supports varying commission models (CRM-02)', () => {
+  // Haji Aslam Qureshi (mm-101) starts with initial active 20% percentage agreement
+  const initialAgreements = getPartnerAgreements('mm-101', staffSession).agreements || [];
+  const initialActive = initialAgreements.find((a) => a.isActive);
+  assert.ok(initialActive);
+  assert.equal(initialActive.feeType, 'percentage');
+  assert.equal(initialActive.percentageRate, 20);
+
+  // Register a new flat fee agreement for mm-101
+  const createFlatRes = createPartnerAgreement(
+    'mm-101',
+    {
+      feeType: 'flat_fee',
+      flatFeePKR: 45000,
+      termsText: 'PKR 45,000 fixed honorarium per solemnized match.',
+      isActive: true,
+    },
+    staffSession
+  );
+  assert.equal(createFlatRes.success, true);
+  assert.ok(createFlatRes.agreement);
+  assert.equal(createFlatRes.agreement.feeType, 'flat_fee');
+  assert.equal(createFlatRes.agreement.flatFeePKR, 45000);
+  assert.equal(createFlatRes.agreement.isActive, true);
+
+  // Verify previous agreement was automatically deactivated
+  const updatedAgreements = getPartnerAgreements('mm-101', staffSession).agreements || [];
+  const oldAgreement = updatedAgreements.find((a) => a.id === initialActive.id);
+  assert.ok(oldAgreement);
+  assert.equal(oldAgreement.isActive, false, 'Previous agreement must be deactivated');
+
+  // Active agreement is the new flat fee one
+  const newActive = updatedAgreements.find((a) => a.isActive);
+  assert.ok(newActive);
+  assert.equal(newActive.feeType, 'flat_fee');
+  assert.equal(newActive.flatFeePKR, 45000);
+
+  // Partner directory reflects updated active agreement
+  const mmList = getExternalMatchmakers(staffSession).matchmakers || [];
+  const updatedMM = mmList.find((m) => m.id === 'mm-101');
+  assert.ok(updatedMM);
+  assert.equal(updatedMM.activeAgreement?.feeType, 'flat_fee');
+  assert.equal(updatedMM.commissionModel, 'flat_fee');
+
+  // Register a tiered agreement
+  const createTieredRes = createPartnerAgreement(
+    'mm-101',
+    {
+      feeType: 'tiered',
+      tieredRulesJson: { tier1: '15% under 100k', tier2: '20% above 100k' },
+      termsText: 'Tiered performance-based agreement.',
+      isActive: true,
+    },
+    staffSession
+  );
+  assert.equal(createTieredRes.success, true);
+  assert.equal(createTieredRes.agreement?.feeType, 'tiered');
+
+  // Flat fee agreement is now superseded and deactivated
+  const finalAgreements = getPartnerAgreements('mm-101', staffSession).agreements || [];
+  const supersededFlat = finalAgreements.find((a) => a.id === createFlatRes.agreement?.id);
+  assert.equal(supersededFlat?.isActive, false);
+
+  // Check audit record exists for agreement creation
+  const audits = getCRMAuditEventsForTesting();
+  const agrAudit = audits.find((a) => a.action === 'agreement_created' && a.target_id === 'mm-101');
+  assert.ok(agrAudit);
+  assert.equal(agrAudit.target_type, 'external_matchmaker');
+});
+
+test('completeFollowUp records resolution notes and is idempotent (CRM-03)', () => {
+  // Create a new follow-up
+  const newFU = createFollowUp(
+    {
+      profileId: 'GLS-201',
+      personName: 'Chaudhry Riaz',
+      contactPhone: '+92 300 4433221',
+      type: 'photo_request',
+      dueDate: '2026-11-20',
+      priority: 'medium',
+      notes: 'Request updated studio photograph.',
+    },
+    staffSession
+  );
+  assert.equal(newFU.success, true);
+  const fuId = newFU.followUp!.id;
+
+  // Complete with resolution notes
+  const completed = completeFollowUp(fuId, staffSession, 'Received verified studio photo via WhatsApp.');
+  assert.equal(completed.success, true);
+  assert.equal(completed.followUp?.status, 'completed');
+  assert.equal(completed.followUp?.completionNotes, 'Received verified studio photo via WhatsApp.');
+  assert.equal(completed.followUp?.completedBy, 'nadeem@gulistan.pk');
+  assert.ok(completed.followUp?.completedAt);
+
+  // Completing again (idempotent retry) returns the completed item without error
+  const idempotentRetry = completeFollowUp(fuId, staffSession);
+  assert.equal(idempotentRetry.success, true);
+  assert.equal(idempotentRetry.followUp?.status, 'completed');
+  assert.equal(idempotentRetry.followUp?.completionNotes, 'Received verified studio photo via WhatsApp.');
 });

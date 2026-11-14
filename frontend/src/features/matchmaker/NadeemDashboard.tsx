@@ -4,6 +4,7 @@ import {
   MatchRecommendation, 
   FollowUpItem, 
   ExternalMatchmaker, 
+  DetailedExternalMatchmaker,
   FinancialTransaction, 
   Language, 
   Role 
@@ -573,25 +574,61 @@ export const NadeemDashboard: React.FC<NadeemDashboardProps> = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-              {matchmakers.map((mm) => (
-                <div key={mm.id} className="rounded-2xl border border-[#E7E2D8] bg-[#F7F3EA]/40 p-4 text-xs space-y-2 shadow-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-sm text-[#182848]">{mm.name}</span>
-                    <span className="text-[10px] text-[#68716D]">{mm.city}</span>
+              {matchmakers.map((mm) => {
+                const detailed = mm as Partial<DetailedExternalMatchmaker>;
+                const activeAgr = detailed.activeAgreement;
+                const feeLabel = activeAgr
+                  ? activeAgr.feeType === 'percentage'
+                    ? `${activeAgr.percentageRate ?? mm.commissionRatePercent}% Commission`
+                    : activeAgr.feeType === 'flat_fee'
+                    ? `${formatPKR(activeAgr.flatFeePKR || 0)} Flat Fee`
+                    : 'Tiered Commission'
+                  : `${mm.commissionRatePercent}% Commission`;
+
+                return (
+                  <div key={mm.id} className="rounded-2xl border border-[#E7E2D8] bg-[#F7F3EA]/40 p-4 text-xs space-y-2 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-sm text-[#182848]">{mm.name}</span>
+                        {detailed.code && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-[#182848]/10 text-[#182848] font-medium">
+                            {detailed.code}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-[#68716D]">{mm.city}</span>
+                    </div>
+                    <p className="text-[#68716D]">{mm.agencyName}</p>
+
+                    {/* Active Agreement Terms */}
+                    <div className="rounded-lg bg-white/70 p-2 border border-[#E7E2D8]/60 space-y-1">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-medium text-[#182848]">{feeLabel}</span>
+                        {activeAgr?.agreementCode && (
+                          <span className="text-[10px] font-mono text-[#68716D]">
+                            {activeAgr.agreementCode}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-[#68716D]">
+                        <span>{mm.profilesReferredCount} referred</span>
+                        <span>{mm.successfulMatchesCount} matches</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-[#E7E2D8] flex items-center justify-between">
+                      <span className="text-[#68716D]">Balance:</span>
+                      <span className={`font-bold ${mm.outstandingBalancePKR > 0 ? 'text-amber-800' : 'text-emerald-800'}`}>
+                        {mm.outstandingBalancePKR > 0
+                          ? `Payable: ${formatPKR(mm.outstandingBalancePKR)}`
+                          : mm.outstandingBalancePKR < 0
+                          ? `Receivable: ${formatPKR(Math.abs(mm.outstandingBalancePKR))}`
+                          : 'Settled'}
+                      </span>
+                    </div>
                   </div>
-                  <p className="text-[#68716D]">{mm.agencyName}</p>
-                  <div className="pt-2 border-t border-[#E7E2D8] flex items-center justify-between">
-                    <span className="text-[#68716D]">Balance:</span>
-                    <span className={`font-bold ${mm.outstandingBalancePKR > 0 ? 'text-amber-800' : 'text-emerald-800'}`}>
-                      {mm.outstandingBalancePKR > 0
-                        ? `Payable: ${formatPKR(mm.outstandingBalancePKR)}`
-                        : mm.outstandingBalancePKR < 0
-                        ? `Receivable: ${formatPKR(Math.abs(mm.outstandingBalancePKR))}`
-                        : 'Settled'}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Transaction Ledger Table */}

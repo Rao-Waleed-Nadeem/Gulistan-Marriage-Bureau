@@ -151,7 +151,34 @@ export interface ExternalMatchmaker {
   successfulMatchesCount: number;
   outstandingBalancePKR: number; // positive = we owe them, negative = they owe us
   commissionRatePercent: number;
-  status: 'active' | 'inactive';
+  status: 'active' | 'inactive' | 'suspended';
+}
+
+export type PartnerCommissionModel = 'percentage' | 'flat_fee' | 'tiered' | 'hybrid';
+export type PartnerAgreementFeeType = 'percentage' | 'flat_fee' | 'tiered';
+
+export interface PartnerAgreement {
+  id: string;
+  matchmakerId: string;
+  agreementCode: string;
+  feeType: PartnerAgreementFeeType;
+  percentageRate?: number;
+  flatFeePKR?: number;
+  tieredRulesJson?: Record<string, any>;
+  effectiveFrom: string;
+  effectiveTo?: string;
+  termsText: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface DetailedExternalMatchmaker extends ExternalMatchmaker {
+  code: string;
+  email?: string;
+  commissionModel: PartnerCommissionModel;
+  termsJson?: Record<string, any>;
+  agreements: PartnerAgreement[];
+  activeAgreement?: PartnerAgreement;
 }
 
 export interface AuditLogItem {

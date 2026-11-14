@@ -15,16 +15,18 @@
  *    that omit full notes and private phone numbers (Section 3.7).
  */
 
-import { FollowUpItem, ExternalMatchmaker } from '../types';
+import { FollowUpItem, ExternalMatchmaker, DetailedExternalMatchmaker, PartnerAgreement } from '../types';
 import { AuthSession, canAccessRole } from './auth';
-import { INITIAL_FOLLOW_UPS, INITIAL_MATCHMAKERS } from '../data/mockData';
+import { INITIAL_FOLLOW_UPS } from '../data/mockData';
+import { INITIAL_DETAILED_MATCHMAKERS, INITIAL_PARTNER_AGREEMENTS, resetRepositoriesForTesting } from './repositories';
 
 export type FollowUpType =
   | 'initial_consult'
   | 'proposal_decision'
   | 'meeting_arrangement'
   | 'photo_request'
-  | 'payment_reminder';
+  | 'payment_reminder'
+  | 'profile_correction';
 
 export type FollowUpPriority = 'high' | 'medium' | 'low';
 export type FollowUpStatus = 'pending' | 'completed' | 'overdue';
@@ -51,7 +53,7 @@ export interface DetailedFollowUpItem extends FollowUpItem {
 export interface CRMAuditRecord {
   actor_id: string;
   actor_role: string;
-  action: 'follow_up_created' | 'follow_up_completed' | 'matchmaker_attributed' | 'matchmaker_created';
+  action: 'follow_up_created' | 'follow_up_completed' | 'matchmaker_attributed' | 'matchmaker_created' | 'agreement_created';
   target_type: 'follow_up' | 'profile' | 'external_matchmaker';
   target_id: string;
   details: string; // JSON string with minimal metadata
@@ -66,7 +68,13 @@ let followUpStore: DetailedFollowUpItem[] = INITIAL_FOLLOW_UPS.map((f) => ({
   completedBy: f.status === 'completed' ? 'nadeem@gulistan.pk' : undefined,
 }));
 
-let matchmakerStore: ExternalMatchmaker[] = [...INITIAL_MATCHMAKERS];
+let matchmakerStore: DetailedExternalMatchmaker[] = INITIAL_DETAILED_MATCHMAKERS.map((m) => ({
+  ...m,
+  agreements: [...m.agreements],
+  activeAgreement: m.activeAgreement ? { ...m.activeAgreement } : undefined,
+}));
+
+let partnerAgreementsStore: PartnerAgreement[] = [...INITIAL_PARTNER_AGREEMENTS];
 let auditEventsStore: CRMAuditRecord[] = [];
 
 /**
@@ -104,6 +112,7 @@ export function validateFollowUpInput(input: Partial<FollowUpInput>): {
     'meeting_arrangement',
     'photo_request',
     'payment_reminder',
+    'profile_correction',
   ];
   if (!input.type || !validTypes.includes(input.type)) {
     errors.type = `Follow-up type must be one of: ${validTypes.join(', ')}`;
@@ -203,7 +212,8 @@ export function createFollowUp(
   followUp?: DetailedFollowUpItem;
   error?: { code: string; messageEn: string; messageUrdu: string; details?: Record<string, string> };
 } {
-  if (!canAccessCRM(session)) {
+  const isProfileCorrection = input.type === 'profile_correction';
+  if (!canAccessCRM(session) && !isProfileCorrection) {
     return {
       success: false,
       error: {
@@ -355,10 +365,10 @@ export function completeFollowUp(
  */
 export function getExternalMatchmakers(
   session: AuthSession | null,
-  filters?: { status?: 'active' | 'inactive' }
+  filters?: { status?: 'active' | 'suspended' | 'inactive' }
 ): {
   success: boolean;
-  matchmakers?: ExternalMatchmaker[];
+  matchmakers?: DetailedExternalMatchmaker[];
   error?: { code: string; messageEn: string; messageUrdu: string };
 } {
   if (!canAccessCRM(session)) {
@@ -384,6 +394,135 @@ export function getExternalMatchmakers(
 }
 
 /**
+ * Fetches versioned agreements for an external partner matchmaker.
+ */
+export function getPartnerAgreements(
+  matchmakerId: string,
+  session: AuthSession | null
+): {
+  success: boolean;
+  agreements?: PartnerAgreement[];
+  error?: { code: string; messageEn: string; messageUrdu: string };
+} {
+  if (!canAccessCRM(session)) {
+    return {
+      success: false,
+      error: {
+        code: 'UNAUTHORIZED',
+        messageEn: 'Only authorized bureau matchmakers can view partner agreements.',
+        messageUrdu: 'صرف مجاز عملہ ہی معاہدات دیکھ سکتا ہے۔',
+      },
+    };
+  }
+
+  const agreements = partnerAgreementsStore
+    .filter((a) => a.matchmakerId === matchmakerId)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  return {
+    success: true,
+    agreements,
+  };
+}
+
+/**
+ * Registers a new versioned partner agreement, automatically deactivating prior active agreements.
+ */
+export function createPartnerAgreement(
+  matchmakerId: string,
+  agreementData: Partial<PartnerAgreement>,
+  session: AuthSession | null
+): {
+  success: boolean;
+  agreement?: PartnerAgreement;
+  error?: { code: string; messageEn: string; messageUrdu: string };
+} {
+  if (!canAccessCRM(session)) {
+    return {
+      success: false,
+      error: {
+        code: 'UNAUTHORIZED',
+        messageEn: 'Only authorized bureau matchmakers can register partner agreements.',
+        messageUrdu: 'صرف مجاز عملہ ہی معاہدات درج کر سکتا ہے۔',
+      },
+    };
+  }
+
+  const mm = matchmakerStore.find((m) => m.id === matchmakerId);
+  if (!mm) {
+    return {
+      success: false,
+      error: {
+        code: 'NOT_FOUND',
+        messageEn: `External matchmaker '${matchmakerId}' not found.`,
+        messageUrdu: `میچ میکر '${matchmakerId}' نہیں ملا۔`,
+      },
+    };
+  }
+
+  const now = new Date().toISOString();
+  const agreementCode =
+    agreementData.agreementCode ||
+    `AGR-${mm.code.replace(/[^A-Z0-9]/g, '')}-${now.slice(0, 4)}-${Math.floor(10 + Math.random() * 90)}`;
+  const isActive = agreementData.isActive !== false;
+
+  const newAgreement: PartnerAgreement = {
+    id: `agr-${Date.now().toString().slice(-4)}`,
+    matchmakerId,
+    agreementCode,
+    feeType: agreementData.feeType || 'percentage',
+    percentageRate: agreementData.percentageRate,
+    flatFeePKR: agreementData.flatFeePKR,
+    tieredRulesJson: agreementData.tieredRulesJson,
+    effectiveFrom: agreementData.effectiveFrom || now.split('T')[0],
+    effectiveTo: agreementData.effectiveTo,
+    termsText: agreementData.termsText || 'Standard collaborative matchmaking agreement.',
+    isActive,
+    createdAt: now,
+  };
+
+  if (isActive) {
+    // Supersede previous active agreements
+    partnerAgreementsStore.forEach((a) => {
+      if (a.matchmakerId === matchmakerId) a.isActive = false;
+    });
+    mm.agreements.forEach((a) => {
+      a.isActive = false;
+    });
+  }
+
+  partnerAgreementsStore.unshift(newAgreement);
+  mm.agreements.unshift(newAgreement);
+  if (isActive) {
+    mm.activeAgreement = newAgreement;
+    mm.commissionModel = newAgreement.feeType;
+    if (newAgreement.percentageRate) {
+      mm.commissionRatePercent = newAgreement.percentageRate;
+    }
+  }
+
+  // Audit event
+  const audit: CRMAuditRecord = {
+    actor_id: session?.user?.id || 'usr-nadeem',
+    actor_role: session?.role || 'nadeem',
+    action: 'agreement_created',
+    target_type: 'external_matchmaker',
+    target_id: matchmakerId,
+    details: JSON.stringify({
+      agreementCode: newAgreement.agreementCode,
+      feeType: newAgreement.feeType,
+      isActive: newAgreement.isActive,
+    }),
+  };
+  auditEventsStore.push(audit);
+
+  return {
+    success: true,
+    agreement: newAgreement,
+  };
+}
+
+/**
  * Attributes a candidate profile referral to an external partner matchmaker.
  * Validates that partner is active and increments referred count.
  */
@@ -394,7 +533,7 @@ export function attributeProfileToMatchmaker(
   notes?: string
 ): {
   success: boolean;
-  matchmaker?: ExternalMatchmaker;
+  matchmaker?: DetailedExternalMatchmaker;
   error?: { code: string; messageEn: string; messageUrdu: string };
 } {
   if (!canAccessCRM(session)) {
@@ -426,14 +565,14 @@ export function attributeProfileToMatchmaker(
       success: false,
       error: {
         code: 'MATCHMAKER_INACTIVE',
-        messageEn: `Cannot attribute profile to inactive matchmaker '${matchmaker.name}'.`,
+        messageEn: `Cannot attribute profile to inactive or suspended matchmaker '${matchmaker.name}'.`,
         messageUrdu: `غیر فعال میچ میکر '${matchmaker.name}' کو پروفائل منسوب نہیں کی جا سکتی۔`,
       },
     };
   }
 
   // Increment referred count
-  const updatedMatchmaker: ExternalMatchmaker = {
+  const updatedMatchmaker: DetailedExternalMatchmaker = {
     ...matchmaker,
     profilesReferredCount: matchmaker.profilesReferredCount + 1,
   };
@@ -472,8 +611,14 @@ export function resetCRMStoreForTesting(): void {
     completedAt: f.status === 'completed' ? '2026-10-21T10:00:00Z' : undefined,
     completedBy: f.status === 'completed' ? 'nadeem@gulistan.pk' : undefined,
   }));
-  matchmakerStore = [...INITIAL_MATCHMAKERS];
+  matchmakerStore = INITIAL_DETAILED_MATCHMAKERS.map((m) => ({
+    ...m,
+    agreements: [...m.agreements],
+    activeAgreement: m.activeAgreement ? { ...m.activeAgreement } : undefined,
+  }));
+  partnerAgreementsStore = [...INITIAL_PARTNER_AGREEMENTS];
   auditEventsStore = [];
+  resetRepositoriesForTesting();
 }
 
 /**

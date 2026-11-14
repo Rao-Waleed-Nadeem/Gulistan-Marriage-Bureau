@@ -14,6 +14,11 @@ import {
   ProfileStatus,
   FollowUpItem,
   Role,
+  ExternalMatchmaker,
+  DetailedExternalMatchmaker,
+  PartnerAgreement,
+  PartnerAgreementFeeType,
+  PartnerCommissionModel,
 } from '../types';
 import { FinancialTransaction } from '../utils/finance';
 import { AuthSession, canAccessRole } from './auth';
@@ -29,7 +34,12 @@ import {
   validateProfileInput,
   canTransitionStatus,
 } from './profiles';
-import { INITIAL_PROFILES, INITIAL_FOLLOW_UPS, INITIAL_TRANSACTIONS } from '../data/mockData';
+import {
+  INITIAL_PROFILES,
+  INITIAL_FOLLOW_UPS,
+  INITIAL_TRANSACTIONS,
+  INITIAL_MATCHMAKERS,
+} from '../data/mockData';
 
 // =============================================================================
 // Interfaces
@@ -55,9 +65,43 @@ export interface IFinanceRepository {
 }
 
 export interface ICRMRepository {
-  findAll(session: AuthSession | null): Promise<FollowUpItem[]>;
+  findAll(
+    session: AuthSession | null,
+    filters?: { status?: string; priority?: string; profileId?: string }
+  ): Promise<FollowUpItem[]>;
+  findById(id: string, session: AuthSession | null): Promise<FollowUpItem | null>;
   create(itemData: Partial<FollowUpItem>, session: AuthSession | null): Promise<FollowUpItem>;
-  complete(id: string, session: AuthSession | null): Promise<FollowUpItem>;
+  complete(id: string, session: AuthSession | null, completionNotes?: string): Promise<FollowUpItem>;
+}
+
+export interface IMatchmakerRepository {
+  findAll(
+    session: AuthSession | null,
+    filters?: { status?: 'active' | 'suspended' | 'inactive'; city?: string }
+  ): Promise<DetailedExternalMatchmaker[]>;
+  findById(id: string, session: AuthSession | null): Promise<DetailedExternalMatchmaker | null>;
+  findByCode(code: string, session: AuthSession | null): Promise<DetailedExternalMatchmaker | null>;
+  create(
+    matchmakerData: Partial<DetailedExternalMatchmaker>,
+    session: AuthSession | null
+  ): Promise<DetailedExternalMatchmaker>;
+  updateStatus(
+    id: string,
+    status: 'active' | 'suspended' | 'inactive',
+    session: AuthSession | null
+  ): Promise<DetailedExternalMatchmaker>;
+  createAgreement(
+    matchmakerId: string,
+    agreementData: Partial<PartnerAgreement>,
+    session: AuthSession | null
+  ): Promise<PartnerAgreement>;
+  getAgreements(matchmakerId: string, session: AuthSession | null): Promise<PartnerAgreement[]>;
+  attributeReferral(
+    matchmakerId: string,
+    profileId: string,
+    session: AuthSession | null,
+    notes?: string
+  ): Promise<{ success: boolean; matchmaker: DetailedExternalMatchmaker }>;
 }
 
 export type MatchCaseStatus =
@@ -122,12 +166,70 @@ export interface IMatchRepository {
 // In-Memory Demo Storage (Isolated to local development & tests)
 // =============================================================================
 
+export const INITIAL_PARTNER_AGREEMENTS: PartnerAgreement[] = [
+  {
+    id: 'agr-101-01',
+    matchmakerId: 'mm-101',
+    agreementCode: 'AGR-QUR-2026-01',
+    feeType: 'percentage',
+    percentageRate: 20,
+    effectiveFrom: '2026-01-01',
+    termsText: '20% commission on verified registrations and successful match settlements across Multan and Lahore.',
+    isActive: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'agr-102-01',
+    matchmakerId: 'mm-102',
+    agreementCode: 'AGR-KHA-2026-01',
+    feeType: 'percentage',
+    percentageRate: 25,
+    effectiveFrom: '2026-02-01',
+    termsText: '25% commission on mutual candidate introductions across Islamabad and Rawalpindi.',
+    isActive: true,
+    createdAt: '2026-02-01T00:00:00Z',
+  },
+  {
+    id: 'agr-103-01',
+    matchmakerId: 'mm-103',
+    agreementCode: 'AGR-HUS-2026-01',
+    feeType: 'flat_fee',
+    flatFeePKR: 50000,
+    effectiveFrom: '2026-03-01',
+    termsText: 'Fixed flat honorarium of PKR 50,000 per solemnized nikah match in Faisalabad.',
+    isActive: true,
+    createdAt: '2026-03-01T00:00:00Z',
+  },
+];
+
+export const INITIAL_DETAILED_MATCHMAKERS: DetailedExternalMatchmaker[] = INITIAL_MATCHMAKERS.map((mm) => {
+  const agreements = INITIAL_PARTNER_AGREEMENTS.filter((a) => a.matchmakerId === mm.id);
+  const activeAgreement = agreements.find((a) => a.isActive);
+  const code = mm.id === 'mm-101' ? 'MM-MUL-01' : mm.id === 'mm-102' ? 'MM-ISB-01' : 'MM-FSD-01';
+  const commissionModel = activeAgreement?.feeType || 'percentage';
+
+  return {
+    ...mm,
+    code,
+    email: `${mm.name.toLowerCase().replace(/[^a-z]/g, '')}@example.com`,
+    commissionModel,
+    agreements,
+    activeAgreement,
+  };
+});
+
 let demoProfilesStore: ProfileRecord[] = [...INITIAL_PROFILES];
 let demoTransactionsStore: FinancialTransaction[] = [...INITIAL_TRANSACTIONS];
 let demoFollowUpsStore: FollowUpItem[] = [...INITIAL_FOLLOW_UPS];
 let demoMatchCasesStore: MatchCaseRecord[] = [];
 let demoMatchEvaluationsStore: MatchEvaluationRecord[] = [];
 let demoMatchDecisionsStore: MatchDecisionRecord[] = [];
+let demoMatchmakersStore: DetailedExternalMatchmaker[] = INITIAL_DETAILED_MATCHMAKERS.map((m) => ({
+  ...m,
+  agreements: [...m.agreements],
+  activeAgreement: m.activeAgreement ? { ...m.activeAgreement } : undefined,
+}));
+let demoAgreementsStore: PartnerAgreement[] = [...INITIAL_PARTNER_AGREEMENTS];
 
 export function resetRepositoriesForTesting(): void {
   demoProfilesStore = [...INITIAL_PROFILES];
@@ -136,6 +238,12 @@ export function resetRepositoriesForTesting(): void {
   demoMatchCasesStore = [];
   demoMatchEvaluationsStore = [];
   demoMatchDecisionsStore = [];
+  demoMatchmakersStore = INITIAL_DETAILED_MATCHMAKERS.map((m) => ({
+    ...m,
+    agreements: [...m.agreements],
+    activeAgreement: m.activeAgreement ? { ...m.activeAgreement } : undefined,
+  }));
+  demoAgreementsStore = [...INITIAL_PARTNER_AGREEMENTS];
 }
 
 // =============================================================================
@@ -623,8 +731,11 @@ class FinanceRepositoryImpl implements IFinanceRepository {
 // =============================================================================
 
 class CRMRepositoryImpl implements ICRMRepository {
-  async findAll(session: AuthSession | null): Promise<FollowUpItem[]> {
-    if (!canAccessRole(session, 'nadeem')) {
+  async findAll(
+    session: AuthSession | null,
+    filters?: { status?: string; priority?: string; profileId?: string }
+  ): Promise<FollowUpItem[]> {
+    if (!canAccessRole(session, 'nadeem') && !canAccessRole(session, 'admin')) {
       throw new Error('UNAUTHORIZED: Only bureau staff can access CRM follow-ups.');
     }
 
@@ -634,11 +745,16 @@ class CRMRepositoryImpl implements ICRMRepository {
       const client = getSupabaseClient();
       if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
 
-      const { data, error } = await client
+      let query = client
         .from('crm_follow_ups')
         .select('*')
         .order('scheduled_date', { ascending: true });
 
+      if (filters?.status) query = query.eq('status', filters.status);
+      if (filters?.priority) query = query.eq('priority', filters.priority);
+      if (filters?.profileId) query = query.eq('profile_id', filters.profileId);
+
+      const { data, error } = await query;
       if (error || !data) return [];
 
       return data.map((d: any) => ({
@@ -655,12 +771,53 @@ class CRMRepositoryImpl implements ICRMRepository {
       }));
     }
 
-    return [...demoFollowUpsStore];
+    let items = [...demoFollowUpsStore];
+    if (filters?.status) items = items.filter((f) => f.status === filters.status);
+    if (filters?.priority) items = items.filter((f) => f.priority === filters.priority);
+    if (filters?.profileId) items = items.filter((f) => f.profileId === filters.profileId);
+    return items;
+  }
+
+  async findById(id: string, session: AuthSession | null): Promise<FollowUpItem | null> {
+    const config = getClientConfig();
+
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+
+      const { data, error } = await client
+        .from('crm_follow_ups')
+        .select('*')
+        .or(`reference_code.eq.${id},id.eq.${id}`)
+        .maybeSingle();
+
+      if (error || !data) return null;
+
+      return {
+        id: data.reference_code || data.id,
+        profileId: data.profile_id || '',
+        candidateId: data.match_case_id || undefined,
+        personName: data.contact_person,
+        contactPhone: data.contact_phone,
+        type: data.follow_up_type,
+        dueDate: data.scheduled_date,
+        priority: data.priority,
+        status: data.status,
+        notes: data.notes || '',
+      };
+    }
+
+    const item = demoFollowUpsStore.find((f) => f.id === id);
+    return item || null;
   }
 
   async create(itemData: Partial<FollowUpItem>, session: AuthSession | null): Promise<FollowUpItem> {
-    if (!canAccessRole(session, 'nadeem')) {
-      throw new Error('UNAUTHORIZED: Only bureau staff can create CRM follow-ups.');
+    const isProfileCorrection = itemData.type === 'profile_correction';
+    const isStaff = canAccessRole(session, 'nadeem') || canAccessRole(session, 'admin');
+    const isCustomer = session?.role === 'customer' || (session === null && isProfileCorrection);
+
+    if (!isStaff && !isProfileCorrection && !isCustomer) {
+      throw new Error('UNAUTHORIZED: Only bureau staff or candidate representatives can submit follow-up tasks.');
     }
 
     const config = getClientConfig();
@@ -705,8 +862,12 @@ class CRMRepositoryImpl implements ICRMRepository {
     return newItem;
   }
 
-  async complete(id: string, session: AuthSession | null): Promise<FollowUpItem> {
-    if (!canAccessRole(session, 'nadeem')) {
+  async complete(
+    id: string,
+    session: AuthSession | null,
+    completionNotes?: string
+  ): Promise<FollowUpItem> {
+    if (!canAccessRole(session, 'nadeem') && !canAccessRole(session, 'admin')) {
       throw new Error('UNAUTHORIZED: Only bureau staff can complete CRM follow-ups.');
     }
 
@@ -716,22 +877,37 @@ class CRMRepositoryImpl implements ICRMRepository {
       const client = getSupabaseClient();
       if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
 
+      // Idempotency: return existing completed item
+      const existing = await this.findById(id, session);
+      if (existing && existing.status === 'completed') {
+        return existing;
+      }
+
+      const now = new Date().toISOString();
+      const updatedNotes = completionNotes
+        ? existing?.notes
+          ? `${existing.notes}\n[Resolution: ${completionNotes}]`
+          : completionNotes
+        : existing?.notes;
+
       const { data, error } = await client
         .from('crm_follow_ups')
         .update({
           status: 'completed',
-          completed_at: new Date().toISOString(),
+          completed_at: now,
           completed_by: session?.user?.id || null,
+          notes: updatedNotes,
         })
-        .eq('reference_code', id)
+        .or(`reference_code.eq.${id},id.eq.${id}`)
         .select()
         .single();
 
       if (error || !data) throw new Error(`DATABASE_ERROR: ${error?.message}`);
 
       return {
-        id: data.reference_code,
+        id: data.reference_code || data.id,
         profileId: data.profile_id || '',
+        candidateId: data.match_case_id || undefined,
         personName: data.contact_person,
         contactPhone: data.contact_phone,
         type: data.follow_up_type,
@@ -745,8 +921,377 @@ class CRMRepositoryImpl implements ICRMRepository {
     const item = demoFollowUpsStore.find((f) => f.id === id);
     if (!item) throw new Error(`NOT_FOUND: Follow-up ${id} not found.`);
 
+    if (item.status === 'completed') {
+      return item; // Idempotent
+    }
+
     item.status = 'completed';
+    if (completionNotes) {
+      item.notes = item.notes ? `${item.notes}\n[Resolution: ${completionNotes}]` : completionNotes;
+    }
     return item;
+  }
+}
+
+// =============================================================================
+// Matchmaker Repository Implementation (CRM-02)
+// =============================================================================
+
+class MatchmakerRepositoryImpl implements IMatchmakerRepository {
+  async findAll(
+    session: AuthSession | null,
+    filters?: { status?: 'active' | 'suspended' | 'inactive'; city?: string }
+  ): Promise<DetailedExternalMatchmaker[]> {
+    if (!canAccessRole(session, 'nadeem') && !canAccessRole(session, 'admin')) {
+      throw new Error('UNAUTHORIZED: Only bureau staff can access partner matchmakers.');
+    }
+
+    const config = getClientConfig();
+
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+
+      let query = client
+        .from('external_matchmakers')
+        .select(`
+          *,
+          matchmaker_agreements (*)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (filters?.status) {
+        query = query.eq('status', filters.status);
+      }
+      if (filters?.city) {
+        query = query.ilike('city', `%${filters.city}%`);
+      }
+
+      const { data, error } = await query;
+      if (error || !data) return [];
+
+      return data.map((d: any) => {
+        const agreements: PartnerAgreement[] = (d.matchmaker_agreements || []).map((a: any) => ({
+          id: a.id,
+          matchmakerId: a.matchmaker_id,
+          agreementCode: a.agreement_code,
+          feeType: a.fee_type,
+          percentageRate: a.percentage_rate ? Number(a.percentage_rate) : undefined,
+          flatFeePKR: a.flat_fee_pkr ? Number(a.flat_fee_pkr) : undefined,
+          effectiveFrom: a.effective_from,
+          effectiveTo: a.effective_to || undefined,
+          termsText: a.terms_text,
+          isActive: a.is_active,
+          createdAt: a.created_at,
+        }));
+        const activeAgreement = agreements.find((a) => a.isActive);
+
+        return {
+          id: d.code || d.id,
+          code: d.code,
+          name: d.contact_person,
+          agencyName: d.agency_name,
+          city: d.city,
+          phone: d.phone,
+          email: d.email || undefined,
+          status: d.status,
+          commissionModel: d.commission_model,
+          profilesReferredCount: d.referral_count || 0,
+          successfulMatchesCount: d.terms_json?.successfulMatchesCount || 0,
+          outstandingBalancePKR: d.terms_json?.outstandingBalancePKR || 0,
+          commissionRatePercent: activeAgreement?.percentageRate || 20,
+          termsJson: d.terms_json,
+          agreements,
+          activeAgreement,
+        };
+      });
+    }
+
+    // Demo Mode
+    let items = [...demoMatchmakersStore];
+    if (filters?.status) {
+      items = items.filter((m) => m.status === filters.status);
+    }
+    if (filters?.city) {
+      items = items.filter((m) => m.city.toLowerCase().includes(filters.city!.toLowerCase()));
+    }
+    return items;
+  }
+
+  async findById(id: string, session: AuthSession | null): Promise<DetailedExternalMatchmaker | null> {
+    if (!canAccessRole(session, 'nadeem') && !canAccessRole(session, 'admin')) {
+      throw new Error('UNAUTHORIZED: Only bureau staff can access partner matchmakers.');
+    }
+
+    const all = await this.findAll(session);
+    const found = all.find((m) => m.id === id || m.code === id);
+    return found || null;
+  }
+
+  async findByCode(code: string, session: AuthSession | null): Promise<DetailedExternalMatchmaker | null> {
+    return this.findById(code, session);
+  }
+
+  async create(
+    matchmakerData: Partial<DetailedExternalMatchmaker>,
+    session: AuthSession | null
+  ): Promise<DetailedExternalMatchmaker> {
+    if (!canAccessRole(session, 'nadeem') && !canAccessRole(session, 'admin')) {
+      throw new Error('UNAUTHORIZED: Only bureau staff can register partner matchmakers.');
+    }
+
+    const config = getClientConfig();
+    const id = matchmakerData.id || `mm-${100 + demoMatchmakersStore.length + 1}`;
+    const code =
+      matchmakerData.code ||
+      `MM-${matchmakerData.city?.slice(0, 3).toUpperCase() || 'GEN'}-${Math.floor(10 + Math.random() * 90)}`;
+    const now = new Date().toISOString();
+
+    const newMatchmaker: DetailedExternalMatchmaker = {
+      id,
+      code,
+      name: matchmakerData.name || 'New Matchmaker',
+      agencyName: matchmakerData.agencyName || 'Independent Bureau',
+      city: matchmakerData.city || 'Lahore',
+      phone: matchmakerData.phone || '+92 300 0000000',
+      email: matchmakerData.email,
+      status: matchmakerData.status || 'active',
+      commissionModel: matchmakerData.commissionModel || 'percentage',
+      profilesReferredCount: 0,
+      successfulMatchesCount: 0,
+      outstandingBalancePKR: 0,
+      commissionRatePercent: matchmakerData.commissionRatePercent || 20,
+      agreements: [],
+    };
+
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+
+      const { data, error } = await client
+        .from('external_matchmakers')
+        .insert({
+          code: newMatchmaker.code,
+          agency_name: newMatchmaker.agencyName,
+          contact_person: newMatchmaker.name,
+          phone: newMatchmaker.phone,
+          email: newMatchmaker.email || null,
+          city: newMatchmaker.city,
+          status: newMatchmaker.status,
+          commission_model: newMatchmaker.commissionModel,
+          referral_count: 0,
+        })
+        .select()
+        .single();
+
+      if (error || !data) throw new Error(`DATABASE_ERROR: ${error?.message}`);
+      return {
+        ...newMatchmaker,
+        id: data.id,
+      };
+    }
+
+    demoMatchmakersStore.push(newMatchmaker);
+    return newMatchmaker;
+  }
+
+  async updateStatus(
+    id: string,
+    status: 'active' | 'suspended' | 'inactive',
+    session: AuthSession | null
+  ): Promise<DetailedExternalMatchmaker> {
+    if (!canAccessRole(session, 'nadeem') && !canAccessRole(session, 'admin')) {
+      throw new Error('UNAUTHORIZED: Only bureau staff can update partner status.');
+    }
+
+    const config = getClientConfig();
+
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+
+      const { data, error } = await client
+        .from('external_matchmakers')
+        .update({ status, updated_at: new Date().toISOString() })
+        .or(`id.eq.${id},code.eq.${id}`)
+        .select()
+        .single();
+
+      if (error || !data) throw new Error(`DATABASE_ERROR: ${error?.message}`);
+      return (await this.findById(id, session))!;
+    }
+
+    const item = demoMatchmakersStore.find((m) => m.id === id || m.code === id);
+    if (!item) throw new Error(`NOT_FOUND: External matchmaker '${id}' not found.`);
+
+    item.status = status;
+    return item;
+  }
+
+  async createAgreement(
+    matchmakerId: string,
+    agreementData: Partial<PartnerAgreement>,
+    session: AuthSession | null
+  ): Promise<PartnerAgreement> {
+    if (!canAccessRole(session, 'nadeem') && !canAccessRole(session, 'admin')) {
+      throw new Error('UNAUTHORIZED: Only bureau staff can create partner agreements.');
+    }
+
+    const config = getClientConfig();
+    const mm = await this.findById(matchmakerId, session);
+    if (!mm) throw new Error(`NOT_FOUND: External matchmaker '${matchmakerId}' not found.`);
+
+    const now = new Date().toISOString();
+    const agreementCode =
+      agreementData.agreementCode ||
+      `AGR-${mm.code.replace(/[^a-zA-Z0-9]/g, '')}-${Date.now().toString().slice(-4)}`;
+
+    const newAgreement: PartnerAgreement = {
+      id: generateCryptoUUID(),
+      matchmakerId: mm.id,
+      agreementCode,
+      feeType: agreementData.feeType || 'percentage',
+      percentageRate: agreementData.percentageRate,
+      flatFeePKR: agreementData.flatFeePKR,
+      tieredRulesJson: agreementData.tieredRulesJson,
+      effectiveFrom: agreementData.effectiveFrom || now.split('T')[0],
+      effectiveTo: agreementData.effectiveTo,
+      termsText: agreementData.termsText || 'Standard collaborative matchmaking agreement.',
+      isActive: agreementData.isActive !== false,
+      createdAt: now,
+    };
+
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+
+      // If active, supersede previous active agreements
+      if (newAgreement.isActive) {
+        await client
+          .from('matchmaker_agreements')
+          .update({ is_active: false })
+          .eq('matchmaker_id', mm.id);
+      }
+
+      const { data, error } = await client
+        .from('matchmaker_agreements')
+        .insert({
+          matchmaker_id: mm.id,
+          agreement_code: newAgreement.agreementCode,
+          fee_type: newAgreement.feeType,
+          percentage_rate: newAgreement.percentageRate || null,
+          flat_fee_pkr: newAgreement.flatFeePKR || null,
+          effective_from: newAgreement.effectiveFrom,
+          effective_to: newAgreement.effectiveTo || null,
+          terms_text: newAgreement.termsText,
+          is_active: newAgreement.isActive,
+        })
+        .select()
+        .single();
+
+      if (error || !data) throw new Error(`DATABASE_ERROR: ${error?.message}`);
+      return newAgreement;
+    }
+
+    // Demo Mode: supersede previous active agreements for this matchmaker
+    if (newAgreement.isActive) {
+      demoAgreementsStore.forEach((a) => {
+        if (a.matchmakerId === mm.id) {
+          a.isActive = false;
+        }
+      });
+      mm.agreements.forEach((a) => {
+        a.isActive = false;
+      });
+    }
+
+    demoAgreementsStore.push(newAgreement);
+    mm.agreements.unshift(newAgreement);
+    if (newAgreement.isActive) {
+      mm.activeAgreement = newAgreement;
+      mm.commissionModel = newAgreement.feeType;
+      if (newAgreement.percentageRate) {
+        mm.commissionRatePercent = newAgreement.percentageRate;
+      }
+    }
+
+    return newAgreement;
+  }
+
+  async getAgreements(matchmakerId: string, session: AuthSession | null): Promise<PartnerAgreement[]> {
+    if (!canAccessRole(session, 'nadeem') && !canAccessRole(session, 'admin')) {
+      throw new Error('UNAUTHORIZED: Only bureau staff can view partner agreements.');
+    }
+
+    const config = getClientConfig();
+
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+
+      const { data, error } = await client
+        .from('matchmaker_agreements')
+        .select('*')
+        .eq('matchmaker_id', matchmakerId)
+        .order('created_at', { ascending: false });
+
+      if (error || !data) return [];
+      return data.map((a: any) => ({
+        id: a.id,
+        matchmakerId: a.matchmaker_id,
+        agreementCode: a.agreement_code,
+        feeType: a.fee_type,
+        percentageRate: a.percentage_rate ? Number(a.percentage_rate) : undefined,
+        flatFeePKR: a.flat_fee_pkr ? Number(a.flat_fee_pkr) : undefined,
+        effectiveFrom: a.effective_from,
+        effectiveTo: a.effective_to || undefined,
+        termsText: a.terms_text,
+        isActive: a.is_active,
+        createdAt: a.created_at,
+      }));
+    }
+
+    return demoAgreementsStore
+      .filter((a) => a.matchmakerId === matchmakerId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async attributeReferral(
+    matchmakerId: string,
+    profileId: string,
+    session: AuthSession | null,
+    notes?: string
+  ): Promise<{ success: boolean; matchmaker: DetailedExternalMatchmaker }> {
+    if (!canAccessRole(session, 'nadeem') && !canAccessRole(session, 'admin')) {
+      throw new Error('UNAUTHORIZED: Only bureau staff can attribute profile referrals.');
+    }
+
+    const matchmaker = await this.findById(matchmakerId, session);
+    if (!matchmaker) {
+      throw new Error(`NOT_FOUND: External matchmaker '${matchmakerId}' not found.`);
+    }
+
+    if (matchmaker.status !== 'active') {
+      throw new Error(`MATCHMAKER_INACTIVE: Cannot attribute profile to inactive matchmaker '${matchmaker.name}'.`);
+    }
+
+    const config = getClientConfig();
+
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+
+      await client
+        .from('external_matchmakers')
+        .update({
+          referral_count: matchmaker.profilesReferredCount + 1,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', matchmaker.id);
+    }
+
+    matchmaker.profilesReferredCount += 1;
+    return { success: true, matchmaker };
   }
 }
 
@@ -1140,6 +1685,7 @@ export let profileRepository: IProfileRepository = new ProfileRepositoryImpl();
 export let financeRepository: IFinanceRepository = new FinanceRepositoryImpl();
 export let crmRepository: ICRMRepository = new CRMRepositoryImpl();
 export let matchRepository: IMatchRepository = new MatchRepositoryImpl();
+export let matchmakerRepository: IMatchmakerRepository = new MatchmakerRepositoryImpl();
 
 export function setProfileRepositoryForTesting(repo: IProfileRepository): void {
   profileRepository = repo;
@@ -1171,4 +1717,12 @@ export function setMatchRepositoryForTesting(repo: IMatchRepository): void {
 
 export function resetMatchRepositoryForTesting(): void {
   matchRepository = new MatchRepositoryImpl();
+}
+
+export function setMatchmakerRepositoryForTesting(repo: IMatchmakerRepository): void {
+  matchmakerRepository = repo;
+}
+
+export function resetMatchmakerRepositoryForTesting(): void {
+  matchmakerRepository = new MatchmakerRepositoryImpl();
 }

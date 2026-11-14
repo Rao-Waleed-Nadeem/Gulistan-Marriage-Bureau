@@ -17,6 +17,7 @@ import {
   INITIAL_TRANSACTIONS, 
   INITIAL_AUDIT_LOGS 
 } from './data/mockData';
+import { INITIAL_DETAILED_MATCHMAKERS } from './lib/repositories';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
 import { LandingPage } from './features/public/LandingPage';
@@ -81,7 +82,7 @@ export default function App() {
   const [profiles, setProfiles] = useState<ProfileRecord[]>(() => isDemo ? INITIAL_PROFILES : []);
   const [recommendations, setRecommendations] = useState<MatchRecommendation[]>(() => isDemo ? INITIAL_RECOMMENDATIONS : []);
   const [followUps, setFollowUps] = useState<FollowUpItem[]>(() => isDemo ? INITIAL_FOLLOW_UPS : []);
-  const [matchmakers, setMatchmakers] = useState<ExternalMatchmaker[]>(() => isDemo ? INITIAL_MATCHMAKERS : []);
+  const [matchmakers, setMatchmakers] = useState<ExternalMatchmaker[]>(() => isDemo ? INITIAL_DETAILED_MATCHMAKERS : []);
   const [transactions, setTransactions] = useState<FinancialTransaction[]>(() => isDemo ? INITIAL_TRANSACTIONS : []);
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>(() => isDemo ? INITIAL_AUDIT_LOGS : []);
 

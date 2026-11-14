@@ -49,3 +49,11 @@
 - Preserved strict zero-AI core matching rule (MATCH-05 / OPEN-015): core algorithm remains 100% deterministic TypeScript logic with no candidate PII dispatched to external AI.
 - Expanded automated test suite in `frontend/src/lib/matching.test.ts` (MATCH-06) covering non-defaulted criterion evaluations, safety gating in `verifyPreShareEligibility`, and end-to-end `MatchRepository` persistence.
 - Verified with 123 frontend tests, 68 backend tests (191 total passing), `tsc --noEmit` clean, and production build passing in 19.87s.
+- Implemented Refactor Workstream W6 (T-025): External matchmaker agreements, CRM and follow-ups.
+- Resolved CRM-01: Eliminated simulated setTimeout; persisted candidate profile correction requests and CRM follow-up items via `crmRepository.create` and `createFollowUp` with candidate authorization and audit trail.
+- Resolved CRM-02: Implemented typed `IMatchmakerRepository` and `MatchmakerRepositoryImpl` in `frontend/src/lib/repositories.ts` supporting persistent partner agencies (`external_matchmakers`) and versioned per-partner agreements (`matchmaker_agreements`) across percentage, flat fee, and tiered commission models with automatic deactivation of superseded agreements.
+- Resolved CRM-03: Implemented idempotent follow-up completion (`completeFollowUp` and `crmRepository.complete`) recording completion actor, ISO timestamp, and resolution notes; recorded minimal structured CRM audit events omitting phone numbers and customer PII.
+- Resolved CRM-04: Connected `frontend/src/lib/followUps.ts` and `frontend/src/features/matchmaker/NadeemDashboard.tsx` to active agreement terms (code, fee model, percentage/flat rate), partner codes, and referred candidate metrics.
+- Added comprehensive unit tests in `frontend/src/lib/followUps.test.ts` and `frontend/src/lib/repositories.test.ts` verifying agreement versioning, auto-deactivation, profile corrections, idempotent completions, referral attribution, and RLS/role denials.
+- Updated graphify code graph (`1216 nodes, 2401 edges, 76 communities`).
+- Verified with 128 frontend tests, 68 backend tests (196 total passing), `tsc --noEmit` clean (0 errors), and production build passing in 4.08s.

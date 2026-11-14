@@ -4,6 +4,7 @@ import {
   profileRepository,
   financeRepository,
   crmRepository,
+  matchmakerRepository,
   resetRepositoriesForTesting,
 } from './repositories';
 import {
@@ -208,10 +209,10 @@ test('FinanceRepository: enforces role security, records transactions and revers
   assert.equal(reversal.reversalOf, newTx.id);
 });
 
-test('CRMRepository: enforces role security, creates and completes follow-ups', async () => {
+test('CRMRepository: enforces role security, creates and completes follow-ups (CRM-01, CRM-03)', async () => {
   resetRepositoriesForTesting();
 
-  // Customer denied
+  // Customer denied general findAll
   await assert.rejects(
     async () => {
       await crmRepository.findAll(customerSession);
@@ -233,9 +234,110 @@ test('CRMRepository: enforces role security, creates and completes follow-ups', 
   );
   assert.equal(created.status, 'pending');
 
-  // Staff can complete follow-up
-  const completed = await crmRepository.complete(created.id, staffSession);
+  // Customer CAN submit profile_correction request without staff credentials (CRM-01)
+  const correction = await crmRepository.create(
+    {
+      profileId: 'GLS-101',
+      personName: 'Zahid Khan',
+      contactPhone: '+92 300 1122334',
+      type: 'profile_correction',
+      priority: 'high',
+      notes: 'Please correct family residential city.',
+    },
+    customerSession
+  );
+  assert.equal(correction.status, 'pending');
+  assert.equal(correction.type, 'profile_correction');
+
+  // findById retrieves the item
+  const found = await crmRepository.findById(created.id, staffSession);
+  assert.ok(found);
+  assert.equal(found.id, created.id);
+
+  // Staff can complete follow-up with resolution notes (CRM-03)
+  const completed = await crmRepository.complete(
+    created.id,
+    staffSession,
+    'Family confirmed tea meeting for Sunday.'
+  );
   assert.equal(completed.status, 'completed');
+  assert.ok(completed.notes.includes('Family confirmed tea meeting'));
+
+  // Idempotent retry: completing again returns the item without failing
+  const retried = await crmRepository.complete(created.id, staffSession);
+  assert.equal(retried.status, 'completed');
+});
+
+test('MatchmakerRepository: enforces role security, manages partner lifecycle, versioned agreements, and referral attribution (CRM-02)', async () => {
+  resetRepositoriesForTesting();
+
+  // 1. Customer denied
+  await assert.rejects(
+    async () => {
+      await matchmakerRepository.findAll(customerSession);
+    },
+    /UNAUTHORIZED/
+  );
+
+  // 2. Staff can query partners
+  const partners = await matchmakerRepository.findAll(staffSession);
+  assert.ok(partners.length >= 3);
+  const quran = partners.find((p) => p.id === 'mm-101');
+  assert.ok(quran);
+  assert.equal(quran.code, 'MM-MUL-01');
+  assert.ok(quran.activeAgreement);
+  assert.equal(quran.activeAgreement.feeType, 'percentage');
+  assert.equal(quran.activeAgreement.percentageRate, 20);
+
+  // findByCode
+  const byCode = await matchmakerRepository.findByCode('MM-MUL-01', staffSession);
+  assert.ok(byCode);
+  assert.equal(byCode.id, 'mm-101');
+
+  // 3. Register a new flat-fee agreement (supersedes active percentage agreement)
+  const newAgreement = await matchmakerRepository.createAgreement(
+    'mm-101',
+    {
+      feeType: 'flat_fee',
+      flatFeePKR: 60000,
+      termsText: 'PKR 60,000 flat honorarium per finalized nikah.',
+      isActive: true,
+    },
+    staffSession
+  );
+  assert.equal(newAgreement.feeType, 'flat_fee');
+  assert.equal(newAgreement.flatFeePKR, 60000);
+  assert.equal(newAgreement.isActive, true);
+
+  // Verify superseded agreement is deactivated
+  const agreements = await matchmakerRepository.getAgreements('mm-101', staffSession);
+  assert.ok(agreements.length >= 2);
+  const activeCount = agreements.filter((a) => a.isActive).length;
+  assert.equal(activeCount, 1, 'Exactly one active agreement per partner');
+  assert.equal(agreements[0].feeType, 'flat_fee');
+
+  // 4. Attribution: attribute profile referral
+  const initialReferrals = quran.profilesReferredCount;
+  const attrRes = await matchmakerRepository.attributeReferral(
+    'mm-101',
+    'GLS-205',
+    staffSession,
+    'Client referred by Multan bureau.'
+  );
+  assert.equal(attrRes.success, true);
+  assert.equal(attrRes.matchmaker.profilesReferredCount, initialReferrals + 1);
+
+  // 5. Status update: suspend partner
+  const suspended = await matchmakerRepository.updateStatus('mm-101', 'suspended', staffSession);
+  assert.equal(suspended.status, 'suspended');
+
+  // Attribution must now fail because partner is suspended
+  await assert.rejects(
+    async () => {
+      await matchmakerRepository.attributeReferral('mm-101', 'GLS-206', staffSession);
+    },
+    /MATCHMAKER_INACTIVE/
+  );
 });
 
 test('Lossless DTO/Row mapping: does not manufacture parent facts, property, or unsplash photos (DB-04, DB-05, DB-06)', () => {
