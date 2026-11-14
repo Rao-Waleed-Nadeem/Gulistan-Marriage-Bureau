@@ -522,7 +522,7 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 - [x] Documentation and queue updated with acceptance checkmarks and test metrics.
 - [x] Commit verified on `main`, SHA recorded below.
 
-**Completion record:** Completed on 2026-11-14. Upgraded `backend/scripts/smoke-test.js` replacing hardcoded booleans with live provider query probes and static migration AST policy inspection, strictly labelling simulations as `DEMO_SIMULATION`. Added `backend/tests/security_role_matrix.test.js` providing 9 negative authorization tests across anonymous, customer, matchmaker, and admin roles. Enhanced `backend/scripts/capacity-benchmark.js` with exact latency percentile distribution calculation (`calculatePercentiles`), 50-worker concurrent query simulation (`benchmarkConcurrency`), and PostgreSQL query execution plan evaluation (`evaluateQueryPlan`). Created `.github/workflows/ci.yml` CI pipeline. Updated graphify graph (`1340 nodes, 2777 edges, 88 communities`). Verified with 142 frontend tests and 84 backend tests (226 total passing), `tsc --noEmit` (0 errors), and `vite build` (3.90s). Commit SHA on main recorded below: `[pending commit]`.
+**Completion record:** Completed on 2026-11-14. Upgraded `backend/scripts/smoke-test.js` replacing hardcoded booleans with live provider query probes and static migration AST policy inspection, strictly labelling simulations as `DEMO_SIMULATION`. Added `backend/tests/security_role_matrix.test.js` providing 9 negative authorization tests across anonymous, customer, matchmaker, and admin roles. Enhanced `backend/scripts/capacity-benchmark.js` with exact latency percentile distribution calculation (`calculatePercentiles`), 50-worker concurrent query simulation (`benchmarkConcurrency`), and PostgreSQL query execution plan evaluation (`evaluateQueryPlan`). Created `.github/workflows/ci.yml` CI pipeline. Updated graphify graph (`1340 nodes, 2777 edges, 88 communities`). Verified with 142 frontend tests and 84 backend tests (226 total passing), `tsc --noEmit` (0 errors), and `vite build` (3.90s). Commit SHA on main recorded below: `8388e3e`.
 
 ### T-030 — Backup, restore, monitoring, Android/RTL and final release
 **Status:** READY  
@@ -564,4 +564,4 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-11-14 | T-026 | DONE | 3c9ce20 | Refactor W7: Financial ledger correctness, sub-ledger model & reconciliation; 198 tests passed. |
 | 2026-11-14 | T-027 | DONE | 497670a | Refactor W7: Frontend app & feature-boundary refactor; 200 tests passed. |
 | 2026-11-14 | T-028 | DONE | 01baf99 | Refactor W8: Staged WhatsApp and phone-gallery migration; 214 tests passed. |
-| 2026-11-14 | T-029 | DONE | [pending] | Refactor W9: Real integration tests, security tests, CI & capacity; 226 tests passed. |
+| 2026-11-14 | T-029 | DONE | 8388e3e | Refactor W9: Real integration tests, security tests, CI & capacity; 226 tests passed. |
