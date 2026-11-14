@@ -19,6 +19,7 @@ import {
   PartnerAgreement,
   PartnerAgreementFeeType,
   PartnerCommissionModel,
+  AuditLogItem,
 } from '../types';
 import { FinancialTransaction } from '../utils/finance';
 import { AuthSession, canAccessRole } from './auth';
@@ -39,7 +40,9 @@ import {
   INITIAL_FOLLOW_UPS,
   INITIAL_TRANSACTIONS,
   INITIAL_MATCHMAKERS,
+  INITIAL_AUDIT_LOGS,
 } from '../data/mockData';
+export type { PartnerLedgerSummary, BureauReconciliationSummary };
 import {
   PartnerLedgerSummary,
   BureauReconciliationSummary,
@@ -174,6 +177,33 @@ export interface IMatchRepository {
   } | null>;
 }
 
+export interface RegionalLandConventions {
+  marlaPerKanal: number;
+  sqFtPerMarla: number;
+}
+
+export interface AppSettings {
+  regionalConventions: RegionalLandConventions;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+export interface ISettingsRepository {
+  getSettings(session: AuthSession | null): Promise<AppSettings>;
+  updateRegionalConventions(
+    conventions: RegionalLandConventions,
+    session: AuthSession | null
+  ): Promise<AppSettings>;
+}
+
+export interface IAuditRepository {
+  findAll(session: AuthSession | null, limit?: number): Promise<AuditLogItem[]>;
+  record(
+    logData: Omit<AuditLogItem, 'id' | 'timestamp'>,
+    session: AuthSession | null
+  ): Promise<AuditLogItem>;
+}
+
 // =============================================================================
 // In-Memory Demo Storage (Isolated to local development & tests)
 // =============================================================================
@@ -242,6 +272,15 @@ let demoMatchmakersStore: DetailedExternalMatchmaker[] = INITIAL_DETAILED_MATCHM
   activeAgreement: m.activeAgreement ? { ...m.activeAgreement } : undefined,
 }));
 let demoAgreementsStore: PartnerAgreement[] = [...INITIAL_PARTNER_AGREEMENTS];
+let demoSettingsStore: AppSettings = {
+  regionalConventions: {
+    marlaPerKanal: 20,
+    sqFtPerMarla: 225,
+  },
+  updatedAt: '2026-10-24T00:00:00Z',
+  updatedBy: 'system',
+};
+let demoAuditLogsStore: AuditLogItem[] = [...INITIAL_AUDIT_LOGS];
 
 export function resetRepositoriesForTesting(): void {
   demoProfilesStore = [...INITIAL_PROFILES];
@@ -256,6 +295,15 @@ export function resetRepositoriesForTesting(): void {
     activeAgreement: m.activeAgreement ? { ...m.activeAgreement } : undefined,
   }));
   demoAgreementsStore = [...INITIAL_PARTNER_AGREEMENTS];
+  demoSettingsStore = {
+    regionalConventions: {
+      marlaPerKanal: 20,
+      sqFtPerMarla: 225,
+    },
+    updatedAt: '2026-10-24T00:00:00Z',
+    updatedBy: 'system',
+  };
+  demoAuditLogsStore = [...INITIAL_AUDIT_LOGS];
 }
 
 // =============================================================================
@@ -1762,6 +1810,176 @@ class MatchRepositoryImpl implements IMatchRepository {
   }
 }
 
+class SettingsRepositoryImpl implements ISettingsRepository {
+  async getSettings(_session: AuthSession | null): Promise<AppSettings> {
+    const config = getClientConfig();
+    const supabase = getSupabaseClient();
+    if (config.mode === 'backend' && supabase) {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('*')
+        .eq('key', 'regional_conventions')
+        .maybeSingle();
+
+      if (error) {
+        console.error('[Gulistan] Failed to query app_settings:', error.message);
+        throw new Error(`Failed to load app settings: ${error.message}`);
+      }
+
+      if (data && data.value_json) {
+        return {
+          regionalConventions: data.value_json as RegionalLandConventions,
+          updatedAt: data.updated_at,
+          updatedBy: data.updated_by,
+        };
+      }
+    }
+    return {
+      regionalConventions: { ...demoSettingsStore.regionalConventions },
+      updatedAt: demoSettingsStore.updatedAt,
+      updatedBy: demoSettingsStore.updatedBy,
+    };
+  }
+
+  async updateRegionalConventions(
+    conventions: RegionalLandConventions,
+    session: AuthSession | null
+  ): Promise<AppSettings> {
+    if (!session || !session.isAuthenticated || !canAccessRole(session, 'admin')) {
+      throw new Error('Unauthorized: Only administrators can update regional land conventions.');
+    }
+
+    if (!conventions || typeof conventions.marlaPerKanal !== 'number' || conventions.marlaPerKanal <= 0) {
+      throw new Error('Validation failed: marlaPerKanal must be a positive number.');
+    }
+    if (typeof conventions.sqFtPerMarla !== 'number' || conventions.sqFtPerMarla <= 0) {
+      throw new Error('Validation failed: sqFtPerMarla must be a positive number.');
+    }
+
+    const config = getClientConfig();
+    const supabase = getSupabaseClient();
+    const now = new Date().toISOString();
+    const actorId = session.user?.id || 'admin';
+
+    if (config.mode === 'backend' && supabase) {
+      const { error } = await supabase
+        .from('app_settings')
+        .upsert({
+          key: 'regional_conventions',
+          value_json: conventions,
+          description: 'Regional land unit calculation conventions',
+          updated_at: now,
+          updated_by: session.user?.id || null,
+        });
+
+      if (error) {
+        console.error('[Gulistan] Failed to persist app_settings:', error.message);
+        throw new Error(`Failed to persist settings: ${error.message}`);
+      }
+    }
+
+    demoSettingsStore = {
+      regionalConventions: { ...conventions },
+      updatedAt: now,
+      updatedBy: actorId,
+    };
+
+    // Record audit event
+    await auditRepository.record(
+      {
+        actor: session.user?.email || 'admin@gulistan.pk',
+        role: 'System Administrator',
+        action: 'REGIONAL_CONVENTIONS_UPDATED',
+        targetId: 'regional_conventions',
+        details: `Updated conventions: ${conventions.marlaPerKanal} Marlas/Kanal, ${conventions.sqFtPerMarla} SqFt/Marla.`,
+      },
+      session
+    );
+
+    return {
+      regionalConventions: { ...demoSettingsStore.regionalConventions },
+      updatedAt: demoSettingsStore.updatedAt,
+      updatedBy: demoSettingsStore.updatedBy,
+    };
+  }
+}
+
+class AuditRepositoryImpl implements IAuditRepository {
+  async findAll(session: AuthSession | null, limit: number = 100): Promise<AuditLogItem[]> {
+    if (!session || !session.isAuthenticated || (session.role !== 'admin' && session.role !== 'nadeem')) {
+      throw new Error('Unauthorized: Audit logs can only be inspected by authorized administrative or matchmaker staff.');
+    }
+
+    const config = getClientConfig();
+    const supabase = getSupabaseClient();
+    if (config.mode === 'backend' && supabase) {
+      const { data, error } = await supabase
+        .from('audit_events')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        console.error('[Gulistan] Failed to query audit_events:', error.message);
+        throw new Error(`Failed to query audit trail: ${error.message}`);
+      }
+
+      return (data || []).map((row: any) => ({
+        id: row.id,
+        timestamp: row.created_at ? row.created_at.replace('T', ' ').slice(0, 19) : new Date().toISOString().replace('T', ' ').slice(0, 19),
+        actor: row.actor_id || 'system',
+        role: row.actor_role,
+        action: row.action,
+        targetId: row.target_id,
+        details: row.details || '',
+      }));
+    }
+
+    return [...demoAuditLogsStore].slice(0, limit);
+  }
+
+  async record(
+    logData: Omit<AuditLogItem, 'id' | 'timestamp'>,
+    session: AuthSession | null
+  ): Promise<AuditLogItem> {
+    const config = getClientConfig();
+    const supabase = getSupabaseClient();
+    const now = new Date().toISOString();
+    const id = `AUD-${Date.now()}-${generateCryptoUUID().slice(0, 6)}`;
+    const actorEmail = session?.user?.email || logData.actor || 'system@gulistan.pk';
+    const actorRole = session?.role || logData.role || 'system';
+
+    const item: AuditLogItem = {
+      id,
+      timestamp: now.replace('T', ' ').slice(0, 19),
+      actor: actorEmail,
+      role: actorRole,
+      action: logData.action,
+      targetId: logData.targetId,
+      details: logData.details,
+    };
+
+    if (config.mode === 'backend' && supabase) {
+      const { error } = await supabase.from('audit_events').insert({
+        actor_id: session?.user?.id || null,
+        actor_role: actorRole,
+        action: logData.action,
+        target_type: logData.targetId.split('-')[0] || 'entity',
+        target_id: logData.targetId,
+        details: logData.details,
+        created_at: now,
+      });
+
+      if (error) {
+        console.error('[Gulistan] Failed to insert audit_events:', error.message);
+      }
+    }
+
+    demoAuditLogsStore = [item, ...demoAuditLogsStore];
+    return item;
+  }
+}
+
 // =============================================================================
 // Singleton Instances & Testing Hooks
 // =============================================================================
@@ -1771,6 +1989,8 @@ export let financeRepository: IFinanceRepository = new FinanceRepositoryImpl();
 export let crmRepository: ICRMRepository = new CRMRepositoryImpl();
 export let matchRepository: IMatchRepository = new MatchRepositoryImpl();
 export let matchmakerRepository: IMatchmakerRepository = new MatchmakerRepositoryImpl();
+export let settingsRepository: ISettingsRepository = new SettingsRepositoryImpl();
+export let auditRepository: IAuditRepository = new AuditRepositoryImpl();
 
 export function setProfileRepositoryForTesting(repo: IProfileRepository): void {
   profileRepository = repo;
@@ -1810,4 +2030,20 @@ export function setMatchmakerRepositoryForTesting(repo: IMatchmakerRepository): 
 
 export function resetMatchmakerRepositoryForTesting(): void {
   matchmakerRepository = new MatchmakerRepositoryImpl();
+}
+
+export function setSettingsRepositoryForTesting(repo: ISettingsRepository): void {
+  settingsRepository = repo;
+}
+
+export function resetSettingsRepositoryForTesting(): void {
+  settingsRepository = new SettingsRepositoryImpl();
+}
+
+export function setAuditRepositoryForTesting(repo: IAuditRepository): void {
+  auditRepository = repo;
+}
+
+export function resetAuditRepositoryForTesting(): void {
+  auditRepository = new AuditRepositoryImpl();
 }

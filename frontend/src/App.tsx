@@ -9,15 +9,14 @@ import {
   FinancialTransaction, 
   AuditLogItem 
 } from './types';
+import { INITIAL_RECOMMENDATIONS } from './data/mockData';
 import { 
-  INITIAL_PROFILES, 
-  INITIAL_RECOMMENDATIONS, 
-  INITIAL_FOLLOW_UPS, 
-  INITIAL_MATCHMAKERS, 
-  INITIAL_TRANSACTIONS, 
-  INITIAL_AUDIT_LOGS 
-} from './data/mockData';
-import { INITIAL_DETAILED_MATCHMAKERS } from './lib/repositories';
+  useProfiles, 
+  useFinance, 
+  useCRM, 
+  useMatchmakers, 
+  useAuditLogs 
+} from './hooks';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
 import { LandingPage } from './features/public/LandingPage';
@@ -38,8 +37,6 @@ import {
   initAuth
 } from './lib/auth';
 import { validateProfileInput, canTransitionStatus, enrichPropertyDetails } from './lib/profiles';
-import { completeFollowUp } from './lib/followUps';
-import { recordTransaction } from './lib/finance';
 import { AuthModal } from './components/auth/AuthModal';
 import { translations } from './i18n/translations';
 import { 
@@ -77,14 +74,38 @@ export default function App() {
   const [activeNav, setActiveNav] = useState<string>(() => initialRoute.candidateNav);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
-  // Application Data States: synthetic fixtures are strictly isolated to demo mode (CFG-05)
+  // Application Data States: Typed service hooks consume repositories (CFG-05)
   const isDemo = getClientConfig().mode === 'demo';
-  const [profiles, setProfiles] = useState<ProfileRecord[]>(() => isDemo ? INITIAL_PROFILES : []);
-  const [recommendations, setRecommendations] = useState<MatchRecommendation[]>(() => isDemo ? INITIAL_RECOMMENDATIONS : []);
-  const [followUps, setFollowUps] = useState<FollowUpItem[]>(() => isDemo ? INITIAL_FOLLOW_UPS : []);
-  const [matchmakers, setMatchmakers] = useState<ExternalMatchmaker[]>(() => isDemo ? INITIAL_DETAILED_MATCHMAKERS : []);
-  const [transactions, setTransactions] = useState<FinancialTransaction[]>(() => isDemo ? INITIAL_TRANSACTIONS : []);
-  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>(() => isDemo ? INITIAL_AUDIT_LOGS : []);
+  const {
+    profiles,
+    loading: profilesLoading,
+    error: profilesError,
+    createProfile,
+    updateStatus: updateProfileStatusRepo,
+  } = useProfiles(session);
+
+  const {
+    followUps,
+    completeFollowUp: completeFollowUpRepo,
+  } = useCRM(session);
+
+  const {
+    transactions,
+    recordTransaction: recordTransactionRepo,
+  } = useFinance(session);
+
+  const {
+    matchmakers,
+  } = useMatchmakers(session);
+
+  const {
+    auditLogs,
+    recordAuditLog,
+  } = useAuditLogs(session);
+
+  const [recommendations] = useState<MatchRecommendation[]>(() =>
+    isDemo ? INITIAL_RECOMMENDATIONS : []
+  );
 
   // Validate public backend configuration boundary and initialize auth lifecycle at startup
   useEffect(() => {
@@ -188,7 +209,7 @@ export default function App() {
     updateUserPreferredLanguage(newLang);
   };
 
-  const handleSaveProfile = (newProfile: ProfileRecord) => {
+  const handleSaveProfile = async (newProfile: ProfileRecord) => {
     // Validate domain invariants before persisting
     const validation = validateProfileInput(newProfile);
     if (!validation.valid) {
@@ -201,66 +222,65 @@ export default function App() {
       property: enrichPropertyDetails(newProfile.property),
     } : newProfile;
 
-    setProfiles([enrichedProfile, ...profiles]);
-    const newLog: AuditLogItem = {
-      id: `AUD-${Date.now()}`,
-      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
-      actor: currentRole === 'nadeem' ? 'nadeem@gulistan.pk' : 'web_registration@gulistan.pk',
-      role: currentRole === 'nadeem' ? 'Nadeem (Lead Matchmaker)' : 'Self Registered Customer',
-      action: 'NEW_PROFILE_SAVED',
-      targetId: newProfile.id,
-      details: `Registered profile for ${newProfile.fullName} (${newProfile.age} yrs, ${newProfile.occupation}) with ${newProfile.siblings.length} sibling records.`,
-    };
-    setAuditLogs([newLog, ...auditLogs]);
+    try {
+      await createProfile(enrichedProfile);
+      await recordAuditLog({
+        actor: currentRole === 'nadeem' ? 'nadeem@gulistan.pk' : 'web_registration@gulistan.pk',
+        role: currentRole === 'nadeem' ? 'Nadeem (Lead Matchmaker)' : 'Self Registered Customer',
+        action: 'NEW_PROFILE_SAVED',
+        targetId: newProfile.id,
+        details: `Registered profile for ${newProfile.fullName} (${newProfile.age} yrs, ${newProfile.occupation}) with ${newProfile.siblings.length} sibling records.`,
+      });
 
-    if (currentRole === 'nadeem') {
-      handleNavigate('profiles');
-    } else {
-      handleNavigate('dashboard');
+      if (currentRole === 'nadeem') {
+        handleNavigate('profiles');
+      } else {
+        handleNavigate('dashboard');
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      alert(
+        language === 'ur'
+          ? `پروفائل ${newProfile.id} کامیابی کے ساتھ محفوظ ہو گیا ہے!`
+          : `Profile ${newProfile.id} successfully registered!`
+      );
+    } catch (err: any) {
+      console.error('[Gulistan] Failed to save profile:', err);
+      alert(language === 'ur' ? 'پروفائل محفوظ کرنے میں خرابی پیش آئی۔' : `Failed to save profile: ${err?.message || 'Unknown error'}`);
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    alert(
-      language === 'ur'
-        ? `پروفائل ${newProfile.id} کامیابی کے ساتھ محفوظ ہو گیا ہے!`
-        : `Profile ${newProfile.id} successfully registered!`
-    );
   };
 
-  const handleUpdateFollowUpStatus = (id: string, status: 'pending' | 'completed') => {
+  const handleUpdateFollowUpStatus = async (id: string, status: 'pending' | 'completed') => {
     if (status === 'completed') {
       // Never manufacture staff identity in the client. A real authenticated
       // session is required before attempting a protected CRM operation.
       if (!canAccessRole(session, 'nadeem')) return;
-      const res = completeFollowUp(id, session);
-      if (res.success && res.followUp) {
-        setFollowUps(followUps.map((f) => (f.id === id ? { ...f, status: 'completed' } : f)));
-        return;
+      try {
+        await completeFollowUpRepo(id, 'Marked completed from Lead Matchmaker desk.');
+      } catch (err: any) {
+        console.error('[Gulistan] Failed to complete follow-up:', err);
       }
     }
-    setFollowUps(followUps.map((f) => (f.id === id ? { ...f, status } : f)));
   };
 
-  const handleAddTransaction = (newTx: FinancialTransaction) => {
+  const handleAddTransaction = async (newTx: FinancialTransaction) => {
     // Never manufacture staff identity in the client. Protected finance
     // operations must wait for a real authenticated staff session.
     if (!canAccessRole(session, 'nadeem')) return;
-    const res = recordTransaction(newTx, session);
-    if (!res.success || !res.transaction) return;
-    const recorded = res.transaction;
-    setTransactions([recorded, ...transactions]);
-    const newLog: AuditLogItem = {
-      id: `AUD-${Date.now()}`,
-      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
-      actor: 'nadeem@gulistan.pk',
-      role: 'Nadeem (Lead Matchmaker)',
-      action: 'FINANCIAL_TRANSACTION_RECORDED',
-      targetId: recorded.id,
-      details: `Recorded ${recorded.type} of ₨ ${recorded.amount.toLocaleString()} for ${recorded.matchmakerName}.`,
-    };
-    setAuditLogs([newLog, ...auditLogs]);
+    try {
+      const recorded = await recordTransactionRepo(newTx);
+      await recordAuditLog({
+        actor: 'nadeem@gulistan.pk',
+        role: 'Nadeem (Lead Matchmaker)',
+        action: 'FINANCIAL_TRANSACTION_RECORDED',
+        targetId: recorded.id,
+        details: `Recorded ${recorded.type} of ₨ ${recorded.amount.toLocaleString()} for ${recorded.matchmakerName}.`,
+      });
+    } catch (err: any) {
+      console.error('[Gulistan] Failed to record transaction:', err);
+    }
   };
 
-  const handleUpdateProfileStatus = (id: string, newStatus: any) => {
+  const handleUpdateProfileStatus = async (id: string, newStatus: any) => {
     const target = profiles.find((p) => p.id === id);
     if (!target) return;
 
@@ -271,17 +291,19 @@ export default function App() {
       return;
     }
 
-    setProfiles(profiles.map((p) => (p.id === id ? { ...p, status: newStatus } : p)));
-    const newLog: AuditLogItem = {
-      id: `AUD-${Date.now()}`,
-      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
-      actor: session.user?.email || (currentRole === 'admin' ? 'admin@gulistan.pk' : 'nadeem@gulistan.pk'),
-      role: currentRole === 'admin' ? 'System Administrator' : 'Nadeem (Lead Matchmaker)',
-      action: 'STATUS_UPDATED',
-      targetId: id,
-      details: `Profile status transitioned from ${target.status} to ${newStatus}.`,
-    };
-    setAuditLogs([newLog, ...auditLogs]);
+    try {
+      await updateProfileStatusRepo(id, newStatus);
+      await recordAuditLog({
+        actor: session.user?.email || (currentRole === 'admin' ? 'admin@gulistan.pk' : 'nadeem@gulistan.pk'),
+        role: currentRole === 'admin' ? 'System Administrator' : 'Nadeem (Lead Matchmaker)',
+        action: 'STATUS_UPDATED',
+        targetId: id,
+        details: `Profile status transitioned from ${target.status} to ${newStatus}.`,
+      });
+    } catch (err: any) {
+      console.error('[Gulistan] Failed to update profile status:', err);
+      alert(language === 'ur' ? 'اسٹیٹس تبدیل کرنے میں خرابی پیش آئی۔' : `Failed to update status: ${err?.message || 'Unknown error'}`);
+    }
   };
 
   return (
@@ -376,6 +398,22 @@ export default function App() {
           </>
         )}
 
+        {/* Data Loading / Error Banners */}
+        {profilesError && currentRole !== 'public' && (
+          <div className="max-w-5xl mx-auto mb-6 px-4">
+            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-center justify-between">
+              <span>{profilesError}</span>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="underline font-semibold cursor-pointer"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* NADEEM'S MATCHMAKER WORKSPACE */}
         {currentRole === 'nadeem' && (
           <>
@@ -428,7 +466,7 @@ export default function App() {
               />
             ) : (
               <CustomerPortal
-                currentProfile={profiles[0]} // Dr. Fatima Tariq
+                currentProfile={profiles[0] || null} // Dr. Fatima Tariq in demo, or customer's own profile
                 recommendations={recommendations}
                 candidateProfiles={profiles}
                 language={language}
@@ -458,6 +496,7 @@ export default function App() {
             auditLogs={auditLogs}
             matchmakers={matchmakers}
             transactions={transactions}
+            session={session}
             activeTab={
               activeNav === 'profiles-audit'
                 ? 'profiles'

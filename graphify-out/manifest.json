@@ -168,9 +168,9 @@
     "semantic_hash": "197cb9a653ccaf341e2a7aa9eae46a79"
   },
   "frontend/src/App.tsx": {
-    "mtime": 1794649786.7949922,
-    "seen": 1794649969.9290001,
-    "ast_hash": "fa9b94ea3732820edab11cd43ac492ac",
+    "mtime": 1794653083.9504914,
+    "seen": 1794653162.7751765,
+    "ast_hash": "60cfefc9e3999e6e50a39bd87d3083a8",
     "semantic_hash": ""
   },
   "frontend/src/components/auth/AuthModal.tsx": {
@@ -228,15 +228,15 @@
     "semantic_hash": ""
   },
   "frontend/src/features/admin/AdminPortal.tsx": {
-    "mtime": 1792782723.5065947,
-    "seen": 1794580988.7395577,
-    "ast_hash": "b284561f3246117e6a9590e3a198dbfb",
-    "semantic_hash": "b284561f3246117e6a9590e3a198dbfb"
+    "mtime": 1794652750.6653762,
+    "seen": 1794653162.7751765,
+    "ast_hash": "74b35f5bcfc5159213756d594c1bd5bf",
+    "semantic_hash": ""
   },
   "frontend/src/features/customer/CustomerPortal.tsx": {
-    "mtime": 1794590114.0955884,
-    "seen": 1794592657.6089206,
-    "ast_hash": "d3820926635210e2a6dc040d41e9ed48",
+    "mtime": 1794652945.1110072,
+    "seen": 1794653162.7751765,
+    "ast_hash": "0acd1f3365069e2565ab9c48fa7b780f",
     "semantic_hash": ""
   },
   "frontend/src/features/matchmaker/BestMatchView.tsx": {
@@ -258,9 +258,9 @@
     "semantic_hash": ""
   },
   "frontend/src/features/matchmaker/NadeemDashboard.tsx": {
-    "mtime": 1794651066.4264004,
-    "seen": 1794651456.7810402,
-    "ast_hash": "4f9e4e20e8fd16c9736a1eac16e0404a",
+    "mtime": 1794652899.5196583,
+    "seen": 1794653162.7751765,
+    "ast_hash": "8fb97ab5f7e88404321a3e49b6483270",
     "semantic_hash": ""
   },
   "frontend/src/features/matchmaker/ProfileWizard.tsx": {
@@ -408,15 +408,15 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/repositories.test.ts": {
-    "mtime": 1794651318.656765,
-    "seen": 1794651456.7810402,
-    "ast_hash": "c4cf59a02d5403de51a8b5bb423dbd76",
+    "mtime": 1794652413.4680421,
+    "seen": 1794653162.7751765,
+    "ast_hash": "ec470019a86066896de89e28c31a8e82",
     "semantic_hash": ""
   },
   "frontend/src/lib/repositories.ts": {
-    "mtime": 1794651187.2711163,
-    "seen": 1794651456.7810402,
-    "ast_hash": "1290a3be5b1afd19079bd4534a721ca4",
+    "mtime": 1794652545.2594056,
+    "seen": 1794653162.7751765,
+    "ast_hash": "c7e4d5cff0cf2fc0099ead6b521e3af8",
     "semantic_hash": ""
   },
   "frontend/src/lib/supabaseClient.ts": {
@@ -498,9 +498,9 @@
     "semantic_hash": "fc8693b1181e22fd075f3b6a398ccb1e"
   },
   "BIBLE/CHANGELOG.md": {
-    "mtime": 1794650048.2233536,
-    "seen": 1794651456.7810402,
-    "ast_hash": "4d1a425d39133c55752db8da2f92b6ce",
+    "mtime": 1794651511.2220979,
+    "seen": 1794653162.7751765,
+    "ast_hash": "0a636eca969ea5b224fb4d490ee4e964",
     "semantic_hash": ""
   },
   "BIBLE/DECISION-REGISTER.md": {
@@ -552,9 +552,9 @@
     "semantic_hash": "90ed0df6b9ec018107ca7def5db8c206"
   },
   "backend/AGENT_TASK_QUEUE.md": {
-    "mtime": 1794650165.33325,
-    "seen": 1794651456.7810402,
-    "ast_hash": "d32ee3c18f7b3d9385d665a785af9028",
+    "mtime": 1794651637.102765,
+    "seen": 1794653162.7751765,
+    "ast_hash": "6553f0e0c68616436e020e2cfb0f6da1",
     "semantic_hash": ""
   },
   "backend/README.md": {
@@ -741,6 +741,48 @@
     "mtime": 1794596074.7005322,
     "seen": 1794597609.9589164,
     "ast_hash": "3726fd5ecd08475b7e40a593e7d2e1af",
+    "semantic_hash": ""
+  },
+  "frontend/src/hooks/index.ts": {
+    "mtime": 1794652518.2566214,
+    "seen": 1794653162.7751765,
+    "ast_hash": "43bde54d56667ffce1e4a99c3eb14e6e",
+    "semantic_hash": ""
+  },
+  "frontend/src/hooks/useAuditLogs.ts": {
+    "mtime": 1794652510.8895836,
+    "seen": 1794653162.7751765,
+    "ast_hash": "8ef5408d1ecaf4c37b2e96700b866e15",
+    "semantic_hash": ""
+  },
+  "frontend/src/hooks/useCRM.ts": {
+    "mtime": 1794652476.27929,
+    "seen": 1794653162.7751765,
+    "ast_hash": "3c8b708273517dc18ceca93c36f385aa",
+    "semantic_hash": ""
+  },
+  "frontend/src/hooks/useFinance.ts": {
+    "mtime": 1794652462.0282366,
+    "seen": 1794653162.7751765,
+    "ast_hash": "d1812a44bf3320a12b87aed598a0b779",
+    "semantic_hash": ""
+  },
+  "frontend/src/hooks/useMatchmakers.ts": {
+    "mtime": 1794652492.3135056,
+    "seen": 1794653162.7751765,
+    "ast_hash": "18871b0118997d3c1c7bf17891257e44",
+    "semantic_hash": ""
+  },
+  "frontend/src/hooks/useProfiles.ts": {
+    "mtime": 1794652443.9296534,
+    "seen": 1794653162.7751765,
+    "ast_hash": "19fbd0acf5a916527d143ebb342ce9ad",
+    "semantic_hash": ""
+  },
+  "frontend/src/hooks/useSettings.ts": {
+    "mtime": 1794652502.3675077,
+    "seen": 1794653162.7751765,
+    "ast_hash": "b05962398c067a95a89ca63430d24b6f",
     "semantic_hash": ""
   },
   "frontend/package-lock.json": {

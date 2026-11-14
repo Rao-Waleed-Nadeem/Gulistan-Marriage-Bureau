@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 interface CustomerPortalProps {
-  currentProfile: ProfileRecord;
+  currentProfile?: ProfileRecord | null;
   recommendations: MatchRecommendation[];
   candidateProfiles: ProfileRecord[];
   language: Language;
@@ -58,19 +58,28 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
   const [selectedCandidate, setSelectedCandidate] = useState<ProfileRecord | null>(null);
 
   // Privacy toggles
-  const [photoConsent, setPhotoConsent] = useState(currentProfile.photoPermissionGranted);
+  const [photoConsent, setPhotoConsent] = useState(currentProfile?.photoPermissionGranted ?? false);
   const [contactConsent, setContactConsent] = useState(false);
   const [correctionNote, setCorrectionNote] = useState('');
   const [isRequestSent, setIsRequestSent] = useState(false);
 
+  // Synchronize photo consent if currentProfile changes
+  React.useEffect(() => {
+    if (currentProfile) {
+      setPhotoConsent(currentProfile.photoPermissionGranted);
+    }
+  }, [currentProfile?.id, currentProfile?.photoPermissionGranted]);
+
   // Authorized recommendations for this user
-  const userRecs = recommendations.filter(
-    (r) => r.requestingProfileId === currentProfile.id || r.candidateProfileId === currentProfile.id
-  );
+  const userRecs = currentProfile
+    ? recommendations.filter(
+        (r) => r.requestingProfileId === currentProfile.id || r.candidateProfileId === currentProfile.id
+      )
+    : [];
 
   const handleSendCorrection = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!correctionNote.trim()) return;
+    if (!currentProfile || !correctionNote.trim()) return;
     setIsRequestSent(true);
     try {
       await crmRepository.create({
@@ -89,6 +98,24 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
       alert(language === 'ur' ? 'درخواست بھیجنے میں خرابی پیش آئی۔' : 'Failed to submit correction request.');
     }
   };
+
+  if (!currentProfile) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-16 text-center">
+        <div className="p-8 porcelain-card rounded-3xl space-y-4">
+          <ShieldCheck className="w-12 h-12 text-[#B69A62] mx-auto" />
+          <h3 className="font-serif text-2xl font-bold text-[#182848]">
+            {language === 'ur' ? 'پروفائل زیر التواء یا غیر فعال ہے' : 'Candidate Profile Not Found or Pending Review'}
+          </h3>
+          <p className="text-xs sm:text-sm text-[#68716D] max-w-md mx-auto">
+            {language === 'ur'
+              ? 'آپ کے اکاؤنٹ کے ساتھ کوئی فعال پروفائل منسلک نہیں ہے۔ براہ کرم بیورو دفتر یا ندیم صاحب سے رابطہ کریں۔'
+              : 'No verified active candidate profile is currently linked to your customer session. Please contact the bureau office for onboarding.'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

@@ -17,6 +17,7 @@ import { MatchReview } from './MatchReview';
 import { FollowUpsView } from './FollowUpsView';
 import { BestMatchView } from './BestMatchView';
 import { formatPKR } from '../../utils/finance';
+import { generateCryptoUUID } from '../../lib/crypto';
 import { 
   UserPlus, 
   Search, 
@@ -131,7 +132,10 @@ export const NadeemDashboard: React.FC<NadeemDashboardProps> = ({
     return matchesSearch && matchesGender && matchesCity && matchesCaste;
   });
 
-  const dueFollowUps = followUps.filter((f) => f.dueDate === '2026-10-23' || f.priority === 'high');
+  const todayStr = new Date().toISOString().split('T')[0];
+  const dueFollowUps = followUps.filter(
+    (f) => f.status === 'pending' && (f.priority === 'high' || f.dueDate <= todayStr)
+  );
 
   const handleLaunchMatchReview = (profile: ProfileRecord) => {
     // Pick an opposite gender candidate
@@ -152,7 +156,7 @@ export const NadeemDashboard: React.FC<NadeemDashboardProps> = ({
     e.preventDefault();
     const mm = matchmakers.find((m) => m.id === newTxMatchmakerId) || matchmakers[0];
     const newTx: FinancialTransaction = {
-      id: `TX-${Math.floor(810 + Math.random() * 90)}`,
+      id: `TX-${generateCryptoUUID().slice(0, 8)}`,
       matchmakerId: mm.id,
       matchmakerName: mm.name,
       date: new Date().toISOString().split('T')[0],
@@ -308,28 +312,36 @@ export const NadeemDashboard: React.FC<NadeemDashboardProps> = ({
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {dueFollowUps.map((fu) => (
-                  <div key={fu.id} className="rounded-2xl border border-amber-200/40 bg-white/60 backdrop-blur-md p-4 text-xs space-y-2 shadow-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-sm text-[#182848]">{fu.personName}</span>
-                      <a href={`tel:${fu.contactPhone}`} dir="ltr" className="font-mono text-xs font-semibold text-[#182848] hover:underline">
-                        {fu.contactPhone}
-                      </a>
-                    </div>
-                    <p className="text-[#252E2C] italic">"{fu.notes}"</p>
-                    <div className="flex items-center justify-between pt-2 border-t border-[#E7E2D8]">
-                      <span className="text-[10px] text-amber-800 font-semibold uppercase">{fu.type.replace('_', ' ')}</span>
-                      <button
-                        type="button"
-                        onClick={() => onUpdateFollowUpStatus(fu.id, 'completed')}
-                        className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-800 border border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer"
-                      >
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                        <span>{isRTL ? 'مکمل ہو گیا' : 'Mark Done'}</span>
-                      </button>
-                    </div>
+                {dueFollowUps.length === 0 ? (
+                  <div className="col-span-full p-6 text-center text-xs text-amber-900/80 bg-white/40 rounded-2xl border border-amber-200/40">
+                    {isRTL
+                      ? 'کوئی فوری فالو اپ زیر التواء نہیں ہے۔ تمام امور نمٹ چکے ہیں!'
+                      : 'No urgent follow-ups pending today. All tasks are up to date!'}
                   </div>
-                ))}
+                ) : (
+                  dueFollowUps.map((fu) => (
+                    <div key={fu.id} className="rounded-2xl border border-amber-200/40 bg-white/60 backdrop-blur-md p-4 text-xs space-y-2 shadow-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-sm text-[#182848]">{fu.personName}</span>
+                        <a href={`tel:${fu.contactPhone}`} dir="ltr" className="font-mono text-xs font-semibold text-[#182848] hover:underline">
+                          {fu.contactPhone}
+                        </a>
+                      </div>
+                      <p className="text-[#252E2C] italic">"{fu.notes}"</p>
+                      <div className="flex items-center justify-between pt-2 border-t border-[#E7E2D8]">
+                        <span className="text-[10px] text-amber-800 font-semibold uppercase">{fu.type.replace('_', ' ')}</span>
+                        <button
+                          type="button"
+                          onClick={() => onUpdateFollowUpStatus(fu.id, 'completed')}
+                          className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-800 border border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer"
+                        >
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          <span>{isRTL ? 'مکمل ہو گیا' : 'Mark Done'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
@@ -350,17 +362,25 @@ export const NadeemDashboard: React.FC<NadeemDashboardProps> = ({
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {profiles.slice(0, 4).map((prof) => (
-                  <ProfileCard
-                    key={prof.id}
-                    profile={prof}
-                    language={language}
-                    showInternalNotes={true}
-                    onFindMatch={() => handleLaunchMatchReview(prof)}
-                    onShareWhatsApp={() => setSelectedProfileForSharing(prof)}
-                    onViewDetails={() => setSelectedProfileForDetails(prof)}
-                  />
-                ))}
+                {profiles.length === 0 ? (
+                  <div className="col-span-full p-8 text-center text-xs text-[#68716D] porcelain-card rounded-2xl">
+                    {isRTL
+                      ? 'کوئی فعال پروفائل نہیں ملی۔ نیا رشتہ درج کریں۔'
+                      : 'No candidate profiles registered yet. Use the 7-step wizard to register candidates.'}
+                  </div>
+                ) : (
+                  profiles.slice(0, 4).map((prof) => (
+                    <ProfileCard
+                      key={prof.id}
+                      profile={prof}
+                      language={language}
+                      showInternalNotes={true}
+                      onFindMatch={() => handleLaunchMatchReview(prof)}
+                      onShareWhatsApp={() => setSelectedProfileForSharing(prof)}
+                      onViewDetails={() => setSelectedProfileForDetails(prof)}
+                    />
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -649,24 +669,32 @@ export const NadeemDashboard: React.FC<NadeemDashboardProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E7E2D8]">
-                  {transactions.map((tx) => (
-                    <tr key={tx.id} className="hover:bg-[#F7F3EA]/40">
-                      <td className="p-3 font-mono text-[#68716D]">{tx.date}</td>
-                      <td className="p-3 font-semibold text-[#182848]">{tx.matchmakerName}</td>
-                      <td className="p-3 uppercase font-medium">{tx.type}</td>
-                      <td className="p-3 font-bold text-[#182848]">{formatPKR(tx.amount)}</td>
-                      <td className="p-3 text-[#68716D] max-w-xs">{tx.description}</td>
-                      <td className="p-3">
-                        <span
-                          className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                            tx.status === 'settled' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                          }`}
-                        >
-                          {tx.status}
-                        </span>
+                  {transactions.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-[#68716D]">
+                        {isRTL ? 'کوئی مالیاتی لین دین درج نہیں ہے۔' : 'No financial transactions recorded yet.'}
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    transactions.map((tx) => (
+                      <tr key={tx.id} className="hover:bg-[#F7F3EA]/40">
+                        <td className="p-3 font-mono text-[#68716D]">{tx.date}</td>
+                        <td className="p-3 font-semibold text-[#182848]">{tx.matchmakerName}</td>
+                        <td className="p-3 uppercase font-medium">{tx.type}</td>
+                        <td className="p-3 font-bold text-[#182848]">{formatPKR(tx.amount)}</td>
+                        <td className="p-3 text-[#68716D] max-w-xs">{tx.description}</td>
+                        <td className="p-3">
+                          <span
+                            className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                              tx.status === 'settled' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {tx.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

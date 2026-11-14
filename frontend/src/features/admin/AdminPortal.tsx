@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ProfileRecord, AuditLogItem, ExternalMatchmaker, FinancialTransaction } from '../../types';
+import { AuthSession } from '../../lib/auth';
+import { settingsRepository } from '../../lib/repositories';
 import { formatPKR } from '../../utils/finance';
 import { 
   Shield, 
@@ -14,7 +16,9 @@ import {
   Search,
   Filter,
   Check,
-  ChevronRight
+  ChevronRight,
+  Save,
+  Loader2
 } from 'lucide-react';
 
 interface AdminPortalProps {
@@ -22,6 +26,7 @@ interface AdminPortalProps {
   auditLogs: AuditLogItem[];
   matchmakers: ExternalMatchmaker[];
   transactions: FinancialTransaction[];
+  session?: AuthSession | null;
   activeTab?: 'dashboard' | 'profiles' | 'users' | 'audit' | 'settings';
   onTabChange?: (tab: 'dashboard' | 'profiles' | 'users' | 'audit' | 'settings') => void;
   onUpdateProfileStatus: (id: string, newStatus: any) => void;
@@ -32,6 +37,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   auditLogs,
   matchmakers,
   transactions,
+  session,
   activeTab: activeTabProp,
   onTabChange,
   onUpdateProfileStatus,
@@ -57,13 +63,86 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [profileSearch, setProfileSearch] = useState('');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
 
-  // Convention settings
+  // Convention settings backed by persistent settingsRepository
   const [marlaPerKanal, setMarlaPerKanal] = useState(20);
   const [sqFtPerMarla, setSqFtPerMarla] = useState(225);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsSavedMessage, setSettingsSavedMessage] = useState<string | null>(null);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    settingsRepository
+      .getSettings(session || null)
+      .then((res) => {
+        if (isMounted && res.regionalConventions) {
+          setMarlaPerKanal(res.regionalConventions.marlaPerKanal);
+          setSqFtPerMarla(res.regionalConventions.sqFtPerMarla);
+        }
+      })
+      .catch((err) => {
+        console.error('[Gulistan] Failed to load settings in AdminPortal:', err);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [session]);
+
+  const handleSaveSettings = async () => {
+    setSettingsLoading(true);
+    setSettingsSavedMessage(null);
+    setSettingsError(null);
+    try {
+      await settingsRepository.updateRegionalConventions(
+        { marlaPerKanal, sqFtPerMarla },
+        session || null
+      );
+      setSettingsSavedMessage('Regional land conventions persisted successfully to backend repository.');
+    } catch (err: any) {
+      setSettingsError(err?.message || 'Failed to persist regional conventions.');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
 
   const activeCount = profiles.filter((p) => p.status === 'active' || p.status === 'introduction_authorized').length;
   const pendingCount = profiles.filter((p) => p.status === 'pending_review').length;
   const restrictedCount = profiles.filter((p) => p.status === 'restricted' || p.status === 'inactive').length;
+
+  // Sourced Data Quality & Completeness Metrics (eliminates fabricated static numbers)
+  const validCompleteProfiles = profiles.filter(
+    (p) => p.fullName && p.age && p.gender && p.occupation && p.education && p.currentCity
+  ).length;
+  const dataIntegrityPct = profiles.length > 0 
+    ? Math.round((validCompleteProfiles / profiles.length) * 100) 
+    : 100;
+
+  const completenessPct = profiles.length > 0
+    ? Math.round(
+        (profiles.reduce((acc, p) => {
+          let filled = 0;
+          if (p.caste && p.caste !== 'unknown') filled += 1;
+          if (p.property) filled += 1;
+          if (p.siblings && p.siblings.length > 0) filled += 1;
+          if (p.photoPermissionGranted) filled += 1;
+          if (p.contactPhone) filled += 1;
+          if (p.educationField) filled += 1;
+          return acc + filled / 6;
+        }, 0) /
+          profiles.length) *
+          100
+      )
+    : 100;
+
+  const siblingRecordsPct = profiles.length > 0
+    ? Math.round((profiles.filter((p) => p.siblings && p.siblings.length > 0).length / profiles.length) * 100)
+    : 0;
+  const propertySpecifiedPct = profiles.length > 0
+    ? Math.round((profiles.filter((p) => p.property && p.property.areaMarlas > 0).length / profiles.length) * 100)
+    : 0;
+  const photoConsentPct = profiles.length > 0
+    ? Math.round((profiles.filter((p) => p.photoPermissionGranted).length / profiles.length) * 100)
+    : 0;
 
   const filteredProfiles = profiles.filter((p) => {
     const matchesSearch =
@@ -95,7 +174,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
         <div className="inline-flex items-center gap-2 rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-800">
           <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-          <span>System Healthy • Data Integrity 98.4%</span>
+          <span>System Operational • Data Integrity {dataIntegrityPct}%</span>
         </div>
       </div>
 
@@ -158,7 +237,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </span>
               <div className="flex items-baseline gap-2">
                 <span className="font-serif text-3xl font-bold text-[#182848]">{activeCount}</span>
-                <span className="text-xs text-emerald-700 font-semibold">+12% this month</span>
+                <span className="text-xs text-emerald-700 font-semibold">
+                  {profiles.length > 0 ? `${Math.round((activeCount / profiles.length) * 100)}% of registry` : '0%'}
+                </span>
               </div>
             </div>
 
@@ -178,7 +259,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </span>
               <div className="flex items-baseline gap-2">
                 <span className="font-serif text-3xl font-bold text-[#182848]">{matchmakers.length}</span>
-                <span className="text-xs text-[#68716D]">Active Bureau Agents</span>
+                <span className="text-xs text-[#68716D]">Active Bureau Partners</span>
               </div>
             </div>
 
@@ -187,8 +268,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 Data Completeness
               </span>
               <div className="flex items-baseline gap-2">
-                <span className="font-serif text-3xl font-bold text-[#182848]">96.8%</span>
-                <span className="text-xs text-emerald-700 font-semibold">High Quality</span>
+                <span className="font-serif text-3xl font-bold text-[#182848]">{completenessPct}%</span>
+                <span className="text-xs text-emerald-700 font-semibold">
+                  {completenessPct >= 90 ? 'High Quality' : completenessPct >= 70 ? 'Moderate' : 'Needs Review'}
+                </span>
               </div>
             </div>
           </div>
@@ -221,30 +304,30 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <div>
                   <div className="flex justify-between font-semibold mb-1">
                     <span>Family Sibling Records</span>
-                    <span className="text-emerald-700">100%</span>
+                    <span className="text-emerald-700">{siblingRecordsPct}%</span>
                   </div>
                   <div className="h-2 rounded-full bg-[#E7E2D8] overflow-hidden">
-                    <div className="h-full bg-emerald-600 w-full"></div>
+                    <div className="h-full bg-emerald-600 transition-all duration-500" style={{ width: `${siblingRecordsPct}%` }}></div>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between font-semibold mb-1">
                     <span>Property Area Specified</span>
-                    <span className="text-emerald-700">94%</span>
+                    <span className="text-emerald-700">{propertySpecifiedPct}%</span>
                   </div>
                   <div className="h-2 rounded-full bg-[#E7E2D8] overflow-hidden">
-                    <div className="h-full bg-emerald-600 w-[94%]"></div>
+                    <div className="h-full bg-emerald-600 transition-all duration-500" style={{ width: `${propertySpecifiedPct}%` }}></div>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between font-semibold mb-1">
                     <span>Photograph Consent Logged</span>
-                    <span className="text-[#B69A62]">91%</span>
+                    <span className="text-[#B69A62]">{photoConsentPct}%</span>
                   </div>
                   <div className="h-2 rounded-full bg-[#E7E2D8] overflow-hidden">
-                    <div className="h-full bg-[#B69A62] w-[91%]"></div>
+                    <div className="h-full bg-[#B69A62] transition-all duration-500" style={{ width: `${photoConsentPct}%` }}></div>
                   </div>
                 </div>
               </div>
@@ -298,41 +381,49 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E7E2D8]">
-                {filteredProfiles.map((p) => (
-                  <tr key={p.id} className="hover:bg-[#F7F3EA]/40">
-                    <td className="p-3 font-mono font-semibold text-[#182848]">{p.id}</td>
-                    <td className="p-3 font-bold text-[#252E2C]">{p.fullName}</td>
-                    <td className="p-3 text-[#68716D]">
-                      {p.age} yrs • {p.gender}
-                    </td>
-                    <td className="p-3">
-                      <span className="font-medium text-[#182848] block">{p.occupation}</span>
-                      <span className="text-[10px] text-[#68716D]">{p.education}</span>
-                    </td>
-                    <td className="p-3 text-[#68716D]">{p.currentCity}</td>
-                    <td className="p-3">
-                      <select
-                        value={p.status}
-                        onChange={(e) => onUpdateProfileStatus(p.id, e.target.value)}
-                        className="rounded-lg border border-[#E7E2D8] p-1 text-[11px] bg-white font-medium"
-                      >
-                        <option value="pending_review">Pending Review</option>
-                        <option value="active">Active</option>
-                        <option value="introduction_authorized">Intro Authorized</option>
-                        <option value="restricted">Restricted</option>
-                        <option value="inactive">Inactive</option>
-                      </select>
-                    </td>
-                    <td className="p-3">
-                      <button
-                        onClick={() => alert(`Reviewing profile ${p.id}`)}
-                        className="text-[#182848] hover:underline font-semibold"
-                      >
-                        Inspect
-                      </button>
+                {filteredProfiles.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-[#68716D]">
+                      No profiles match the filter criteria.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredProfiles.map((p) => (
+                    <tr key={p.id} className="hover:bg-[#F7F3EA]/40">
+                      <td className="p-3 font-mono font-semibold text-[#182848]">{p.id}</td>
+                      <td className="p-3 font-bold text-[#252E2C]">{p.fullName}</td>
+                      <td className="p-3 text-[#68716D]">
+                        {p.age} yrs • {p.gender}
+                      </td>
+                      <td className="p-3">
+                        <span className="font-medium text-[#182848] block">{p.occupation}</span>
+                        <span className="text-[10px] text-[#68716D]">{p.education}</span>
+                      </td>
+                      <td className="p-3 text-[#68716D]">{p.currentCity}</td>
+                      <td className="p-3">
+                        <select
+                          value={p.status}
+                          onChange={(e) => onUpdateProfileStatus(p.id, e.target.value)}
+                          className="rounded-lg border border-[#E7E2D8] p-1 text-[11px] bg-white font-medium"
+                        >
+                          <option value="pending_review">Pending Review</option>
+                          <option value="active">Active</option>
+                          <option value="introduction_authorized">Intro Authorized</option>
+                          <option value="restricted">Restricted</option>
+                          <option value="inactive">Inactive</option>
+                        </select>
+                      </td>
+                      <td className="p-3">
+                        <button
+                          onClick={() => alert(`Reviewing profile ${p.id}`)}
+                          className="text-[#182848] hover:underline font-semibold"
+                        >
+                          Inspect
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -382,21 +473,27 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </p>
 
           <div className="divide-y divide-[#E7E2D8] text-xs">
-            {auditLogs.map((log) => (
-              <div key={log.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="font-bold text-[#182848]">{log.action}</span>
-                    <span className="font-mono text-[#68716D]">Target: {log.targetId}</span>
-                  </div>
-                  <p className="text-[#252E2C]">{log.details}</p>
-                </div>
-                <div className="text-end">
-                  <span className="font-mono text-[11px] text-[#68716D] block">{log.timestamp}</span>
-                  <span className="text-[10px] text-[#B69A62] font-semibold">{log.actor}</span>
-                </div>
+            {auditLogs.length === 0 ? (
+              <div className="p-8 text-center text-[#68716D] border border-dashed border-[#E7E2D8] rounded-2xl">
+                No audit events recorded yet.
               </div>
-            ))}
+            ) : (
+              auditLogs.map((log) => (
+                <div key={log.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="font-bold text-[#182848]">{log.action}</span>
+                      <span className="font-mono text-[#68716D]">Target: {log.targetId}</span>
+                    </div>
+                    <p className="text-[#252E2C]">{log.details}</p>
+                  </div>
+                  <div className="text-end">
+                    <span className="font-mono text-[11px] text-[#68716D] block">{log.timestamp}</span>
+                    <span className="text-[10px] text-[#B69A62] font-semibold">{log.actor}</span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
@@ -409,9 +506,23 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               Regional Land Unit & Calculation Conventions
             </h3>
             <p className="text-xs text-[#68716D] mt-1">
-              Configure how land area is converted across Punjab, Islamabad, and Khyber Pakhtunkhwa.
+              Configure how land area is converted across Punjab, Islamabad, and Khyber Pakhtunkhwa. Persisted to backend settings repository.
             </p>
           </div>
+
+          {settingsSavedMessage && (
+            <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 font-semibold flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span>{settingsSavedMessage}</span>
+            </div>
+          )}
+
+          {settingsError && (
+            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 font-semibold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-rose-600" />
+              <span>{settingsError}</span>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs max-w-xl">
             <div>
@@ -447,10 +558,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </div>
 
           <button
-            onClick={() => alert('Regional conventions saved successfully!')}
-            className="rounded-xl bg-[#182848] px-6 py-2.5 text-xs font-semibold text-[#F7F3EA] shadow hover:bg-[#283848] transition-colors"
+            onClick={handleSaveSettings}
+            disabled={settingsLoading}
+            className="inline-flex items-center gap-2 rounded-xl bg-[#182848] px-6 py-2.5 text-xs font-semibold text-[#F7F3EA] shadow hover:bg-[#283848] transition-colors disabled:opacity-50 cursor-pointer"
           >
-            Save Regional Conventions
+            {settingsLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-[#B69A62]" />
+                <span>Saving to Backend...</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 text-[#B69A62]" />
+                <span>Save Regional Conventions</span>
+              </>
+            )}
           </button>
         </div>
       )}

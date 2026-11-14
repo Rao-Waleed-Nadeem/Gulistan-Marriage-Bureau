@@ -96,10 +96,10 @@
     "semantic_hash": "260b9ebe5106a4d02a48469205f77bf3"
   },
   "backend/tests/financial_ledger.test.js": {
-    "mtime": 1792843906.4763277,
-    "seen": 1794580988.7395577,
-    "ast_hash": "907ce5dd7ed69e340da6db544236428b",
-    "semantic_hash": "907ce5dd7ed69e340da6db544236428b"
+    "mtime": 1794651300.0795858,
+    "seen": 1794651456.7810402,
+    "ast_hash": "3d4d2289f26dab0f3b6ca99210ebee42",
+    "semantic_hash": ""
   },
   "backend/tests/followups_crm.test.js": {
     "mtime": 1792843304.6904447,
@@ -222,10 +222,10 @@
     "semantic_hash": "eacc14f43338bf1824807402257bf6f7"
   },
   "frontend/src/data/mockData.ts": {
-    "mtime": 1792764211.710497,
-    "seen": 1794580988.7395577,
-    "ast_hash": "8fe7fc4268cb113c63391e7d6924a985",
-    "semantic_hash": "8fe7fc4268cb113c63391e7d6924a985"
+    "mtime": 1794651051.3873837,
+    "seen": 1794651456.7810402,
+    "ast_hash": "b4747f3096183ee526ca253ea766f7cc",
+    "semantic_hash": ""
   },
   "frontend/src/features/admin/AdminPortal.tsx": {
     "mtime": 1792782723.5065947,
@@ -258,9 +258,9 @@
     "semantic_hash": ""
   },
   "frontend/src/features/matchmaker/NadeemDashboard.tsx": {
-    "mtime": 1794649764.6853747,
-    "seen": 1794649969.9290001,
-    "ast_hash": "b7b22c031684ec8d3019f3d493a1c20a",
+    "mtime": 1794651066.4264004,
+    "seen": 1794651456.7810402,
+    "ast_hash": "4f9e4e20e8fd16c9736a1eac16e0404a",
     "semantic_hash": ""
   },
   "frontend/src/features/matchmaker/ProfileWizard.tsx": {
@@ -336,16 +336,16 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/finance.test.ts": {
-    "mtime": 1792843885.376643,
-    "seen": 1794580988.7395577,
-    "ast_hash": "f5112bb3bbf69496be98389e5b65580f",
-    "semantic_hash": "f5112bb3bbf69496be98389e5b65580f"
+    "mtime": 1794651378.983505,
+    "seen": 1794651456.7810402,
+    "ast_hash": "960c55884938415adb924ec21cdf50a3",
+    "semantic_hash": ""
   },
   "frontend/src/lib/finance.ts": {
-    "mtime": 1792843796.7028453,
-    "seen": 1794580988.7395577,
-    "ast_hash": "b2c4761b144021d447becc74c3d4852b",
-    "semantic_hash": "b2c4761b144021d447becc74c3d4852b"
+    "mtime": 1794651364.224419,
+    "seen": 1794651456.7810402,
+    "ast_hash": "484508dd69c0dfe947d7e59e31ea7032",
+    "semantic_hash": ""
   },
   "frontend/src/lib/followUps.test.ts": {
     "mtime": 1794649829.9097753,
@@ -408,15 +408,15 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/repositories.test.ts": {
-    "mtime": 1794649871.8292024,
-    "seen": 1794649969.9290001,
-    "ast_hash": "276e6843db4906b990138c03f0a92fb6",
+    "mtime": 1794651318.656765,
+    "seen": 1794651456.7810402,
+    "ast_hash": "c4cf59a02d5403de51a8b5bb423dbd76",
     "semantic_hash": ""
   },
   "frontend/src/lib/repositories.ts": {
-    "mtime": 1794649370.6712039,
-    "seen": 1794649969.9290001,
-    "ast_hash": "dbecfc4d318b3b2a80bdc30731fe5af6",
+    "mtime": 1794651187.2711163,
+    "seen": 1794651456.7810402,
+    "ast_hash": "1290a3be5b1afd19079bd4534a721ca4",
     "semantic_hash": ""
   },
   "frontend/src/lib/supabaseClient.ts": {
@@ -432,22 +432,22 @@
     "semantic_hash": "c54bc4338b4552045d4ff81e948ad087"
   },
   "frontend/src/types/index.ts": {
-    "mtime": 1794649929.6346362,
-    "seen": 1794649969.9290001,
-    "ast_hash": "385d414dc7abc742d05592501f0634a0",
+    "mtime": 1794651032.6622796,
+    "seen": 1794651456.7810402,
+    "ast_hash": "2fb3f9ff846457c398cb3a1d8de6fadd",
     "semantic_hash": ""
   },
   "frontend/src/utils/finance.ts": {
-    "mtime": 1794581003.6559725,
-    "seen": 1794585528.2905884,
-    "ast_hash": "25efaea0c23db0175a0aafb6e8553f77",
+    "mtime": 1794651018.0998461,
+    "seen": 1794651456.7810402,
+    "ast_hash": "708f09d4bdef18d012c4b7c3ad2f3002",
     "semantic_hash": ""
   },
   "frontend/src/utils/logic.test.ts": {
-    "mtime": 1792764211.6456542,
-    "seen": 1794580988.7395577,
-    "ast_hash": "b35cff237e4bcfe3b8315e7de32b9f12",
-    "semantic_hash": "b35cff237e4bcfe3b8315e7de32b9f12"
+    "mtime": 1794651209.380366,
+    "seen": 1794651456.7810402,
+    "ast_hash": "aef86989835789b9db45cac55fb2e178",
+    "semantic_hash": ""
   },
   "frontend/src/utils/matchmaker.ts": {
     "mtime": 1792764211.6033382,
@@ -498,15 +498,15 @@
     "semantic_hash": "fc8693b1181e22fd075f3b6a398ccb1e"
   },
   "BIBLE/CHANGELOG.md": {
-    "mtime": 1794647812.4812415,
-    "seen": 1794648019.634055,
-    "ast_hash": "b8c2b05314db0bccb29d10b7987feac0",
+    "mtime": 1794650048.2233536,
+    "seen": 1794651456.7810402,
+    "ast_hash": "4d1a425d39133c55752db8da2f92b6ce",
     "semantic_hash": ""
   },
   "BIBLE/DECISION-REGISTER.md": {
-    "mtime": 1794586129.235996,
-    "seen": 1794592657.6099265,
-    "ast_hash": "8f8f6012510603f16e69197690ffeeae",
+    "mtime": 1794651333.8123658,
+    "seen": 1794651456.7810402,
+    "ast_hash": "3374dd5aaadefca5f5d64901652aa376",
     "semantic_hash": ""
   },
   "BIBLE/STATIC-RULES.md": {
@@ -552,9 +552,9 @@
     "semantic_hash": "90ed0df6b9ec018107ca7def5db8c206"
   },
   "backend/AGENT_TASK_QUEUE.md": {
-    "mtime": 1794647954.8003252,
-    "seen": 1794648019.634055,
-    "ast_hash": "b8f83c769c09e42c14e6f3d2352cee50",
+    "mtime": 1794650165.33325,
+    "seen": 1794651456.7810402,
+    "ast_hash": "d32ee3c18f7b3d9385d665a785af9028",
     "semantic_hash": ""
   },
   "backend/README.md": {

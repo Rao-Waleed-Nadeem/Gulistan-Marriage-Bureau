@@ -65,3 +65,14 @@
 - Expanded test suites in `frontend/src/lib/finance.test.ts`, `frontend/src/utils/logic.test.ts`, and `backend/tests/financial_ledger.test.js`.
 - Updated graphify code graph (`1222 nodes, 2444 edges, 79 communities`).
 - Verified with 130 frontend tests, 68 backend tests (198 total passing), `tsc --noEmit` clean (0 errors), and production build passing in 2.38s.
+- Implemented Refactor Workstream W7 / T-027: Frontend application and feature-boundary refactor.
+- Refactored `App.tsx` state from monolithic component arrays into typed feature boundaries and modular service hooks (`useProfiles`, `useFinance`, `useCRM`, `useMatchmakers`, `useAuditLogs`, `useSettings` in `frontend/src/hooks/`).
+- Implemented `ISettingsRepository` and `SettingsRepositoryImpl` in `frontend/src/lib/repositories.ts` backed by `public.app_settings` managing regional land unit conventions (`marlaPerKanal`, `sqFtPerMarla`) with admin role enforcement.
+- Implemented `IAuditRepository` and `AuditRepositoryImpl` in `frontend/src/lib/repositories.ts` backed by `public.audit_events` for querying and recording auditable administrative events with staff role enforcement.
+- Overhauled `AdminPortal.tsx`: eliminated fabricated metrics (`+12% this month`, static `96.8%`, static `100%/94%/91%` bars, static `98.4%`); replaced with real dynamically computed metrics for profile completeness, active registry ratios, sibling records, property area, and photo consent; connected regional land unit conventions to `settingsRepository` with visual save feedback and audit logging; added empty states for profile directory and audit trail.
+- Overhauled `NadeemDashboard.tsx`: replaced `Math.random` with `generateCryptoUUID()`; replaced hardcoded past due date filter with dynamic today calculation; added clean empty states for overview due follow-ups, candidate profiles, and financial transactions.
+- Overhauled `CustomerPortal.tsx`: safely handled null/undefined `currentProfile` with graceful empty/loading states instead of crashing.
+- Preserved existing routing, personas, bilingual Urdu/English behavior, document direction, and 300-frame scroll animation.
+- Added comprehensive unit tests in `frontend/src/lib/repositories.test.ts` for settings and audit repositories.
+- Updated graphify code graph (`1266 nodes, 2585 edges, 76 communities`).
+- Verified with 132 frontend tests, 68 backend tests (200 total passing), `tsc --noEmit` clean (0 errors), and production build passing in 3.14s.

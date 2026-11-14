@@ -5,6 +5,8 @@ import {
   financeRepository,
   crmRepository,
   matchmakerRepository,
+  settingsRepository,
+  auditRepository,
   resetRepositoriesForTesting,
 } from './repositories';
 import {
@@ -39,6 +41,20 @@ const customerSession: AuthSession = {
   },
   role: 'customer',
   token: 'mock-customer-token',
+  expiresAt: Date.now() + 3600000,
+  isAuthenticated: true,
+};
+
+const adminSession: AuthSession = {
+  user: {
+    id: 'usr-admin',
+    email: 'admin@gulistan.pk',
+    displayName: 'System Admin',
+    role: 'admin',
+    preferredLanguage: 'en',
+  },
+  role: 'admin',
+  token: 'mock-admin-token',
   expiresAt: Date.now() + 3600000,
   isAuthenticated: true,
 };
@@ -539,4 +555,86 @@ test('Lossless DTO/Row mapping: preserves nested siblings, property, and prefere
   assert.equal(dto.fatherStatus, 'alive');
   assert.equal(dto.familyBackgroundNotes, 'Respected military background.');
   assert.equal(dto.photoUrl, 'https://storage.gulistan.pk/candidate-photos/imran.jpg');
+});
+
+test('SettingsRepository: enforces admin role security and manages regional land conventions', async () => {
+  resetRepositoriesForTesting();
+
+  // 1. Unauthorized callers cannot update settings
+  await assert.rejects(
+    async () => {
+      await settingsRepository.updateRegionalConventions({ marlaPerKanal: 18, sqFtPerMarla: 272 }, customerSession);
+    },
+    /Unauthorized/
+  );
+
+  await assert.rejects(
+    async () => {
+      await settingsRepository.updateRegionalConventions({ marlaPerKanal: 18, sqFtPerMarla: 272 }, staffSession);
+    },
+    /Unauthorized/
+  );
+
+  // 2. Fetch default settings
+  const defaults = await settingsRepository.getSettings(staffSession);
+  assert.equal(defaults.regionalConventions.marlaPerKanal, 20);
+  assert.equal(defaults.regionalConventions.sqFtPerMarla, 225);
+
+  // 3. Validation rejection on invalid numbers
+  await assert.rejects(
+    async () => {
+      await settingsRepository.updateRegionalConventions({ marlaPerKanal: -5, sqFtPerMarla: 225 }, adminSession);
+    },
+    /Validation failed/
+  );
+
+  // 4. Admin updates regional conventions successfully
+  const updated = await settingsRepository.updateRegionalConventions(
+    { marlaPerKanal: 18, sqFtPerMarla: 272 },
+    adminSession
+  );
+  assert.equal(updated.regionalConventions.marlaPerKanal, 18);
+  assert.equal(updated.regionalConventions.sqFtPerMarla, 272);
+
+  // 5. Subsequent getSettings reflects updated conventions
+  const reloaded = await settingsRepository.getSettings(staffSession);
+  assert.equal(reloaded.regionalConventions.marlaPerKanal, 18);
+  assert.equal(reloaded.regionalConventions.sqFtPerMarla, 272);
+});
+
+test('AuditRepository: enforces staff role security, records events, and queries trails', async () => {
+  resetRepositoriesForTesting();
+
+  // 1. Unauthorized customer cannot view audit trail
+  await assert.rejects(
+    async () => {
+      await auditRepository.findAll(customerSession);
+    },
+    /Unauthorized/
+  );
+
+  // 2. Staff can query audit trail
+  const logs = await auditRepository.findAll(staffSession);
+  assert.ok(Array.isArray(logs));
+  assert.ok(logs.length > 0);
+
+  // 3. Record new audit event
+  const initialCount = logs.length;
+  const newLog = await auditRepository.record(
+    {
+      actor: 'nadeem@gulistan.pk',
+      role: 'Nadeem (Lead Matchmaker)',
+      action: 'TEST_AUDIT_ACTION',
+      targetId: 'GLS-401',
+      details: 'Audit verification test event.',
+    },
+    staffSession
+  );
+  assert.ok(newLog.id.startsWith('AUD-'));
+  assert.equal(newLog.action, 'TEST_AUDIT_ACTION');
+
+  // 4. Trail contains the recorded event
+  const updatedLogs = await auditRepository.findAll(staffSession);
+  assert.equal(updatedLogs.length, initialCount + 1);
+  assert.equal(updatedLogs[0].action, 'TEST_AUDIT_ACTION');
 });
