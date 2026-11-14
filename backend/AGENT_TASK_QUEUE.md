@@ -411,11 +411,23 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 **Completion record:** Completed on 2026-11-14. Implemented `frontend/src/lib/crypto.ts` providing pure-JS deterministic SHA-256 token hashing and cryptographic UUID/randomness (PRIV-02, PRIV-05). Upgraded `frontend/src/lib/photos.ts` with token hashing at rest, 48-hour expiration, consent verification, immediate photo purge (OPEN-008), 365-day inactive retention evaluator (PRIV-07), and privacy erasure workflow (PRIV-08). Upgraded `frontend/src/lib/disclosure.ts` with cryptographic grant tokens, SHA-256 hashes at rest in `share_grants`, profile freshness validation, and privacy-preserving audit logs omitting raw tokens (OPEN-005, OPEN-006, SHARE-01..SHARE-05). Added unit tests in `photos.test.ts` and `disclosure.test.ts`. Verified with 120 frontend tests, 68 backend tests (188 total passing), `tsc --noEmit` (0 errors), and `vite build` (28.91s). Verified commit `8ca378c`.
 
 ### T-024 — Deterministic matching, persisted evaluations and Nadeem approvals
-**Status:** READY  
+**Status:** DONE  
 **Priority:** P0  
 **Dependencies:** T-023  
 **Scope:** Remove silent criterion/default assumptions; use persisted evaluations; eliminate fabricated MatchReview explanations/92% fallback; persist human decisions and recheck before sharing.  
 **Acceptance:** Explicit criteria and unknown states; reproducible versioned evaluation; Nadeem approval persisted and mandatory; no AI authorization.
+
+**Acceptance criteria**
+- [x] MATCH-01: Silent criterion defaults removed; unstated religion, aqeedah, education, and marital status classify explicitly as `unknown` or `not_disclosed`.
+- [x] MATCH-02: `MatchReview.tsx` renders true persisted evaluation criteria, real compatibility score, dynamic importance badges, reason codes, and disqualification banner.
+- [x] MATCH-03: `MatchRepository` persists match cases, deterministic evaluations, and Nadeem review decisions to `match_cases`, `match_evaluations`, and `match_decisions`.
+- [x] MATCH-04: `verifyPreShareEligibility` rechecks self-pairing, gender complementarity, candidate profile status freshness, mandatory criteria satisfaction, human approval, and photo consent.
+- [x] MATCH-05: Strict zero-AI core matching preserved; algorithm is 100% deterministic TypeScript logic with no candidate PII dispatched to external AI.
+- [x] MATCH-06: Separated pure algorithm evaluation and orchestration/decision tests; 123 frontend + 68 backend tests verified.
+- [x] Documentation and queue updated with acceptance checkmarks and test metrics.
+- [x] Commit verified on `main`, SHA recorded below.
+
+**Completion record:** Completed on 2026-11-14. Removed hardcoded 'Islam', 'Sunni / Hanafi', 'Bachelors', and `['never_married']` defaults from `frontend/src/lib/matching.ts` (MATCH-01); missing fields now produce explicit `'unknown'` / `'not_disclosed'` results and reason codes. Overhauled `frontend/src/features/matchmaker/MatchReview.tsx` (MATCH-02) to render true persisted evaluation criteria, real compatibility scores (eliminating 92% fallback and hardcoded notes), dynamic status/importance badges, reason codes, and an ineligibility banner with disabled approval when mandatory criteria fail. Implemented `IMatchRepository` and `MatchRepositoryImpl` in `frontend/src/lib/repositories.ts` (MATCH-03) backed by normalized tables `match_cases`, `match_evaluations`, and `match_decisions`. Implemented `verifyPreShareEligibility` (MATCH-04) enforcing self-pair prohibition, gender complementarity, active status, mandatory criteria satisfaction, human approval by Nadeem, and photo consent. Preserved zero-AI core matching rule (MATCH-05 / OPEN-015). Added automated tests in `matching.test.ts`. Verified with 123 frontend tests, 68 backend tests (191 total passing), `tsc --noEmit` (0 errors), and `vite build` (19.87s). Commit SHA recorded below.
 
 ### T-025 — External matchmaker agreements, CRM and follow-ups
 **Status:** READY  
@@ -487,3 +499,4 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-11-13 | T-021 | DONE | 67c9b66 | Refactor W2: Migration 00003, typed repositories & lossless DTO mapping; 178 tests passed. |
 | 2026-11-13 | T-022 | DONE | e12070e | Refactor W3: Self-service intake, duplicate review & consent certification; 184 tests passed. |
 | 2026-11-14 | T-023 | DONE | 8ca378c | Refactor W4: Private photo storage, hash-at-rest grants & disclosure; 188 tests passed. |
+| 2026-11-14 | T-024 | DONE | Pending | Refactor W5: Deterministic matching, persisted evaluations & Nadeem review; 191 tests passed. |

@@ -19,6 +19,8 @@ import { FinancialTransaction } from '../utils/finance';
 import { AuthSession, canAccessRole } from './auth';
 import { getClientConfig } from './config';
 import { getSupabaseClient } from './supabaseClient';
+import { MatchEvaluation, EvaluatedCriterion } from './matching';
+import { generateCryptoUUID } from './crypto';
 import {
   ProfileRow,
   profileRowToDTO,
@@ -58,6 +60,64 @@ export interface ICRMRepository {
   complete(id: string, session: AuthSession | null): Promise<FollowUpItem>;
 }
 
+export type MatchCaseStatus =
+  | 'suggested'
+  | 'approved_by_nadeem'
+  | 'shared_with_parties'
+  | 'accepted_by_customer'
+  | 'rejected'
+  | 'deferred';
+
+export interface MatchCaseRecord {
+  id: string;
+  caseCode: string;
+  profileAId: string;
+  profileBId: string;
+  status: MatchCaseStatus;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MatchEvaluationRecord {
+  id: string;
+  matchCaseId: string;
+  algorithmVersion: string;
+  compatibilityScore: number;
+  mandatorySatisfied: boolean;
+  criteriaBreakdown: EvaluatedCriterion[];
+  evaluationNotes?: string;
+  evaluatedAt: string;
+}
+
+export interface MatchDecisionRecord {
+  id: string;
+  matchCaseId: string;
+  decision: 'approved' | 'rejected' | 'deferred';
+  decidedBy?: string;
+  reasonCode: string;
+  notes?: string;
+  decidedAt: string;
+}
+
+export interface IMatchRepository {
+  getOrCreateMatchCase(profileAId: string, profileBId: string, session: AuthSession | null): Promise<MatchCaseRecord>;
+  findMatchCase(profileAId: string, profileBId: string, session: AuthSession | null): Promise<MatchCaseRecord | null>;
+  saveEvaluation(matchCaseId: string, evaluation: MatchEvaluation, session: AuthSession | null): Promise<MatchEvaluationRecord>;
+  recordDecision(
+    matchCaseId: string,
+    decision: 'approved' | 'rejected' | 'deferred',
+    reasonCode: string,
+    session: AuthSession | null,
+    notes?: string
+  ): Promise<MatchDecisionRecord>;
+  getCaseHistory(matchCaseId: string, session: AuthSession | null): Promise<{
+    matchCase: MatchCaseRecord;
+    evaluations: MatchEvaluationRecord[];
+    decisions: MatchDecisionRecord[];
+  } | null>;
+}
+
 // =============================================================================
 // In-Memory Demo Storage (Isolated to local development & tests)
 // =============================================================================
@@ -65,11 +125,17 @@ export interface ICRMRepository {
 let demoProfilesStore: ProfileRecord[] = [...INITIAL_PROFILES];
 let demoTransactionsStore: FinancialTransaction[] = [...INITIAL_TRANSACTIONS];
 let demoFollowUpsStore: FollowUpItem[] = [...INITIAL_FOLLOW_UPS];
+let demoMatchCasesStore: MatchCaseRecord[] = [];
+let demoMatchEvaluationsStore: MatchEvaluationRecord[] = [];
+let demoMatchDecisionsStore: MatchDecisionRecord[] = [];
 
 export function resetRepositoriesForTesting(): void {
   demoProfilesStore = [...INITIAL_PROFILES];
   demoTransactionsStore = [...INITIAL_TRANSACTIONS];
   demoFollowUpsStore = [...INITIAL_FOLLOW_UPS];
+  demoMatchCasesStore = [];
+  demoMatchEvaluationsStore = [];
+  demoMatchDecisionsStore = [];
 }
 
 // =============================================================================
@@ -685,12 +751,395 @@ class CRMRepositoryImpl implements ICRMRepository {
 }
 
 // =============================================================================
+// Match Repository Implementation (MATCH-03)
+// =============================================================================
+
+class MatchRepositoryImpl implements IMatchRepository {
+  async getOrCreateMatchCase(
+    profileAId: string,
+    profileBId: string,
+    session: AuthSession | null
+  ): Promise<MatchCaseRecord> {
+    if (profileAId === profileBId) {
+      throw new Error('SELF_PAIR_PROHIBITED: A profile cannot be matched with itself.');
+    }
+
+    const config = getClientConfig();
+
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+
+      const { data: existing, error: findErr } = await client
+        .from('match_cases')
+        .select('*')
+        .or(`and(profile_a_id.eq.${profileAId},profile_b_id.eq.${profileBId}),and(profile_a_id.eq.${profileBId},profile_b_id.eq.${profileAId})`)
+        .maybeSingle();
+
+      if (!findErr && existing) {
+        return {
+          id: existing.id,
+          caseCode: existing.case_code,
+          profileAId: existing.profile_a_id,
+          profileBId: existing.profile_b_id,
+          status: existing.status,
+          createdBy: existing.created_by || undefined,
+          createdAt: existing.created_at,
+          updatedAt: existing.updated_at,
+        };
+      }
+
+      const caseCode = `MC-${profileAId.slice(-4)}-${profileBId.slice(-4)}-${Math.floor(100 + Math.random() * 900)}`;
+      const { data: created, error: insertErr } = await client
+        .from('match_cases')
+        .insert({
+          case_code: caseCode,
+          profile_a_id: profileAId,
+          profile_b_id: profileBId,
+          status: 'suggested',
+          created_by: session?.user?.id || null,
+        })
+        .select('*')
+        .single();
+
+      if (insertErr || !created) {
+        throw new Error(`DB_INSERT_FAILED: ${insertErr?.message || 'Could not create match case.'}`);
+      }
+
+      return {
+        id: created.id,
+        caseCode: created.case_code,
+        profileAId: created.profile_a_id,
+        profileBId: created.profile_b_id,
+        status: created.status,
+        createdBy: created.created_by || undefined,
+        createdAt: created.created_at,
+        updatedAt: created.updated_at,
+      };
+    }
+
+    // Demo Mode
+    const existing = demoMatchCasesStore.find(
+      (m) =>
+        (m.profileAId === profileAId && m.profileBId === profileBId) ||
+        (m.profileAId === profileBId && m.profileBId === profileAId)
+    );
+
+    if (existing) {
+      return existing;
+    }
+
+    const now = new Date().toISOString();
+    const newCase: MatchCaseRecord = {
+      id: generateCryptoUUID(),
+      caseCode: `MC-${profileAId.slice(-4)}-${profileBId.slice(-4)}-${Math.floor(100 + Math.random() * 900)}`,
+      profileAId,
+      profileBId,
+      status: 'suggested',
+      createdBy: session?.user?.id,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    demoMatchCasesStore.push(newCase);
+    return newCase;
+  }
+
+  async findMatchCase(
+    profileAId: string,
+    profileBId: string,
+    session: AuthSession | null
+  ): Promise<MatchCaseRecord | null> {
+    const config = getClientConfig();
+
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+
+      const { data, error } = await client
+        .from('match_cases')
+        .select('*')
+        .or(`and(profile_a_id.eq.${profileAId},profile_b_id.eq.${profileBId}),and(profile_a_id.eq.${profileBId},profile_b_id.eq.${profileAId})`)
+        .maybeSingle();
+
+      if (error || !data) return null;
+
+      return {
+        id: data.id,
+        caseCode: data.case_code,
+        profileAId: data.profile_a_id,
+        profileBId: data.profile_b_id,
+        status: data.status,
+        createdBy: data.created_by || undefined,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      };
+    }
+
+    const found = demoMatchCasesStore.find(
+      (m) =>
+        (m.profileAId === profileAId && m.profileBId === profileBId) ||
+        (m.profileAId === profileBId && m.profileBId === profileAId)
+    );
+
+    return found || null;
+  }
+
+  async saveEvaluation(
+    matchCaseId: string,
+    evaluation: MatchEvaluation,
+    session: AuthSession | null
+  ): Promise<MatchEvaluationRecord> {
+    const config = getClientConfig();
+
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+
+      const { data, error } = await client
+        .from('match_evaluations')
+        .insert({
+          match_case_id: matchCaseId,
+          algorithm_version: evaluation.algorithmVersion,
+          compatibility_score: evaluation.overallScore,
+          mandatory_satisfied: evaluation.isMandatorySatisfied,
+          criteria_breakdown: evaluation.criteria,
+          evaluation_notes: evaluation.summaryEn,
+          evaluated_at: evaluation.evaluatedAt || new Date().toISOString(),
+        })
+        .select('*')
+        .single();
+
+      if (error || !data) {
+        throw new Error(`DB_INSERT_FAILED: ${error?.message || 'Could not save evaluation.'}`);
+      }
+
+      return {
+        id: data.id,
+        matchCaseId: data.match_case_id,
+        algorithmVersion: data.algorithm_version,
+        compatibilityScore: data.compatibility_score,
+        mandatorySatisfied: data.mandatory_satisfied,
+        criteriaBreakdown: data.criteria_breakdown,
+        evaluationNotes: data.evaluation_notes || undefined,
+        evaluatedAt: data.evaluated_at,
+      };
+    }
+
+    const newEval: MatchEvaluationRecord = {
+      id: generateCryptoUUID(),
+      matchCaseId,
+      algorithmVersion: evaluation.algorithmVersion,
+      compatibilityScore: evaluation.overallScore,
+      mandatorySatisfied: evaluation.isMandatorySatisfied,
+      criteriaBreakdown: evaluation.criteria,
+      evaluationNotes: evaluation.summaryEn,
+      evaluatedAt: evaluation.evaluatedAt || new Date().toISOString(),
+    };
+
+    demoMatchEvaluationsStore.push(newEval);
+    return newEval;
+  }
+
+  async recordDecision(
+    matchCaseId: string,
+    decision: 'approved' | 'rejected' | 'deferred',
+    reasonCode: string,
+    session: AuthSession | null,
+    notes?: string
+  ): Promise<MatchDecisionRecord> {
+    if (!canAccessRole(session, 'nadeem') && !canAccessRole(session, 'admin')) {
+      throw new Error('UNAUTHORIZED: Only bureau staff may record match review decisions.');
+    }
+
+    const config = getClientConfig();
+
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+
+      if (decision === 'approved') {
+        const { data: latestEval } = await client
+          .from('match_evaluations')
+          .select('mandatory_satisfied')
+          .eq('match_case_id', matchCaseId)
+          .order('evaluated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (latestEval && !latestEval.mandatory_satisfied) {
+          throw new Error('CANNOT_APPROVE_INELIGIBLE_MATCH: Mandatory criteria violated.');
+        }
+      }
+
+      const { data: decisionRow, error: decErr } = await client
+        .from('match_decisions')
+        .insert({
+          match_case_id: matchCaseId,
+          decision,
+          decided_by: session?.user?.id || null,
+          reason_code: reasonCode,
+          notes: notes?.trim() || null,
+        })
+        .select('*')
+        .single();
+
+      if (decErr || !decisionRow) {
+        throw new Error(`DB_INSERT_FAILED: ${decErr?.message || 'Could not record decision.'}`);
+      }
+
+      const newCaseStatus =
+        decision === 'approved'
+          ? 'approved_by_nadeem'
+          : decision === 'rejected'
+          ? 'rejected'
+          : 'deferred';
+
+      await client
+        .from('match_cases')
+        .update({ status: newCaseStatus, updated_at: new Date().toISOString() })
+        .eq('id', matchCaseId);
+
+      return {
+        id: decisionRow.id,
+        matchCaseId: decisionRow.match_case_id,
+        decision: decisionRow.decision,
+        decidedBy: decisionRow.decided_by || undefined,
+        reasonCode: decisionRow.reason_code,
+        notes: decisionRow.notes || undefined,
+        decidedAt: decisionRow.decided_at,
+      };
+    }
+
+    // Demo Mode
+    const matchCase = demoMatchCasesStore.find((m) => m.id === matchCaseId);
+    if (!matchCase) {
+      throw new Error(`NOT_FOUND: Match case ${matchCaseId} not found.`);
+    }
+
+    if (decision === 'approved') {
+      const latestEval = demoMatchEvaluationsStore
+        .filter((e) => e.matchCaseId === matchCaseId)
+        .slice(-1)[0];
+
+      if (latestEval && !latestEval.mandatorySatisfied) {
+        throw new Error('CANNOT_APPROVE_INELIGIBLE_MATCH: Mandatory criteria violated.');
+      }
+    }
+
+    const now = new Date().toISOString();
+    const newDecision: MatchDecisionRecord = {
+      id: generateCryptoUUID(),
+      matchCaseId,
+      decision,
+      decidedBy: session?.user?.id || session?.user?.email || 'nadeem@gulistan.pk',
+      reasonCode,
+      notes: notes?.trim() || undefined,
+      decidedAt: now,
+    };
+
+    demoMatchDecisionsStore.push(newDecision);
+
+    matchCase.status =
+      decision === 'approved'
+        ? 'approved_by_nadeem'
+        : decision === 'rejected'
+        ? 'rejected'
+        : 'deferred';
+    matchCase.updatedAt = now;
+
+    return newDecision;
+  }
+
+  async getCaseHistory(
+    matchCaseId: string,
+    session: AuthSession | null
+  ): Promise<{
+    matchCase: MatchCaseRecord;
+    evaluations: MatchEvaluationRecord[];
+    decisions: MatchDecisionRecord[];
+  } | null> {
+    const config = getClientConfig();
+
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+
+      const { data: cData, error: cErr } = await client
+        .from('match_cases')
+        .select('*')
+        .eq('id', matchCaseId)
+        .maybeSingle();
+
+      if (cErr || !cData) return null;
+
+      const { data: eData } = await client
+        .from('match_evaluations')
+        .select('*')
+        .eq('match_case_id', matchCaseId)
+        .order('evaluated_at', { ascending: true });
+
+      const { data: dData } = await client
+        .from('match_decisions')
+        .select('*')
+        .eq('match_case_id', matchCaseId)
+        .order('decided_at', { ascending: true });
+
+      return {
+        matchCase: {
+          id: cData.id,
+          caseCode: cData.case_code,
+          profileAId: cData.profile_a_id,
+          profileBId: cData.profile_b_id,
+          status: cData.status,
+          createdBy: cData.created_by || undefined,
+          createdAt: cData.created_at,
+          updatedAt: cData.updated_at,
+        },
+        evaluations: (eData || []).map((e) => ({
+          id: e.id,
+          matchCaseId: e.match_case_id,
+          algorithmVersion: e.algorithm_version,
+          compatibilityScore: e.compatibility_score,
+          mandatorySatisfied: e.mandatory_satisfied,
+          criteriaBreakdown: e.criteria_breakdown,
+          evaluationNotes: e.evaluation_notes || undefined,
+          evaluatedAt: e.evaluated_at,
+        })),
+        decisions: (dData || []).map((d) => ({
+          id: d.id,
+          matchCaseId: d.match_case_id,
+          decision: d.decision,
+          decidedBy: d.decided_by || undefined,
+          reasonCode: d.reason_code,
+          notes: d.notes || undefined,
+          decidedAt: d.decided_at,
+        })),
+      };
+    }
+
+    const matchCase = demoMatchCasesStore.find((m) => m.id === matchCaseId);
+    if (!matchCase) return null;
+
+    const evaluations = demoMatchEvaluationsStore.filter((e) => e.matchCaseId === matchCaseId);
+    const decisions = demoMatchDecisionsStore.filter((d) => d.matchCaseId === matchCaseId);
+
+    return {
+      matchCase,
+      evaluations,
+      decisions,
+    };
+  }
+}
+
+// =============================================================================
 // Singleton Instances & Testing Hooks
 // =============================================================================
 
 export let profileRepository: IProfileRepository = new ProfileRepositoryImpl();
 export let financeRepository: IFinanceRepository = new FinanceRepositoryImpl();
 export let crmRepository: ICRMRepository = new CRMRepositoryImpl();
+export let matchRepository: IMatchRepository = new MatchRepositoryImpl();
 
 export function setProfileRepositoryForTesting(repo: IProfileRepository): void {
   profileRepository = repo;
@@ -714,4 +1163,12 @@ export function setCRMRepositoryForTesting(repo: ICRMRepository): void {
 
 export function resetCRMRepositoryForTesting(): void {
   crmRepository = new CRMRepositoryImpl();
+}
+
+export function setMatchRepositoryForTesting(repo: IMatchRepository): void {
+  matchRepository = repo;
+}
+
+export function resetMatchRepositoryForTesting(): void {
+  matchRepository = new MatchRepositoryImpl();
 }

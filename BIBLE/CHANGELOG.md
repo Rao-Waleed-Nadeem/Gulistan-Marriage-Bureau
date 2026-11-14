@@ -39,3 +39,13 @@
 - Implemented candidate privacy erasure procedure `executeCandidatePrivacyErasure` (PRIV-08).
 - Enforced candidate profile status freshness validation in `validateShareGrant`: fails closed if profile transitions to non-shareable status (`restricted`, `inactive`, `pending_review`) (MATCH-04).
 - Verified with 120 frontend tests, 68 backend tests (188 total passing), `tsc --noEmit` clean, and production build passing in 28.91s.
+- Implemented Refactor Workstream W5 (T-024): Deterministic matching, persisted evaluations, and Nadeem approvals.
+- Eliminated silent criterion/default assumptions in `frontend/src/lib/matching.ts` (MATCH-01): removed hardcoded 'Islam', 'Sunni / Hanafi', 'Bachelors', and `['never_married']` defaults; missing classifications and fields are explicitly classified as `'unknown'` or `'not_disclosed'`.
+- Refactored `frontend/src/features/matchmaker/MatchReview.tsx` (MATCH-02): eliminated fabricated comparisons, hardcoded explanations, and fallback score 92; rendered true persisted evaluation criteria, real compatibility score, dynamic importance badges, reason codes, and disqualification banner.
+- Disabled proposal approval button in `MatchReview.tsx` whenever mandatory criteria are unmet or candidate is ineligible.
+- Implemented typed `IMatchRepository` and `MatchRepositoryImpl` in `frontend/src/lib/repositories.ts` (MATCH-03) backed by normalized tables `match_cases`, `match_evaluations`, and `match_decisions` in Supabase mode and isolated in-memory stores in demo mode.
+- Enforced human approval invariants in `MatchRepository`: records decisions by Nadeem Ahmed (`approved_by_nadeem`, `rejected`, `deferred`) with actor/time/reason provenance; strictly forbids approving ineligible match proposals (`CANNOT_APPROVE_INELIGIBLE_MATCH`).
+- Implemented `verifyPreShareEligibility` in `frontend/src/lib/matching.ts` (MATCH-04): validates self-pairing prohibition, gender complementarity, active candidate profile status, mandatory criteria fulfillment, explicit Nadeem approval, and photo consent before disclosure.
+- Preserved strict zero-AI core matching rule (MATCH-05 / OPEN-015): core algorithm remains 100% deterministic TypeScript logic with no candidate PII dispatched to external AI.
+- Expanded automated test suite in `frontend/src/lib/matching.test.ts` (MATCH-06) covering non-defaulted criterion evaluations, safety gating in `verifyPreShareEligibility`, and end-to-end `MatchRepository` persistence.
+- Verified with 123 frontend tests, 68 backend tests (191 total passing), `tsc --noEmit` clean, and production build passing in 19.87s.

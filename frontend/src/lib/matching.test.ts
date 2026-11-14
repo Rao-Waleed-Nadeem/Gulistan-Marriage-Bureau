@@ -4,10 +4,12 @@ import {
   evaluateCandidateMatch,
   rankCandidatesForProfile,
   recordMatchDecision,
+  verifyPreShareEligibility,
   MATCHING_ALGORITHM_VERSION,
 } from './matching';
 import { ProfileRecord } from '../types';
 import { AuthSession } from './auth';
+import { matchRepository, resetRepositoriesForTesting } from './repositories';
 
 function createTestProfile(overrides: Partial<ProfileRecord>): ProfileRecord {
   const base: ProfileRecord = {
@@ -401,4 +403,203 @@ test('recordMatchDecision enforces authorization and prevents approving ineligib
   const rejectAttempt = recordMatchDecision(ineligibleEval, 'rejected', staffSession, 'Sect divergence.');
   assert.equal(rejectAttempt.success, true);
   assert.equal(rejectAttempt.evaluation?.humanDecisionStatus, 'rejected');
+});
+
+test('evaluateCandidateMatch does not fabricate religion, aqeedah, education or marital status defaults (MATCH-01)', () => {
+  const unspecifiedPrimary = createTestProfile({
+    id: 'GLS-UNSPEC-01',
+    gender: 'male',
+    religion: '',
+    aqeedah: '',
+    education: '',
+    maritalStatus: undefined as any,
+    preferences: {
+      ageMin: 20,
+      ageMax: 30,
+      heightMin: "5'0\"",
+      maritalStatus: [],
+      religion: '',
+      aqeedah: '',
+      caste: '',
+      educationMin: '',
+      preferredOccupations: [],
+      cityPreferences: ['Lahore'],
+      propertyExpectation: '',
+      familyArrangement: 'any',
+      criteriaClassifications: {},
+    },
+  });
+
+  const candidateWithSpecifics = createTestProfile({
+    id: 'GLS-CAND-SPEC',
+    gender: 'female',
+    religion: 'Christian',
+    aqeedah: 'Methodist',
+    education: 'Matric',
+    maritalStatus: 'widowed',
+    caste: 'Bhatti',
+  });
+
+  const evaluation = evaluateCandidateMatch(unspecifiedPrimary, candidateWithSpecifics);
+
+  // 1. Religion: Must NOT default to 'Islam'
+  const relCrit = evaluation.criteria.find((c) => c.id === 'religion');
+  assert.ok(relCrit, 'Religion criterion must exist');
+  assert.equal(relCrit.primaryValue, 'Not Disclosed');
+  assert.equal(relCrit.result, 'unknown');
+  assert.equal(relCrit.reasonCode, 'RELIGION_UNKNOWN');
+  assert.equal(relCrit.importance, 'not_disclosed');
+
+  // 2. Aqeedah: Must NOT default to 'Sunni / Hanafi'
+  const aqCrit = evaluation.criteria.find((c) => c.id === 'aqeedah');
+  assert.ok(aqCrit, 'Aqeedah criterion must exist');
+  assert.equal(aqCrit.primaryValue, 'Not Disclosed');
+  assert.equal(aqCrit.result, 'unknown');
+  assert.equal(aqCrit.reasonCode, 'AQEEDAH_UNKNOWN');
+  assert.equal(aqCrit.importance, 'not_disclosed');
+
+  // 3. Marital status: Must NOT default to ['never_married']
+  const maritalCrit = evaluation.criteria.find((c) => c.id === 'marital_status');
+  assert.ok(maritalCrit, 'Marital status criterion must exist');
+  assert.equal(maritalCrit.primaryValue, 'Not Disclosed');
+  assert.equal(maritalCrit.result, 'unknown');
+  assert.equal(maritalCrit.reasonCode, 'MARITAL_STATUS_UNKNOWN');
+  assert.equal(maritalCrit.importance, 'not_disclosed');
+
+  // 4. Education: Must NOT default to 'Bachelors'
+  const eduCrit = evaluation.criteria.find((c) => c.id === 'education');
+  assert.ok(eduCrit, 'Education criterion must exist');
+  assert.notEqual(eduCrit.primaryValue, 'Bachelors');
+});
+
+test('verifyPreShareEligibility validates all safety invariants before disclosure (MATCH-04)', () => {
+  const eligibleEval = evaluateCandidateMatch(samplePrimaryGroom, sampleCompatibleBride);
+  const approvedEval = {
+    ...eligibleEval,
+    humanDecisionStatus: 'approved_by_nadeem' as const,
+  };
+
+  // 1. Happy path: passes when active, compatible, and approved by Nadeem
+  const passCheck = verifyPreShareEligibility(samplePrimaryGroom, sampleCompatibleBride, approvedEval);
+  assert.equal(passCheck.isEligible, true);
+  assert.equal(passCheck.details.selfPairCheck, true);
+  assert.equal(passCheck.details.genderComplementCheck, true);
+  assert.equal(passCheck.details.statusCheck, true);
+  assert.equal(passCheck.details.mandatoryCriteriaCheck, true);
+  assert.equal(passCheck.details.humanApprovalCheck, true);
+
+  // 2. Rejects self-pairing
+  const selfCheck = verifyPreShareEligibility(samplePrimaryGroom, samplePrimaryGroom, approvedEval);
+  assert.equal(selfCheck.isEligible, false);
+  assert.equal(selfCheck.blockReason?.code, 'SELF_PAIR_PROHIBITED');
+
+  // 3. Rejects same-gender pairing
+  const sameGenderCandidate = { ...sampleCompatibleBride, gender: 'male' as const };
+  const sameGenderCheck = verifyPreShareEligibility(samplePrimaryGroom, sameGenderCandidate, approvedEval);
+  assert.equal(sameGenderCheck.isEligible, false);
+  assert.equal(sameGenderCheck.blockReason?.code, 'SAME_GENDER_PROHIBITED');
+
+  // 4. Rejects non-active profile status
+  const pendingPrimary = { ...samplePrimaryGroom, status: 'pending_review' as const };
+  const statusCheck = verifyPreShareEligibility(pendingPrimary, sampleCompatibleBride, approvedEval);
+  assert.equal(statusCheck.isEligible, false);
+  assert.equal(statusCheck.blockReason?.code, 'INELIGIBLE_PROFILE_STATUS');
+
+  // 5. Rejects when mandatory criteria failed
+  const mismatchBride = { ...sampleCompatibleBride, religion: 'Hindu' };
+  const mismatchEval = evaluateCandidateMatch(samplePrimaryGroom, mismatchBride);
+  const mandatoryCheck = verifyPreShareEligibility(samplePrimaryGroom, mismatchBride, mismatchEval);
+  assert.equal(mandatoryCheck.isEligible, false);
+  assert.equal(mandatoryCheck.blockReason?.code, 'MANDATORY_RELIGION_MISMATCH');
+
+  // 6. Rejects when human approval by Nadeem is pending or missing
+  const pendingApprovalEval = {
+    ...eligibleEval,
+    humanDecisionStatus: 'pending_review' as const,
+  };
+  const unapprovedCheck = verifyPreShareEligibility(samplePrimaryGroom, sampleCompatibleBride, pendingApprovalEval);
+  assert.equal(unapprovedCheck.isEligible, false);
+  assert.equal(unapprovedCheck.blockReason?.code, 'HUMAN_APPROVAL_REQUIRED');
+
+  // 7. Rejects photo disclosure if photoPermissionGranted is false
+  const noPhotoBride = { ...sampleCompatibleBride, photoPermissionGranted: false };
+  const photoConsentCheck = verifyPreShareEligibility(
+    samplePrimaryGroom,
+    noPhotoBride,
+    approvedEval,
+    { requirePhotoConsent: true }
+  );
+  assert.equal(photoConsentCheck.isEligible, false);
+  assert.equal(photoConsentCheck.blockReason?.code, 'PHOTO_CONSENT_REQUIRED');
+});
+
+test('MatchRepository persists cases, evaluations, decisions, and enforces approval invariants (MATCH-03)', async () => {
+  resetRepositoriesForTesting();
+
+  // 1. Create or retrieve match case
+  const matchCase = await matchRepository.getOrCreateMatchCase('GLS-T01', 'GLS-T02', staffSession);
+  assert.ok(matchCase.id);
+  assert.equal(matchCase.profileAId, 'GLS-T01');
+  assert.equal(matchCase.profileBId, 'GLS-T02');
+  assert.equal(matchCase.status, 'suggested');
+
+  // Re-retrieving returns same case (idempotent)
+  const caseAgain = await matchRepository.getOrCreateMatchCase('GLS-T02', 'GLS-T01', staffSession);
+  assert.equal(caseAgain.id, matchCase.id);
+
+  // Rejects self-pair case
+  await assert.rejects(
+    () => matchRepository.getOrCreateMatchCase('GLS-T01', 'GLS-T01', staffSession),
+    /SELF_PAIR_PROHIBITED/
+  );
+
+  // 2. Save deterministic evaluation
+  const evaluation = evaluateCandidateMatch(samplePrimaryGroom, sampleCompatibleBride);
+  const savedEval = await matchRepository.saveEvaluation(matchCase.id, evaluation, staffSession);
+  assert.ok(savedEval.id);
+  assert.equal(savedEval.matchCaseId, matchCase.id);
+  assert.equal(savedEval.compatibilityScore, evaluation.overallScore);
+  assert.equal(savedEval.mandatorySatisfied, true);
+  assert.equal(savedEval.algorithmVersion, MATCHING_ALGORITHM_VERSION);
+  assert.equal(savedEval.criteriaBreakdown.length, evaluation.criteria.length);
+
+  // 3. Unauthorized customer cannot record decision
+  await assert.rejects(
+    () => matchRepository.recordDecision(matchCase.id, 'approved', 'MUTUAL_ALIGNMENT', candidateSession),
+    /UNAUTHORIZED/
+  );
+
+  // 4. Staff records approved decision
+  const decision = await matchRepository.recordDecision(
+    matchCase.id,
+    'approved',
+    'MUTUAL_ALIGNMENT',
+    staffSession,
+    'Family background confirmed.'
+  );
+  assert.ok(decision.id);
+  assert.equal(decision.decision, 'approved');
+  assert.equal(decision.reasonCode, 'MUTUAL_ALIGNMENT');
+  assert.equal(decision.notes, 'Family background confirmed.');
+
+  // Verify match case status updated to 'approved_by_nadeem'
+  const history = await matchRepository.getCaseHistory(matchCase.id, staffSession);
+  assert.ok(history);
+  assert.equal(history.matchCase.status, 'approved_by_nadeem');
+  assert.equal(history.evaluations.length, 1);
+  assert.equal(history.decisions.length, 1);
+
+  // 5. Invariant: Cannot approve a match case where mandatory criteria failed
+  const case2 = await matchRepository.getOrCreateMatchCase('GLS-T01', 'GLS-T04', staffSession);
+  const badEval = evaluateCandidateMatch(samplePrimaryGroom, {
+    ...sampleCompatibleBride,
+    id: 'GLS-T04',
+    religion: 'Other',
+  });
+  await matchRepository.saveEvaluation(case2.id, badEval, staffSession);
+
+  await assert.rejects(
+    () => matchRepository.recordDecision(case2.id, 'approved', 'FORCE_APPROVE', staffSession),
+    /CANNOT_APPROVE_INELIGIBLE_MATCH/
+  );
 });

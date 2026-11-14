@@ -12,7 +12,7 @@
  * 7. Human Review Invariant: `requiresHumanApproval` is ALWAYS true before any share.
  */
 
-import { ProfileRecord, CriteriaImportance } from '../types';
+import { ProfileRecord, ProfileStatus, CriteriaImportance } from '../types';
 import { AuthSession, canAccessRole } from './auth';
 
 export const MATCHING_ALGORITHM_VERSION = 'v1.0.0-deterministic';
@@ -57,6 +57,23 @@ export interface MatchEvaluation {
   reviewNotes?: string;
 }
 
+export interface PreShareEligibilityResult {
+  isEligible: boolean;
+  blockReason?: {
+    code: string;
+    messageEn: string;
+    messageUrdu: string;
+  };
+  details: {
+    selfPairCheck: boolean;
+    genderComplementCheck: boolean;
+    statusCheck: boolean;
+    mandatoryCriteriaCheck: boolean;
+    humanApprovalCheck: boolean;
+    photoConsentCheck: boolean;
+  };
+}
+
 /**
  * Standard Criteria Importance Weights
  */
@@ -70,6 +87,9 @@ const IMPORTANCE_WEIGHTS: Record<CriteriaImportance, number> = {
 
 /**
  * Evaluates match compatibility between a primary profile and a candidate profile.
+ * MATCH-01 Invariant: Uses only stated preferences and explicit classifications.
+ * Missing classifications/fields are classified explicitly as 'unknown' or 'not_disclosed',
+ * never defaulted to hardcoded religious/educational/marital assumptions.
  */
 export function evaluateCandidateMatch(
   primary: ProfileRecord,
@@ -131,13 +151,39 @@ export function evaluateCandidateMatch(
   let firstDisqualification: { code: string; messageEn: string; messageUrdu: string } | undefined;
 
   // ---------------------------------------------------------------------------
-  // Criterion 1: Religion (Mandatory Hard Gate)
+  // Criterion 1: Religion Alignment
+  // MATCH-01: No hardcoded 'Islam' fallback. Uses only stated religion.
+  // Missing classification is explicitly 'unknown' or 'not_disclosed'.
   // ---------------------------------------------------------------------------
-  const religionImportance: CriteriaImportance = classifications.religion || 'mandatory';
+  const expectedReligion = prefs?.religion?.trim() || primary.religion?.trim() || '';
+  const religionImportance: CriteriaImportance =
+    classifications.religion || (expectedReligion ? 'unknown' : 'not_disclosed');
   const candidateReligion = candidate.religion?.trim() || '';
-  const expectedReligion = prefs?.religion?.trim() || primary.religion?.trim() || 'Islam';
 
-  if (!candidateReligion) {
+  if (!expectedReligion) {
+    criteria.push({
+      id: 'religion',
+      nameEn: 'Religion Alignment',
+      nameUrdu: 'مذہبی وابستگی',
+      importance: religionImportance,
+      result: 'unknown',
+      primaryValue: 'Not Disclosed',
+      candidateValue: candidateReligion || 'Not Disclosed',
+      weight: IMPORTANCE_WEIGHTS[religionImportance],
+      scoreContribution: 0,
+      reasonCode: 'RELIGION_UNKNOWN',
+      explanationEn: 'Primary profile religion is not disclosed or unverified.',
+      explanationUrdu: 'سائل امیدوار کا مذہب درج یا تصدیق شدہ نہیں ہے۔',
+    });
+    if (religionImportance === 'mandatory') {
+      isMandatorySatisfied = false;
+      firstDisqualification = {
+        code: 'MANDATORY_RELIGION_UNVERIFIED',
+        messageEn: 'Mandatory criterion unmet: Religion is unverified.',
+        messageUrdu: 'لازمی شرط نامکمل: مذہب کی تفصیل غیر تصدیق شدہ ہے۔',
+      };
+    }
+  } else if (!candidateReligion) {
     criteria.push({
       id: 'religion',
       nameEn: 'Religion Alignment',
@@ -201,13 +247,40 @@ export function evaluateCandidateMatch(
   }
 
   // ---------------------------------------------------------------------------
-  // Criterion 2: Aqeedah / Sect (Mandatory Hard Gate)
+  // Criterion 2: Aqeedah / Sect
+  // MATCH-01: No hardcoded 'Sunni / Hanafi' fallback. Uses only stated sect.
   // ---------------------------------------------------------------------------
-  const aqeedahImportance: CriteriaImportance = classifications.aqeedah || 'mandatory';
-  const expectedAqeedah = prefs?.aqeedah?.trim() || primary.aqeedah?.trim() || 'Sunni / Hanafi';
+  const expectedAqeedah = prefs?.aqeedah?.trim() || primary.aqeedah?.trim() || '';
+  const aqeedahImportance: CriteriaImportance =
+    classifications.aqeedah || (expectedAqeedah ? 'unknown' : 'not_disclosed');
   const candidateAqeedah = candidate.aqeedah?.trim() || '';
 
-  if (!candidateAqeedah) {
+  if (!expectedAqeedah) {
+    criteria.push({
+      id: 'aqeedah',
+      nameEn: 'Aqeedah / Sect',
+      nameUrdu: 'مسلک / عقیدہ',
+      importance: aqeedahImportance,
+      result: 'unknown',
+      primaryValue: 'Not Disclosed',
+      candidateValue: candidateAqeedah || 'Not Disclosed',
+      weight: IMPORTANCE_WEIGHTS[aqeedahImportance],
+      scoreContribution: 0,
+      reasonCode: 'AQEEDAH_UNKNOWN',
+      explanationEn: 'Primary profile aqeedah is not disclosed.',
+      explanationUrdu: 'سائل امیدوار کا مسلک درج نہیں ہے۔',
+    });
+    if (aqeedahImportance === 'mandatory') {
+      isMandatorySatisfied = false;
+      if (!firstDisqualification) {
+        firstDisqualification = {
+          code: 'MANDATORY_AQEEDAH_UNVERIFIED',
+          messageEn: 'Mandatory criterion unmet: Aqeedah requirement is unspecified.',
+          messageUrdu: 'لازمی شرط نامکمل: مطلوبہ مسلک کی تفصیل درج نہیں ہے۔',
+        };
+      }
+    }
+  } else if (!candidateAqeedah) {
     criteria.push({
       id: 'aqeedah',
       nameEn: 'Aqeedah / Sect',
@@ -278,13 +351,70 @@ export function evaluateCandidateMatch(
   }
 
   // ---------------------------------------------------------------------------
-  // Criterion 3: Marital Status (Mandatory Hard Gate)
+  // Criterion 3: Marital Status
+  // MATCH-01: No hardcoded ['never_married'] fallback.
   // ---------------------------------------------------------------------------
-  const maritalImportance: CriteriaImportance = classifications.maritalStatus || 'mandatory';
-  const acceptableStatuses = prefs?.maritalStatus || ['never_married'];
-  const candidateMarital = candidate.maritalStatus;
+  const acceptableStatuses =
+    prefs?.maritalStatus && prefs.maritalStatus.length > 0
+      ? prefs.maritalStatus
+      : primary.maritalStatus
+      ? [primary.maritalStatus]
+      : [];
+  const maritalImportance: CriteriaImportance =
+    classifications.maritalStatus || (acceptableStatuses.length > 0 ? 'unknown' : 'not_disclosed');
+  const candidateMarital = candidate.maritalStatus?.trim() || '';
 
-  if (acceptableStatuses.includes(candidateMarital)) {
+  if (acceptableStatuses.length === 0) {
+    criteria.push({
+      id: 'marital_status',
+      nameEn: 'Marital Status',
+      nameUrdu: 'ازدواجی حیثیت',
+      importance: maritalImportance,
+      result: 'unknown',
+      primaryValue: 'Not Disclosed',
+      candidateValue: candidateMarital || 'Not Disclosed',
+      weight: IMPORTANCE_WEIGHTS[maritalImportance],
+      scoreContribution: 0,
+      reasonCode: 'MARITAL_STATUS_UNKNOWN',
+      explanationEn: 'Primary acceptable marital status is not specified.',
+      explanationUrdu: 'مطلوبہ ازدواجی حیثیت درج نہیں ہے۔',
+    });
+    if (maritalImportance === 'mandatory') {
+      isMandatorySatisfied = false;
+      if (!firstDisqualification) {
+        firstDisqualification = {
+          code: 'MANDATORY_MARITAL_STATUS_UNVERIFIED',
+          messageEn: 'Mandatory criterion unmet: Marital status requirement is unspecified.',
+          messageUrdu: 'لازمی شرط نامکمل: مطلوبہ ازدواجی حیثیت درج نہیں ہے۔',
+        };
+      }
+    }
+  } else if (!candidateMarital) {
+    criteria.push({
+      id: 'marital_status',
+      nameEn: 'Marital Status',
+      nameUrdu: 'ازدواجی حیثیت',
+      importance: maritalImportance,
+      result: 'unknown',
+      primaryValue: acceptableStatuses.join(', '),
+      candidateValue: 'Not Disclosed',
+      weight: IMPORTANCE_WEIGHTS[maritalImportance],
+      scoreContribution: 0,
+      reasonCode: 'MARITAL_STATUS_UNKNOWN',
+      explanationEn: 'Candidate marital status is unverified or not disclosed.',
+      explanationUrdu: 'امیدوار کی ازدواجی حیثیت درج نہیں ہے۔',
+    });
+    if (maritalImportance === 'mandatory') {
+      isMandatorySatisfied = false;
+      if (!firstDisqualification) {
+        firstDisqualification = {
+          code: 'MANDATORY_MARITAL_STATUS_UNVERIFIED',
+          messageEn: 'Mandatory criterion unmet: Candidate marital status is unverified.',
+          messageUrdu: 'لازمی شرط نامکمل: امیدوار کی ازدواجی حیثیت غیر تصدیق شدہ ہے۔',
+        };
+      }
+    }
+  } else if (acceptableStatuses.includes(candidateMarital as any)) {
     criteria.push({
       id: 'marital_status',
       nameEn: 'Marital Status',
@@ -329,9 +459,11 @@ export function evaluateCandidateMatch(
   // ---------------------------------------------------------------------------
   // Criterion 4: Age Compatibility (Weighted Soft Range)
   // ---------------------------------------------------------------------------
-  const ageImportance: CriteriaImportance = classifications.age || 'preferred';
-  const ageMin = prefs?.ageMin || 18;
-  const ageMax = prefs?.ageMax || 70;
+  const hasExplicitAgePref = prefs?.ageMin !== undefined || prefs?.ageMax !== undefined;
+  const ageImportance: CriteriaImportance =
+    classifications.age || (hasExplicitAgePref ? 'preferred' : 'not_disclosed');
+  const ageMin = prefs?.ageMin ?? 18;
+  const ageMax = prefs?.ageMax ?? 70;
   const candidateAge = candidate.age;
 
   if (candidateAge >= ageMin && candidateAge <= ageMax) {
@@ -350,7 +482,6 @@ export function evaluateCandidateMatch(
       explanationUrdu: `امیدوار کی عمر (${candidateAge} سال) مطلوبہ حد (${ageMin}-${ageMax}) کے عین مطابق ہے۔`,
     });
   } else if (candidateAge >= ageMin - 2 && candidateAge <= ageMax + 2) {
-    // Within 2 years of boundary: partial acceptable credit
     const partialScore = IMPORTANCE_WEIGHTS[ageImportance] * 0.5;
     criteria.push({
       id: 'age',
@@ -396,11 +527,47 @@ export function evaluateCandidateMatch(
   // ---------------------------------------------------------------------------
   // Criterion 5: City / Location (Weighted)
   // ---------------------------------------------------------------------------
-  const cityImportance: CriteriaImportance = classifications.city || 'preferred';
-  const preferredCities = prefs?.cityPreferences || [primary.currentCity];
+  const preferredCities =
+    prefs?.cityPreferences && prefs.cityPreferences.length > 0
+      ? prefs.cityPreferences
+      : primary.currentCity
+      ? [primary.currentCity]
+      : [];
+  const cityImportance: CriteriaImportance =
+    classifications.city || (preferredCities.length > 0 ? 'preferred' : 'not_disclosed');
   const candidateCity = candidate.currentCity?.trim() || '';
 
-  if (preferredCities.some((c) => c.toLowerCase() === candidateCity.toLowerCase())) {
+  if (preferredCities.length === 0) {
+    criteria.push({
+      id: 'city',
+      nameEn: 'City & Location',
+      nameUrdu: 'شہر و رہائش',
+      importance: cityImportance,
+      result: 'unknown',
+      primaryValue: 'Not Disclosed',
+      candidateValue: candidateCity || 'Not Disclosed',
+      weight: IMPORTANCE_WEIGHTS[cityImportance],
+      scoreContribution: 0,
+      reasonCode: 'CITY_UNKNOWN',
+      explanationEn: 'Primary location preference is not specified.',
+      explanationUrdu: 'مطلوبہ رہائش درج نہیں ہے۔',
+    });
+  } else if (!candidateCity) {
+    criteria.push({
+      id: 'city',
+      nameEn: 'City & Location',
+      nameUrdu: 'شہر و رہائش',
+      importance: cityImportance,
+      result: 'unknown',
+      primaryValue: preferredCities.join(', '),
+      candidateValue: 'Not Disclosed',
+      weight: IMPORTANCE_WEIGHTS[cityImportance],
+      scoreContribution: 0,
+      reasonCode: 'CITY_UNKNOWN',
+      explanationEn: 'Candidate city is unverified or not disclosed.',
+      explanationUrdu: 'امیدوار کا شہر درج نہیں ہے۔',
+    });
+  } else if (preferredCities.some((c) => c.toLowerCase() === candidateCity.toLowerCase())) {
     criteria.push({
       id: 'city',
       nameEn: 'City & Location',
@@ -425,7 +592,7 @@ export function evaluateCandidateMatch(
       primaryValue: preferredCities.join(', '),
       candidateValue: candidateCity,
       weight: IMPORTANCE_WEIGHTS[cityImportance],
-      scoreContribution: IMPORTANCE_WEIGHTS[cityImportance] * 0.3, // Partial relocation allowance
+      scoreContribution: IMPORTANCE_WEIGHTS[cityImportance] * 0.3,
       reasonCode: 'CITY_DIFFERENT_RELOCATION_POSSIBLE',
       explanationEn: `Candidate is in ${candidateCity} (Inter-city relocation subject to family discussion).`,
       explanationUrdu: `امیدوار ${candidateCity} میں ہے (شہر کی تبدیلی باہمی گفتگو سے مشروط ہے)۔`,
@@ -434,34 +601,36 @@ export function evaluateCandidateMatch(
 
   // ---------------------------------------------------------------------------
   // Criterion 6: Education (Weighted)
+  // MATCH-01: No hardcoded 'Bachelors' fallback.
   // ---------------------------------------------------------------------------
-  const eduImportance: CriteriaImportance = classifications.education || 'preferred';
+  const expectedEduMin = prefs?.educationMin?.trim() || primary.education?.trim() || '';
+  const eduImportance: CriteriaImportance =
+    classifications.education || (expectedEduMin ? 'preferred' : 'not_disclosed');
   const candidateEdu = candidate.education?.trim() || '';
-  const expectedEduMin = prefs?.educationMin || 'Bachelors';
 
-  if (candidateEdu.length > 0) {
-    criteria.push({
-      id: 'education',
-      nameEn: 'Educational Standard',
-      nameUrdu: 'تعلیمی معیار',
-      importance: eduImportance,
-      result: 'matched',
-      primaryValue: expectedEduMin,
-      candidateValue: candidateEdu,
-      weight: IMPORTANCE_WEIGHTS[eduImportance],
-      scoreContribution: IMPORTANCE_WEIGHTS[eduImportance],
-      reasonCode: 'EDUCATION_VERIFIED',
-      explanationEn: `Candidate holds certified qualification: ${candidateEdu}.`,
-      explanationUrdu: `امیدوار کے پاس معیاری تعلیمی ڈگری (${candidateEdu}) موجود ہے۔`,
-    });
-  } else {
+  if (!expectedEduMin && !candidateEdu) {
     criteria.push({
       id: 'education',
       nameEn: 'Educational Standard',
       nameUrdu: 'تعلیمی معیار',
       importance: eduImportance,
       result: 'unknown',
-      primaryValue: expectedEduMin,
+      primaryValue: 'Not Disclosed',
+      candidateValue: 'Not Disclosed',
+      weight: IMPORTANCE_WEIGHTS[eduImportance],
+      scoreContribution: 0,
+      reasonCode: 'EDUCATION_UNKNOWN',
+      explanationEn: 'Education qualification details not specified.',
+      explanationUrdu: 'تعلیمی ڈگری کی تفصیل درج نہیں ہے۔',
+    });
+  } else if (!candidateEdu) {
+    criteria.push({
+      id: 'education',
+      nameEn: 'Educational Standard',
+      nameUrdu: 'تعلیمی معیار',
+      importance: eduImportance,
+      result: 'unknown',
+      primaryValue: expectedEduMin || 'Not Disclosed',
       candidateValue: 'Unknown',
       weight: IMPORTANCE_WEIGHTS[eduImportance],
       scoreContribution: 0,
@@ -469,16 +638,100 @@ export function evaluateCandidateMatch(
       explanationEn: 'Candidate education qualification is unverified.',
       explanationUrdu: 'امیدوار کی تعلیمی ڈگری کی تفصیل درج نہیں ہے۔',
     });
+    if (eduImportance === 'mandatory') {
+      isMandatorySatisfied = false;
+      if (!firstDisqualification) {
+        firstDisqualification = {
+          code: 'MANDATORY_EDUCATION_UNVERIFIED',
+          messageEn: 'Mandatory criterion unmet: Candidate education is unverified.',
+          messageUrdu: 'لازمی شرط نامکمل: امیدوار کی تعلیم غیر تصدیق شدہ ہے۔',
+        };
+      }
+    }
+  } else {
+    criteria.push({
+      id: 'education',
+      nameEn: 'Educational Standard',
+      nameUrdu: 'تعلیمی معیار',
+      importance: eduImportance,
+      result: 'matched',
+      primaryValue: expectedEduMin || 'Any Qualification',
+      candidateValue: candidateEdu,
+      weight: IMPORTANCE_WEIGHTS[eduImportance],
+      scoreContribution: IMPORTANCE_WEIGHTS[eduImportance],
+      reasonCode: 'EDUCATION_VERIFIED',
+      explanationEn: `Candidate holds certified qualification: ${candidateEdu}.`,
+      explanationUrdu: `امیدوار کے پاس معیاری تعلیمی ڈگری (${candidateEdu}) موجود ہے۔`,
+    });
   }
 
   // ---------------------------------------------------------------------------
   // Criterion 7: Caste / Biradari Standing (Weighted)
   // ---------------------------------------------------------------------------
-  const casteImportance: CriteriaImportance = classifications.caste || 'acceptable_range';
   const expectedCaste = prefs?.caste?.trim() || primary.caste?.trim() || '';
   const candidateCaste = candidate.caste?.trim() || '';
+  const casteImportance: CriteriaImportance =
+    classifications.caste || (expectedCaste ? 'acceptable_range' : 'not_disclosed');
 
-  if (expectedCaste.toLowerCase().includes(candidateCaste.toLowerCase()) || candidateCaste.toLowerCase().includes(expectedCaste.toLowerCase())) {
+  if (!expectedCaste && !candidateCaste) {
+    criteria.push({
+      id: 'caste',
+      nameEn: 'Caste & Biradari',
+      nameUrdu: 'قوم و برادری',
+      importance: casteImportance,
+      result: 'unknown',
+      primaryValue: 'Not Disclosed',
+      candidateValue: 'Not Disclosed',
+      weight: IMPORTANCE_WEIGHTS[casteImportance],
+      scoreContribution: 0,
+      reasonCode: 'CASTE_UNKNOWN',
+      explanationEn: 'Caste / biradari not disclosed by either party.',
+      explanationUrdu: 'قوم و برادری کی تفصیل درج نہیں ہے۔',
+    });
+  } else if (!expectedCaste) {
+    criteria.push({
+      id: 'caste',
+      nameEn: 'Caste & Biradari',
+      nameUrdu: 'قوم و برادری',
+      importance: casteImportance,
+      result: 'matched',
+      primaryValue: 'Any Biradari',
+      candidateValue: candidateCaste,
+      weight: IMPORTANCE_WEIGHTS[casteImportance],
+      scoreContribution: IMPORTANCE_WEIGHTS[casteImportance],
+      reasonCode: 'CASTE_NOT_RESTRICTED',
+      explanationEn: 'Primary profile has no caste restriction.',
+      explanationUrdu: 'سائل امیدوار کی طرف سے قوم کی کوئی پابندی نہیں۔',
+    });
+  } else if (!candidateCaste) {
+    criteria.push({
+      id: 'caste',
+      nameEn: 'Caste & Biradari',
+      nameUrdu: 'قوم و برادری',
+      importance: casteImportance,
+      result: 'unknown',
+      primaryValue: expectedCaste,
+      candidateValue: 'Not Disclosed',
+      weight: IMPORTANCE_WEIGHTS[casteImportance],
+      scoreContribution: 0,
+      reasonCode: 'CASTE_UNKNOWN',
+      explanationEn: 'Candidate caste is unverified or not disclosed.',
+      explanationUrdu: 'امیدوار کی قوم درج یا تصدیق شدہ نہیں ہے۔',
+    });
+    if (casteImportance === 'mandatory') {
+      isMandatorySatisfied = false;
+      if (!firstDisqualification) {
+        firstDisqualification = {
+          code: 'MANDATORY_CASTE_UNVERIFIED',
+          messageEn: 'Mandatory criterion unmet: Candidate caste is unverified.',
+          messageUrdu: 'لازمی شرط نامکمل: امیدوار کی قوم غیر تصدیق شدہ ہے۔',
+        };
+      }
+    }
+  } else if (
+    expectedCaste.toLowerCase().includes(candidateCaste.toLowerCase()) ||
+    candidateCaste.toLowerCase().includes(expectedCaste.toLowerCase())
+  ) {
     criteria.push({
       id: 'caste',
       nameEn: 'Caste & Biradari',
@@ -503,7 +756,8 @@ export function evaluateCandidateMatch(
       primaryValue: expectedCaste,
       candidateValue: candidateCaste,
       weight: IMPORTANCE_WEIGHTS[casteImportance],
-      scoreContribution: casteImportance === 'acceptable_range' ? IMPORTANCE_WEIGHTS[casteImportance] * 0.5 : 0,
+      scoreContribution:
+        casteImportance === 'acceptable_range' ? IMPORTANCE_WEIGHTS[casteImportance] * 0.5 : 0,
       reasonCode: 'CASTE_DIFFERENT',
       explanationEn: `Different biradari (${candidateCaste}).`,
       explanationUrdu: `مختلف برادری (${candidateCaste})۔`,
@@ -566,6 +820,158 @@ export function evaluateCandidateMatch(
     summaryUrdu,
     requiresHumanApproval: true, // INVARIANT: Human review is always mandatory
     humanDecisionStatus: 'pending_review',
+  };
+}
+
+/**
+ * Pre-share eligibility verification (MATCH-04).
+ * Rechecks:
+ * 1. Self-Pair (primary.id !== candidate.id)
+ * 2. Gender Complementarity (primary.gender !== candidate.gender)
+ * 3. Fresh Profile Status (both profiles must be 'active' or 'introduction_authorized')
+ * 4. Mandatory Criteria Satisfaction (evaluation.isMandatorySatisfied === true)
+ * 5. Nadeem Ahmed Human Approval (evaluation.humanDecisionStatus === 'approved_by_nadeem')
+ * 6. Photo Consent Check (when photo disclosure is requested)
+ */
+export function verifyPreShareEligibility(
+  primary: ProfileRecord,
+  candidate: ProfileRecord,
+  evaluation?: MatchEvaluation,
+  options?: { requirePhotoConsent?: boolean }
+): PreShareEligibilityResult {
+  const selfPairCheck = primary.id !== candidate.id;
+  if (!selfPairCheck) {
+    return {
+      isEligible: false,
+      blockReason: {
+        code: 'SELF_PAIR_PROHIBITED',
+        messageEn: 'A profile cannot be shared or paired with itself.',
+        messageUrdu: 'پروفائل کا اپنے آپ سے موازنہ ممکن نہیں ہے۔',
+      },
+      details: {
+        selfPairCheck: false,
+        genderComplementCheck: false,
+        statusCheck: false,
+        mandatoryCriteriaCheck: false,
+        humanApprovalCheck: false,
+        photoConsentCheck: false,
+      },
+    };
+  }
+
+  const genderComplementCheck = primary.gender !== candidate.gender;
+  if (!genderComplementCheck) {
+    return {
+      isEligible: false,
+      blockReason: {
+        code: 'SAME_GENDER_PROHIBITED',
+        messageEn: 'Matrimonial matching requires complementary genders.',
+        messageUrdu: 'رشتہ کے لیے متضاد جنس ضروری ہے۔',
+      },
+      details: {
+        selfPairCheck: true,
+        genderComplementCheck: false,
+        statusCheck: false,
+        mandatoryCriteriaCheck: false,
+        humanApprovalCheck: false,
+        photoConsentCheck: false,
+      },
+    };
+  }
+
+  const allowedStatuses: ProfileStatus[] = ['active', 'introduction_authorized'];
+  const statusCheck =
+    allowedStatuses.includes(primary.status) && allowedStatuses.includes(candidate.status);
+  if (!statusCheck) {
+    return {
+      isEligible: false,
+      blockReason: {
+        code: 'INELIGIBLE_PROFILE_STATUS',
+        messageEn: 'Both candidate profiles must be active or authorized for introductions before sharing.',
+        messageUrdu: 'معلومات شیئر کرنے سے قبل دونوں پروفائلز کا فعال یا مجاز ہونا لازمی ہے۔',
+      },
+      details: {
+        selfPairCheck: true,
+        genderComplementCheck: true,
+        statusCheck: false,
+        mandatoryCriteriaCheck: false,
+        humanApprovalCheck: false,
+        photoConsentCheck: false,
+      },
+    };
+  }
+
+  const evalToUse = evaluation || evaluateCandidateMatch(primary, candidate);
+  const mandatoryCriteriaCheck = evalToUse.isMandatorySatisfied;
+  if (!mandatoryCriteriaCheck) {
+    return {
+      isEligible: false,
+      blockReason: {
+        code: evalToUse.disqualificationReason?.code || 'MANDATORY_CRITERIA_UNMET',
+        messageEn: evalToUse.disqualificationReason?.messageEn || 'Mandatory matching criteria are not satisfied.',
+        messageUrdu: evalToUse.disqualificationReason?.messageUrdu || 'لازمی شرائط نامکمل ہیں۔',
+      },
+      details: {
+        selfPairCheck: true,
+        genderComplementCheck: true,
+        statusCheck: true,
+        mandatoryCriteriaCheck: false,
+        humanApprovalCheck: false,
+        photoConsentCheck: false,
+      },
+    };
+  }
+
+  const humanApprovalCheck = evalToUse.humanDecisionStatus === 'approved_by_nadeem';
+  if (!humanApprovalCheck) {
+    return {
+      isEligible: false,
+      blockReason: {
+        code: 'HUMAN_APPROVAL_REQUIRED',
+        messageEn: 'Match proposal must be explicitly reviewed and approved by Nadeem Ahmed before disclosure.',
+        messageUrdu: 'معلومات شیئر کرنے سے قبل ندیم احمد صاحب کی باقاعدہ منظوری لازمی ہے۔',
+      },
+      details: {
+        selfPairCheck: true,
+        genderComplementCheck: true,
+        statusCheck: true,
+        mandatoryCriteriaCheck: true,
+        humanApprovalCheck: false,
+        photoConsentCheck: false,
+      },
+    };
+  }
+
+  const photoConsentCheck = options?.requirePhotoConsent ? !!candidate.photoPermissionGranted : true;
+  if (!photoConsentCheck) {
+    return {
+      isEligible: false,
+      blockReason: {
+        code: 'PHOTO_CONSENT_REQUIRED',
+        messageEn: 'Candidate has not granted photo sharing permission.',
+        messageUrdu: 'امیدوار نے تصویر شیئر کرنے کی اجازت نہیں دی ہے۔',
+      },
+      details: {
+        selfPairCheck: true,
+        genderComplementCheck: true,
+        statusCheck: true,
+        mandatoryCriteriaCheck: true,
+        humanApprovalCheck: true,
+        photoConsentCheck: false,
+      },
+    };
+  }
+
+  return {
+    isEligible: true,
+    details: {
+      selfPairCheck: true,
+      genderComplementCheck: true,
+      statusCheck: true,
+      mandatoryCriteriaCheck: true,
+      humanApprovalCheck: true,
+      photoConsentCheck: true,
+    },
   };
 }
 
