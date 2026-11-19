@@ -9,6 +9,8 @@
     "benchmark": "node scripts/capacity-benchmark.js",
     "restore:drill": "node scripts/restore-drill.js",
     "deploy:migrations": "node scripts/deploy-migrations.js",
+    "deploy:migrations:live": "node scripts/deploy-migrations.js --live",
+    "deploy:migrations:verify": "node scripts/deploy-migrations.js --verify-only",
     "smoke:test": "node scripts/smoke-test.js --demo",
     "migrate:validate": "node scripts/validate-migrations.js",
     "migrate:status": "node scripts/migration-status.js"
@@ -21,5 +23,8 @@
   ],
   "engines": {
     "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "pg": "^8.23.1"
   }
 }

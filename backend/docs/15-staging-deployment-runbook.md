@@ -51,22 +51,33 @@ From **Project Settings $\to$ Database**:
 
 ## 3. Applying Migrations to Live Database
 
-The repository provides an automated, idempotent migration runner that tracks applied schema versions and verifies SHA-256 checksums:
+The repository provides an automated, idempotent PostgreSQL migration runner (`backend/scripts/deploy-migrations.js`) that tracks applied schema versions and verifies SHA-256 checksums in `public.schema_migrations`:
 
 ```bash
 # 1. Export database connection in terminal or local .env (ignored by Git)
 export DATABASE_URL="postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres"
 
-# 2. Run the deployment runner
-npm --prefix backend run deploy:migrations
+# 2. Dry-run validation (validates plan without connecting or making changes)
+npm --prefix backend run deploy:migrations -- --dry-run
+
+# 3. Verify checksums of already applied migrations against database
+npm --prefix backend run deploy:migrations:verify
+
+# 4. Execute pending migrations transactionally against live database
+npm --prefix backend run deploy:migrations:live
 ```
 
 The runner automatically:
-1. Verifies database connectivity.
-2. Checks existing `schema_migrations` history.
-3. Applies `00001_initial_schema_baseline.sql` (Profiles, Consents, Audit Events, RLS policies).
-4. Applies `00002_financial_ledger.sql` (Financial transactions, positive amount checks, append-only policies).
-5. Records migration versions and timestamps.
+1. Validates connection and ensures SSL configuration for remote hosts.
+2. Ensures the `public.schema_migrations` tracking table exists.
+3. Queries applied migration history and verifies SHA-256 checksums against local files on disk (fails if tampering is detected).
+4. Applies pending migrations sequentially within transaction blocks:
+   - `00001_initial_schema_baseline.sql` (Profiles, Consents, Audit Events, RLS policies).
+   - `00002_financial_ledger.sql` (Financial transactions, positive amount checks, append-only policies).
+   - `00003_complete_normalized_schema.sql` (Full normalized domain tables, match cases, agreements, CRM).
+   - `00004_staged_migration_batches.sql` (Staged migration batches, records, RLS).
+5. Records migration versions, filenames, SHA-256 checksums, and execution times (ms).
+6. Rolls back transactions and fails closed on any SQL or connection error.
 
 ---
 

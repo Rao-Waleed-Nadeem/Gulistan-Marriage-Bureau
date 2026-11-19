@@ -542,6 +542,93 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 
 **Completion record:** Completed on 2026-11-14. Enhanced disaster restore drill in `backend/scripts/restore-drill.js` with Point-in-Time Recovery simulation (`executePointInTimeRestore`) and verified via `backend/tests/backup_restore.test.js` (5 tests). Created `frontend/src/lib/accessibility.ts` and test suite `frontend/src/lib/accessibility.test.ts` (7 tests) verifying bilingual RTL/LTR isolates, Android 44px touch targets, and WCAG AA contrast. Produced `backend/docs/16-monitoring-and-incident-runbook.md`, `backend/docs/17-design-theme-review.md`, and updated `backend/docs/14-release-readiness-review.md` with Section 7 Dated Release Evidence Addendum verifying all release gates A through J. Verified with 149 frontend tests and 85 backend tests (234 total passing), `tsc --noEmit` (0 errors), and `vite build` (3.90s). Commit SHA on main recorded below: `cf3d0a2`.
 
+### T-031 — Real migration runner, migration history/checksum, local PostgreSQL integration and staging migration verification
+**Status:** DONE  
+**Priority:** P0  
+**Dependencies:** None (First task of Independent Repository Audit 2026-11-15 remediation sequence)  
+**Scope:** Remediation of Findings P0-01, P0-02, and OPS-01. Replace false-success simulation in `backend/scripts/deploy-migrations.js` with real PostgreSQL execution driver (`pg`), persistent `public.schema_migrations` tracking table, checksum verification against disk files, transaction atomicity and rollback on SQL failure, verify-only mode, and offline dry-run vs live execution separation.
+
+**Detailed steps**
+1. Install `pg` (PostgreSQL client driver) in `backend/package.json` to enable real database execution.
+2. Refactor `backend/scripts/deploy-migrations.js`:
+   - Implement `calculateMigrationChecksum` with LF/CRLF normalization for deterministic cross-platform hashes.
+   - Implement `maskDatabaseUrl` to safely conceal database passwords in connection strings.
+   - Implement `ensureMigrationTable` to create `public.schema_migrations` (version, name, checksum, applied_at, execution_time_ms, applied_by).
+   - Implement `getAppliedMigrations` to read durable applied history ordered by version.
+   - Implement `verifyChecksums` to validate disk migration checksums against database records and fail on tampering.
+   - Implement `applySingleMigration` with execution timing, `schema_migrations` insertion, and transaction rollback on error.
+   - Implement `runMigrationDeployment`: strictly separate `DRY_RUN_OR_SIMULATION` (no connection, simulated success) from `LIVE_DATABASE_EXECUTION` (real connection, transactional execution, error on missing URL/failure).
+   - Provide CLI flags: `--dry-run`, `--live`, `--verify-only`, `--url=<db_url>`.
+3. Enhance `backend/scripts/migration-status.js` to inspect `public.schema_migrations` when `DATABASE_URL` is set, with graceful fallback to disk inspection when offline.
+4. Author comprehensive test suite in `backend/tests/deploy_migrations.test.js` covering checksum hashing, URL masking, migration plan discovery, tampering detection, table creation, applied migration queries, transactional execution, SQL error rollback, fresh database migration, and verify-only mode.
+5. Update documentation in `backend/migrations/README.md` and `backend/docs/15-staging-deployment-runbook.md`.
+
+**Acceptance criteria**
+- [x] MIG-REAL-01: `backend/package.json` includes `pg` client dependency; no false claim of live execution without connection.
+- [x] MIG-REAL-02: `public.schema_migrations` table schema defined with `version`, `name`, `checksum`, `applied_at`, `execution_time_ms`, and `applied_by`.
+- [x] MIG-REAL-03: SHA-256 checksum verification detects tampering or modification of already-applied migrations and aborts execution.
+- [x] MIG-REAL-04: Migrations execute within transaction blocks; failures trigger `ROLLBACK` and propagate descriptive errors without corrupting migration history.
+- [x] MIG-REAL-05: Dry-run and simulation modes are strictly labelled `DRY_RUN_OR_SIMULATION` with `SIMULATED_SUCCESS`; live mode requires valid database credentials and fails closed otherwise.
+- [x] MIG-REAL-06: 10 dedicated unit, contract, and mock-integration tests in `backend/tests/deploy_migrations.test.js` verified (95 total backend tests passing).
+- [x] MIG-REAL-07: Migration documentation updated in `backend/migrations/README.md` and `backend/docs/15-staging-deployment-runbook.md`.
+- [x] Queue updated and commit verified directly on `main`.
+
+**Completion record:** Completed on 2026-11-19. Installed `pg` in `backend/package.json`. Implemented real PostgreSQL transactional migration runner in `backend/scripts/deploy-migrations.js` with `public.schema_migrations` tracking, SHA-256 checksum tampering detection, execution time measurement, transaction rollback on failure, and CLI support (`--dry-run`, `--live`, `--verify-only`). Enhanced `backend/scripts/migration-status.js` with live database status reporting. Added 10 tests in `backend/tests/deploy_migrations.test.js` (95 backend tests + 149 frontend tests = 244 total passing). Updated `backend/migrations/README.md` and `backend/docs/15-staging-deployment-runbook.md`. Verified commit `529c259` on `main`.
+
+### T-032 — Auth account status, customer/profile ownership, consent schema, audit integrity, database-enforced lifecycle/RLS
+**Status:** READY  
+**Priority:** P0  
+**Dependencies:** T-031  
+**Scope:** Remediation of Findings P0-03, P0-04, P0-05, P1-01 through P1-06. Account suspension enforcement, `profiles.account_id` ownership binding, additive consent migration fixing defaults/unconsented records, database-enforced lifecycle state machine trigger/RPC, immutable audit trail triggers.
+
+### T-033 — Profile repository UUID mapping, complete nested DTO mapping, transactional create/update, customer self-service and assisted ownership
+**Status:** READY  
+**Priority:** P0  
+**Dependencies:** T-032  
+**Scope:** Remediation of Findings P0-03, P1-07 through P1-15. Replace reference codes with UUID foreign keys, complete lossless DTO mapping, transactional profile create/update RPC, customer intake vs staff intake separation, removal of fabricated form presets.
+
+### T-034 — Real private Storage, Storage RLS, consent withdrawal, server-side share issue/redeem/revoke and privacy erasure
+**Status:** READY  
+**Priority:** P0  
+**Dependencies:** T-032, T-033  
+**Scope:** Remediation of Findings P0-07, P0-08, P1-20 through P1-29. Real Supabase Storage bucket operations, storage RLS policies, token-hash share grants in database, server-side redemption endpoint, photo purge on consent withdrawal, transactional privacy erasure.
+
+### T-035 — Match UUID mapping, canonical pair uniqueness, persisted current evaluation, Nadeem-only decision and atomic approval/share preconditions
+**Status:** READY  
+**Priority:** P0  
+**Dependencies:** T-032, T-033, T-034  
+**Scope:** Remediation of Findings P0-06, P0-09, P1-16 through P1-19. Match-case UUID mapping, canonical profile pair ordering/uniqueness constraint, database-persisted match evaluations, Nadeem-only decision enforcement, atomic approval checks.
+
+### T-036 — Customer portal recommendations, preference save, correction/deactivation requests, durable CRM links and reminder model
+**Status:** READY  
+**Priority:** P1  
+**Dependencies:** T-033, T-034, T-035  
+**Scope:** Remediation of Findings P1-13, P1-30, P1-31, P2-06. Customer portal recommendation viewing bound to consent and Nadeem approval, preference persistence, correction/deactivation request flow, durable CRM links.
+
+### T-037 — Matchmaker UUID/code correction, referral attribution, tiered agreement schema, finance settlement/reversal integrity and accounting tests
+**Status:** READY  
+**Priority:** P1  
+**Dependencies:** T-031, T-032  
+**Scope:** Remediation of Findings P1-32 through P1-38. Matchmaker partner UUID preservation, referral attribution table, tiered commission schema, atomic finance reversal uniqueness, transaction type/status consistency.
+
+### T-038 — Durable migration batches, explicit consent review, no fabricated fields, real file hashing, atomic/resumable import, true merge and rollback
+**Status:** READY  
+**Priority:** P0  
+**Dependencies:** T-031, T-032, T-033, T-034  
+**Scope:** Remediation of Findings P1-39 through P1-47. Persistent migration batch/records repository in PostgreSQL, explicit consent verification, elimination of demographic default injection, real photo byte hashing, atomic/resumable batch import, true conflict merge and durable rollback.
+
+### T-039 — Server pagination, indexed search, bounded payloads, actual PostgreSQL 100k benchmark and concurrency testing
+**Status:** READY  
+**Priority:** P1  
+**Dependencies:** T-031, T-033, T-035, T-037  
+**Scope:** Remediation of Findings OPS-05, P1-09. Server-side pagination, bounded search query payloads, composite indexes, real 100k synthetic dataset benchmark on PostgreSQL with EXPLAIN ANALYZE and concurrency testing.
+
+### T-040 — Real RLS/Storage/Auth integration suite, browser E2E, real backup/restore, monitoring, Android/RTL matrix, documentation reconciliation and final release evidence
+**Status:** READY  
+**Priority:** P0  
+**Dependencies:** T-031 through T-039  
+**Scope:** Remediation of Findings OPS-01 through OPS-04, OPS-06 through OPS-12. Real local/staging PostgreSQL integration suite, Playwright browser E2E workflows, isolated backup/restore drill, monitoring alerts, real device/RTL tests, documentation reconciliation and owner sign-off.
+
 ## Task history
 
 | Date | Task | Outcome | Commit | Notes |
@@ -577,3 +664,4 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-11-14 | T-028 | DONE | 01baf99 | Refactor W8: Staged WhatsApp and phone-gallery migration; 214 tests passed. |
 | 2026-11-14 | T-029 | DONE | 8388e3e | Refactor W9: Real integration tests, security tests, CI & capacity; 226 tests passed. |
 | 2026-11-14 | T-030 | DONE | cf3d0a2 | Refactor W9: Backup, restore, monitoring, Android/RTL & final release; 234 tests passed. |
+| 2026-11-19 | T-031 | DONE | 529c259 | Real PostgreSQL migration runner, schema_migrations history tracking, SHA-256 checksum tampering detection, transaction atomicity; 244 tests passed. |

@@ -45,17 +45,44 @@ Before any migration is committed to `main`:
 
 ---
 
-## 3. Migration Tooling
+## 3. Migration Tooling & Deployment Runner
 
-Validate your migrations locally using the backend scripts:
+Validate and deploy your migrations locally or to live staging using the backend scripts:
 
 ```bash
 # Validate naming, sequence, and SQL safety checks across all migration files:
 npm run migrate:validate
 
-# List migration files and their sequential order:
+# Inspect migration status (offline disk inspection or live database when DATABASE_URL is set):
 npm run migrate:status
+
+# Validate migration plan and checksums in simulation/dry-run mode (no DB changes):
+npm run deploy:migrations -- --dry-run
+
+# Verify checksums of applied migrations against live database without applying pending:
+npm run deploy:migrations:verify
+
+# Execute pending migrations transactionally against live PostgreSQL database:
+npm run deploy:migrations:live
+# (Requires DATABASE_URL or SUPABASE_DB_URL configured in backend environment)
 ```
+
+### Schema Migrations Tracking Table (`public.schema_migrations`)
+
+Live deployments maintain a durable migration history in the PostgreSQL database:
+```sql
+CREATE TABLE IF NOT EXISTS public.schema_migrations (
+  version VARCHAR(20) PRIMARY KEY,
+  name TEXT NOT NULL,
+  checksum VARCHAR(64) NOT NULL,
+  applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  execution_time_ms INTEGER NOT NULL DEFAULT 0,
+  applied_by TEXT DEFAULT CURRENT_USER
+);
+```
+
+Before applying pending migrations, the runner verifies that every already-applied migration's recorded SHA-256 checksum exactly matches the disk file. Tampered or modified migration files trigger an immediate abort to protect database integrity. Each pending migration is applied inside its SQL transaction block, and the execution time and checksum are persisted upon completion.
+
 
 ---
 
