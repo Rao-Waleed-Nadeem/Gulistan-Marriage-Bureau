@@ -114,3 +114,26 @@ Before applying pending migrations, the runner verifies that every already-appli
   * Free tier in development does not offer Point-In-Time Recovery (PITR).
   * Upgrading to Supabase Pro at production launch ($25/mo per DECIDED: OPEN-013) unlocks 7-day PITR and automated physical backups.
   * Audit events are append-only to preserve legal evidentiary value under Pakistan data protection baselines.
+
+### `00005_auth_lifecycle_ownership_and_audit.sql`
+* **Status:** Implemented under Task `T-032`.
+* **Scope:**
+  * Customer profile ownership binding via `profiles.account_id UUID` linking profiles to `auth.users(id)` with index.
+  * Customer self-service intake policy (`profiles_customer_insert`) strictly requiring `account_id = auth.uid()`, `source = 'direct_web'`, and `status = 'pending_review'`.
+  * Consent schema remediation: drops forced check constraint `chk_profiles_consent_certified`, drops unverified `TRUE` defaults on `candidate_consents`, and adds explicit `status` column check constraint (`granted`, `withdrawn`, `pending`, `expired`).
+  * Database-enforced profile lifecycle state machine trigger `trg_profile_status_lifecycle` and function `validate_profile_status_transition()` enforcing the 6-state taxonomy transitions and automatically recording auditable transitions in `profile_status_history`.
+  * Account status enforcement in RLS via `auth_is_account_active()` rejecting `suspended` and `pending_verification` accounts.
+  * Audit trail security: recreates `audit_events_insert` requiring `actor_id = auth.uid()` and provides trusted server RPC `record_audit_event()`.
+* **Rollback Procedure:**
+  ```sql
+  BEGIN;
+  DROP TRIGGER IF EXISTS trg_profile_status_lifecycle ON public.profiles;
+  DROP FUNCTION IF EXISTS public.validate_profile_status_transition();
+  DROP FUNCTION IF EXISTS public.record_audit_event(VARCHAR, VARCHAR, VARCHAR, TEXT);
+  DROP FUNCTION IF EXISTS public.auth_is_account_active(UUID);
+  DROP POLICY IF EXISTS profiles_customer_insert ON public.profiles;
+  DROP POLICY IF EXISTS profiles_customer_update ON public.profiles;
+  DROP INDEX IF EXISTS idx_profiles_account_id;
+  ALTER TABLE public.profiles DROP COLUMN IF EXISTS account_id;
+  COMMIT;
+  ```

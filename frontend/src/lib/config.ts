@@ -84,20 +84,36 @@ export function validateClientConfig(rawEnv: Record<string, unknown> = {}): Conf
   // 2. Extract public variables
   const rawUrl = typeof rawEnv.VITE_SUPABASE_URL === 'string' ? rawEnv.VITE_SUPABASE_URL.trim() : '';
   const rawAnonKey = typeof rawEnv.VITE_SUPABASE_ANON_KEY === 'string' ? rawEnv.VITE_SUPABASE_ANON_KEY.trim() : '';
-  const rawEnvMode = typeof rawEnv.VITE_APP_ENV === 'string' ? rawEnv.VITE_APP_ENV.trim() : 'development';
-  const appEnv = (['development', 'staging', 'production'].includes(rawEnvMode) ? rawEnvMode : 'development') as ClientConfig['appEnv'];
+  const rawEnvMode = typeof rawEnv.VITE_APP_ENV === 'string' ? rawEnv.VITE_APP_ENV.trim() : '';
+
+  // Reject unknown environment labels (P1-03)
+  if (rawEnvMode && !['development', 'staging', 'production'].includes(rawEnvMode)) {
+    errors.push(
+      `Invalid VITE_APP_ENV: "${rawEnvMode}". Must be "development", "staging", or "production".`
+    );
+    return {
+      isValid: false,
+      mode: 'demo',
+      config: null,
+      warnings,
+      errors,
+    };
+  }
+
+  const appEnv = (rawEnvMode || 'development') as ClientConfig['appEnv'];
   const rawUseMock = typeof rawEnv.VITE_USE_MOCK_DATA === 'string'
     ? rawEnv.VITE_USE_MOCK_DATA.trim().toLowerCase()
-    : (appEnv === 'production' ? 'false' : 'true');
+    : (appEnv === 'production' || appEnv === 'staging' ? 'false' : 'true');
 
   const isPlaceholderUrl = !rawUrl || rawUrl.includes('your-project-ref') || rawUrl.includes('placeholder');
   const isPlaceholderKey = !rawAnonKey || rawAnonKey.includes('your-anon-token') || rawAnonKey.includes('placeholder');
 
-  // 3. Strict Production Invariants (CFG-01):
-  if (appEnv === 'production') {
+  // 3. Strict Production & Staging Invariants (CFG-01, P1-02):
+  if (appEnv === 'production' || appEnv === 'staging') {
+    const envLabel = appEnv === 'production' ? 'Production' : 'Staging';
     if (!rawUrl || !rawAnonKey || isPlaceholderUrl || isPlaceholderKey) {
       errors.push(
-        'CRITICAL CONFIGURATION ERROR: Production environment requires valid, non-placeholder VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY. Demo fallback is strictly prohibited in production.'
+        `CRITICAL CONFIGURATION ERROR: ${envLabel} environment requires valid, non-placeholder VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY. Demo fallback is strictly prohibited in ${envLabel.toLowerCase()}.`
       );
       return {
         isValid: false,
@@ -110,7 +126,7 @@ export function validateClientConfig(rawEnv: Record<string, unknown> = {}): Conf
 
     if (rawUseMock === 'true') {
       errors.push(
-        'CRITICAL CONFIGURATION ERROR: VITE_USE_MOCK_DATA=true is strictly prohibited in production. Production must run with real verified backend services.'
+        `CRITICAL CONFIGURATION ERROR: VITE_USE_MOCK_DATA=true is strictly prohibited in ${envLabel.toLowerCase()}. ${envLabel} must run with real verified backend services.`
       );
       return {
         isValid: false,
@@ -142,17 +158,23 @@ export function validateClientConfig(rawEnv: Record<string, unknown> = {}): Conf
     };
   }
 
-  // 5. Validate URL formatting for backend mode
+  // 5. Validate URL formatting for backend mode (P1-04)
   let validUrl = false;
+  let isLocalhost = false;
   try {
     const parsed = new URL(rawUrl);
-    validUrl = parsed.protocol === 'https:' || parsed.protocol === 'http:';
+    isLocalhost = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+    validUrl = parsed.protocol === 'https:' || (parsed.protocol === 'http:' && isLocalhost);
   } catch {
     validUrl = false;
   }
 
   if (!validUrl) {
-    errors.push(`Invalid VITE_SUPABASE_URL: "${rawUrl}". Must be a valid HTTP or HTTPS URL.`);
+    if (rawUrl.startsWith('http:') && !isLocalhost) {
+      errors.push(`Insecure HTTP VITE_SUPABASE_URL: "${rawUrl}". HTTPS is required outside localhost development.`);
+    } else {
+      errors.push(`Invalid VITE_SUPABASE_URL: "${rawUrl}". Must be a valid HTTP or HTTPS URL.`);
+    }
     return {
       isValid: false,
       mode: 'demo',

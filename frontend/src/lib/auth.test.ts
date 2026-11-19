@@ -39,6 +39,7 @@ function createMockSupabase(options: {
   signInOtpResponse?: { error: any };
   getSessionResponse?: { data: { session: any }; error: any };
   userRolesResponse?: { data: any[] | null; error: any };
+  userProfilesResponse?: { data: any | null; error: any };
   signOutResponse?: { error: any };
 }) {
   return {
@@ -56,6 +57,11 @@ function createMockSupabase(options: {
         eq: (col: string, _val: string) => {
           if (table === 'user_roles' && col === 'user_id') {
             return Promise.resolve(options.userRolesResponse || { data: [], error: null });
+          }
+          if (table === 'user_profiles' && col === 'id') {
+            return {
+              maybeSingle: () => Promise.resolve(options.userProfilesResponse || { data: { account_status: 'active' }, error: null }),
+            };
           }
           return Promise.resolve({ data: [], error: null });
         },
@@ -401,4 +407,61 @@ test('authentication subscribers receive current state and sign-out changes', as
   unsubscribe();
   await signOut();
   assert.equal(callCount, 2);
+});
+
+test('buildSessionFromProvider rejects suspended user accounts (P0-16)', async () => {
+  resetAuthForTesting();
+  const mockSupabase = createMockSupabase({
+    userRolesResponse: { data: [{ role: 'matchmaker' }], error: null },
+    userProfilesResponse: { data: { account_status: 'suspended' }, error: null },
+  });
+  setSupabaseClientForTesting(mockSupabase);
+
+  const session = await buildSessionFromProvider(
+    { access_token: 'valid-token' },
+    { id: 'suspended-user', email: 'suspended@gulistan.pk' }
+  );
+
+  assert.equal(session, null, 'Suspended user must not be granted a session');
+  resetSupabaseClientForTesting();
+});
+
+test('buildSessionFromProvider rejects pending_verification user accounts (P0-16)', async () => {
+  resetAuthForTesting();
+  const mockSupabase = createMockSupabase({
+    userRolesResponse: { data: [{ role: 'customer' }], error: null },
+    userProfilesResponse: { data: { account_status: 'pending_verification' }, error: null },
+  });
+  setSupabaseClientForTesting(mockSupabase);
+
+  const session = await buildSessionFromProvider(
+    { access_token: 'valid-token' },
+    { id: 'pending-user', email: 'pending@gulistan.pk' }
+  );
+
+  assert.equal(session, null, 'Pending verification user must not be granted a session');
+  resetSupabaseClientForTesting();
+});
+
+test('signInWithPassword rejects suspended staff account with ACCOUNT_SUSPENDED error (P0-16)', async () => {
+  resetAuthForTesting();
+  const mockSupabase = createMockSupabase({
+    signInPasswordResponse: {
+      data: {
+        user: { id: 'suspended-staff-id', email: 'staff@gulistan.pk' },
+        session: { access_token: 'valid-token' },
+      },
+      error: null,
+    },
+    userRolesResponse: { data: [{ role: 'matchmaker' }], error: null },
+    userProfilesResponse: { data: { account_status: 'suspended' }, error: null },
+  });
+  setSupabaseClientForTesting(mockSupabase);
+
+  const result = await signInWithPassword('staff@gulistan.pk', 'CorrectPassword123');
+  assert.equal(result.success, false);
+  assert.equal(result.session, null);
+  assert.equal(result.error?.code, 'ACCOUNT_SUSPENDED');
+
+  resetSupabaseClientForTesting();
 });

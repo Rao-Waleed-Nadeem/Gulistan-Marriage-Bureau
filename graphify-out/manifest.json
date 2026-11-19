@@ -300,28 +300,28 @@
     "semantic_hash": "409917cc2fd9c7edfb92803e6d93040a"
   },
   "frontend/src/lib/auth.test.ts": {
-    "mtime": 1794566899.6257,
-    "seen": 1794580988.7395577,
-    "ast_hash": "d3e27a14aae7946969d3c638b0284a0e",
-    "semantic_hash": "d3e27a14aae7946969d3c638b0284a0e"
+    "mtime": 1795082171.047064,
+    "seen": 1795082368.3558257,
+    "ast_hash": "33179d76d4b9ca160f2368ccecbc030e",
+    "semantic_hash": ""
   },
   "frontend/src/lib/auth.ts": {
-    "mtime": 1794566882.9080582,
-    "seen": 1794580988.7395577,
-    "ast_hash": "9d9ea3d8124b61ac6f5cd79961fdf3c5",
-    "semantic_hash": "9d9ea3d8124b61ac6f5cd79961fdf3c5"
+    "mtime": 1795082053.056175,
+    "seen": 1795082368.3558257,
+    "ast_hash": "d6c6a1b651ce1a84e7fbb0c44a049257",
+    "semantic_hash": ""
   },
   "frontend/src/lib/config.test.ts": {
-    "mtime": 1794573194.5138378,
-    "seen": 1794580988.7395577,
-    "ast_hash": "ffd8d0d59b16ad10c82f8cf3709fce8b",
-    "semantic_hash": "ffd8d0d59b16ad10c82f8cf3709fce8b"
+    "mtime": 1795082106.9035163,
+    "seen": 1795082368.3558257,
+    "ast_hash": "7d716a1693aeb7b3eccfe66eccfd542b",
+    "semantic_hash": ""
   },
   "frontend/src/lib/config.ts": {
-    "mtime": 1794572820.496656,
-    "seen": 1794580988.7395577,
-    "ast_hash": "a849c32c2778b08ae8f3332c52d6b93a",
-    "semantic_hash": "a849c32c2778b08ae8f3332c52d6b93a"
+    "mtime": 1795082085.5292213,
+    "seen": 1795082368.3558257,
+    "ast_hash": "264c2955a3975e72bca47fbfe207f275",
+    "semantic_hash": ""
   },
   "frontend/src/lib/disclosure.test.ts": {
     "mtime": 1794595933.3900702,
@@ -552,9 +552,9 @@
     "semantic_hash": ""
   },
   "backend/AGENT_TASK_QUEUE.md": {
-    "mtime": 1795081370.0107713,
-    "seen": 1795081429.7350109,
-    "ast_hash": "8d4447d658014c0f057fc02e25948c12",
+    "mtime": 1795082306.2641556,
+    "seen": 1795082368.3558257,
+    "ast_hash": "fce5d517ee9b719b98ef14ae36333273",
     "semantic_hash": ""
   },
   "backend/README.md": {
@@ -702,9 +702,9 @@
     "semantic_hash": "aa3e89f60d835a6a5d4c87022c648dc2"
   },
   "backend/migrations/README.md": {
-    "mtime": 1795081283.479979,
-    "seen": 1795081429.7350109,
-    "ast_hash": "5fbbc82abc5e0d78e629822bb0afc180",
+    "mtime": 1795082244.504799,
+    "seen": 1795082368.3558257,
+    "ast_hash": "fdbbb6121c129c3bfdfaddbb47e038a0",
     "semantic_hash": ""
   },
   "frontend/README.md": {
@@ -846,9 +846,9 @@
     "semantic_hash": ""
   },
   "backend/tests/deploy_migrations.test.js": {
-    "mtime": 1795081163.0433366,
-    "seen": 1795081429.7350109,
-    "ast_hash": "e651c8a4250f889fe2537d53a962dce7",
+    "mtime": 1795081900.2923982,
+    "seen": 1795082368.3558257,
+    "ast_hash": "bf1f3960eb080f21d43c49aafa65c083",
     "semantic_hash": ""
   },
   "package.json": {
@@ -861,6 +861,18 @@
     "mtime": 1794765803.155488,
     "seen": 1795081429.7350109,
     "ast_hash": "d6f20f015e9521f9add2ff439b1859c9",
+    "semantic_hash": ""
+  },
+  "backend/migrations/00005_auth_lifecycle_ownership_and_audit.sql": {
+    "mtime": 1795081868.77611,
+    "seen": 1795082368.3558257,
+    "ast_hash": "196c22769492763cdeaea57a15e6468e",
+    "semantic_hash": ""
+  },
+  "backend/tests/migration_00005.test.js": {
+    "mtime": 1795081969.2758057,
+    "seen": 1795082368.3558257,
+    "ast_hash": "fa296df5914343c91ae25eed2a915f1e",
     "semantic_hash": ""
   },
   "backend/package-lock.json": {

@@ -138,6 +138,77 @@ test('validateClientConfig strictly rejects VITE_USE_MOCK_DATA=true in productio
   );
 });
 
+test('validateClientConfig strictly rejects missing credentials in staging mode (P1-02)', () => {
+  const stagingEmptyEnv = {
+    VITE_APP_ENV: 'staging',
+  };
+
+  const result = validateClientConfig(stagingEmptyEnv);
+
+  assert.equal(result.isValid, false);
+  assert.equal(result.config, null);
+  assert.ok(
+    result.errors.some((e) => e.includes('Staging environment requires valid, non-placeholder')),
+    'Staging must fail hard when config is missing'
+  );
+});
+
+test('validateClientConfig strictly rejects VITE_USE_MOCK_DATA=true in staging mode (P1-02)', () => {
+  const stagingMockEnv = {
+    VITE_APP_ENV: 'staging',
+    VITE_SUPABASE_URL: 'https://gulistan-staging.supabase.co',
+    VITE_SUPABASE_ANON_KEY: 'valid.token.string',
+    VITE_USE_MOCK_DATA: 'true',
+  };
+
+  const result = validateClientConfig(stagingMockEnv);
+
+  assert.equal(result.isValid, false);
+  assert.ok(
+    result.errors.some((e) => e.includes('VITE_USE_MOCK_DATA=true is strictly prohibited in staging')),
+    'Staging must prohibit mock mode'
+  );
+});
+
+test('validateClientConfig rejects unknown VITE_APP_ENV labels without coersion (P1-03)', () => {
+  const invalidEnv = {
+    VITE_APP_ENV: 'prod', // Typo for production
+  };
+
+  const result = validateClientConfig(invalidEnv);
+
+  assert.equal(result.isValid, false);
+  assert.ok(
+    result.errors.some((e) => e.includes('Invalid VITE_APP_ENV: "prod"')),
+    'Must reject invalid VITE_APP_ENV'
+  );
+});
+
+test('validateClientConfig rejects insecure HTTP URLs outside localhost (P1-04)', () => {
+  const remoteHttpEnv = {
+    VITE_SUPABASE_URL: 'http://remote-project.supabase.co',
+    VITE_SUPABASE_ANON_KEY: 'valid-anon-key',
+  };
+
+  const result = validateClientConfig(remoteHttpEnv);
+
+  assert.equal(result.isValid, false);
+  assert.ok(
+    result.errors.some((e) => e.includes('HTTPS is required outside localhost')),
+    'Must reject remote HTTP URLs'
+  );
+
+  // Localhost HTTP is accepted for local development
+  const localHttpEnv = {
+    VITE_SUPABASE_URL: 'http://localhost:54321',
+    VITE_SUPABASE_ANON_KEY: 'valid-anon-key',
+    VITE_USE_MOCK_DATA: 'false',
+  };
+
+  const localResult = validateClientConfig(localHttpEnv);
+  assert.equal(localResult.isValid, true);
+});
+
 test('getBackendHealthStatus returns safe non-sensitive status object', () => {
   resetClientConfigForTesting();
   const status = getBackendHealthStatus();

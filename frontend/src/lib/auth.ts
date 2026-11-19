@@ -168,6 +168,8 @@ export function mapDatabaseRoleToAppRole(dbRoles: string[]): Role | null {
   return null;
 }
 
+export type UserAccountStatus = 'active' | 'suspended' | 'pending_verification';
+
 /**
  * Fetches trusted application roles for a user ID from PostgreSQL public.user_roles.
  * Never trusts user_metadata or request payloads.
@@ -194,6 +196,35 @@ export async function fetchUserTrustedRole(userId: string): Promise<Role | null>
 }
 
 /**
+ * Fetches user account status from public.user_profiles.
+ * Defaults to 'active' if no explicit profile record exists yet.
+ */
+export async function fetchUserAccountStatus(userId: string): Promise<UserAccountStatus> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return 'active';
+
+  try {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('account_status')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (error || !data || !data.account_status) {
+      return 'active';
+    }
+
+    const status = data.account_status;
+    if (status === 'suspended' || status === 'pending_verification' || status === 'active') {
+      return status;
+    }
+    return 'active';
+  } catch {
+    return 'active';
+  }
+}
+
+/**
  * Builds an AuthSession from provider session data and server-verified database roles.
  */
 export async function buildSessionFromProvider(
@@ -202,6 +233,13 @@ export async function buildSessionFromProvider(
 ): Promise<AuthSession | null> {
   const trustedRole = await fetchUserTrustedRole(providerUser.id);
   if (!trustedRole) {
+    return null;
+  }
+
+  // Enforce account status (P0-16): suspended and pending verification accounts cannot establish sessions
+  const accountStatus = await fetchUserAccountStatus(providerUser.id);
+  if (accountStatus === 'suspended' || accountStatus === 'pending_verification') {
+    console.warn(`[Gulistan Auth] Access denied: User ${providerUser.id} account status is "${accountStatus}".`);
     return null;
   }
 
@@ -265,16 +303,23 @@ export async function initAuth(): Promise<AuthSession> {
 
   if (!isListenerRegistered) {
     isListenerRegistered = true;
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
         if (session && session.user) {
-          const authSession = await buildSessionFromProvider(session, session.user);
-          if (authSession && validateSession(authSession).valid) {
-            setSessionInMemory(authSession);
-          } else {
-            await supabase.auth.signOut();
-            setSessionInMemory(unauthenticatedSession());
-          }
+          // Synchronous callback: enqueue async session resolution outside the auth callback lock (P1-01)
+          queueMicrotask(async () => {
+            const authSession = await buildSessionFromProvider(session, session.user);
+            if (authSession && validateSession(authSession).valid) {
+              setSessionInMemory(authSession);
+            } else {
+              setSessionInMemory(unauthenticatedSession());
+              try {
+                await supabase.auth.signOut();
+              } catch {
+                // Ignore sign-out errors during background teardown
+              }
+            }
+          });
         }
       } else if (event === 'SIGNED_OUT') {
         setSessionInMemory(unauthenticatedSession());
@@ -340,6 +385,36 @@ export async function signInWithPassword(email: string, password: string): Promi
           messageUrdu: isRateLimit
             ? 'بہت زیادہ کوششیں ہو گئیں۔ براہ کرم کچھ دیر بعد دوبارہ کوشش کریں۔'
             : 'غلط ای میل یا پاس ورڈ۔ براہ کرم اپنی تفصیلات کی تصدیق کریں۔',
+        },
+      };
+    }
+
+    // Enforce account status check before establishing session (P0-16)
+    const accountStatus = await fetchUserAccountStatus(data.user.id);
+    if (accountStatus === 'suspended') {
+      await supabase.auth.signOut();
+      setSessionInMemory(unauthenticatedSession());
+      return {
+        success: false,
+        session: null,
+        error: {
+          code: 'ACCOUNT_SUSPENDED',
+          messageEn: 'Your account has been suspended. Please contact the bureau office.',
+          messageUrdu: 'آپ کا اکاؤنٹ معطل کر دیا گیا ہے۔ براہ کرم بیورو کے دفتر سے رابطہ کریں۔',
+        },
+      };
+    }
+
+    if (accountStatus === 'pending_verification') {
+      await supabase.auth.signOut();
+      setSessionInMemory(unauthenticatedSession());
+      return {
+        success: false,
+        session: null,
+        error: {
+          code: 'ACCOUNT_PENDING_VERIFICATION',
+          messageEn: 'Your account is pending verification. Please contact the bureau office.',
+          messageUrdu: 'آپ کا اکاؤنٹ تصدیق کے مراحل میں ہے۔ براہ کرم بیورو کے دفتر سے رابطہ کریں۔',
         },
       };
     }

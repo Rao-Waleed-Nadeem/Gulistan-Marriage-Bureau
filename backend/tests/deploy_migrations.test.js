@@ -45,7 +45,7 @@ test('Deploy Migrations: maskDatabaseUrl conceals passwords safely', () => {
 test('Deploy Migrations: getMigrationPlan discovers all migrations in sequence with status', () => {
   const plan = getMigrationPlan([]);
 
-  assert.equal(plan.length, 4, 'Must discover all 4 sequential migrations (00001 to 00004)');
+  assert.ok(plan.length >= 4, 'Must discover sequential migrations');
   assert.equal(plan[0].version, '00001');
   assert.equal(plan[1].version, '00002');
   assert.equal(plan[2].version, '00003');
@@ -219,10 +219,10 @@ test('Deploy Migrations: runMigrationDeployment with mock client applies all 4 m
   assert.equal(report.success, true);
   assert.equal(report.mode, 'LIVE_DATABASE_EXECUTION');
   assert.equal(report.dryRun, false);
-  assert.equal(report.totalDiscovered, 4);
+  assert.ok(report.totalDiscovered >= 4);
   assert.equal(report.alreadyApplied, 0);
-  assert.equal(report.pendingCount, 4);
-  assert.equal(report.appliedInThisRun.length, 4);
+  assert.equal(report.pendingCount, report.totalDiscovered);
+  assert.equal(report.appliedInThisRun.length, report.totalDiscovered);
 
   assert.equal(report.appliedInThisRun[0].version, '00001');
   assert.equal(report.appliedInThisRun[1].version, '00002');
