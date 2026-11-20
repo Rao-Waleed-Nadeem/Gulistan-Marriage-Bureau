@@ -168,9 +168,9 @@
     "semantic_hash": "197cb9a653ccaf341e2a7aa9eae46a79"
   },
   "frontend/src/App.tsx": {
-    "mtime": 1795181609.1329195,
-    "seen": 1795182023.0232322,
-    "ast_hash": "9ad321ff362858134eaf45b9ff3531bd",
+    "mtime": 1795185614.1843169,
+    "seen": 1795185864.3197048,
+    "ast_hash": "f89b7125161d29efb120b36da803c499",
     "semantic_hash": ""
   },
   "frontend/src/components/auth/AuthModal.tsx": {
@@ -234,9 +234,9 @@
     "semantic_hash": ""
   },
   "frontend/src/features/customer/CustomerPortal.tsx": {
-    "mtime": 1794652945.1110072,
-    "seen": 1794653162.7751765,
-    "ast_hash": "0acd1f3365069e2565ab9c48fa7b780f",
+    "mtime": 1795185259.3646083,
+    "seen": 1795185864.3197048,
+    "ast_hash": "2729e2e67deba2755128de77cbaba836",
     "semantic_hash": ""
   },
   "frontend/src/features/matchmaker/BestMatchView.tsx": {
@@ -348,15 +348,15 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/followUps.test.ts": {
-    "mtime": 1794649829.9097753,
-    "seen": 1794649969.9290001,
-    "ast_hash": "64e5c1dc4a0e9443ce94f75f96a35118",
+    "mtime": 1795185435.193269,
+    "seen": 1795185864.3197048,
+    "ast_hash": "5677dc4f96161f2ba5f996a21ccb0142",
     "semantic_hash": ""
   },
   "frontend/src/lib/followUps.ts": {
-    "mtime": 1794649724.4579315,
-    "seen": 1794649969.9290001,
-    "ast_hash": "71a9d0772b84d9b6c36af4898cfda649",
+    "mtime": 1795185634.056419,
+    "seen": 1795185864.3197048,
+    "ast_hash": "455eadc7651365aee7be4f4263079016",
     "semantic_hash": ""
   },
   "frontend/src/lib/language.test.ts": {
@@ -408,15 +408,15 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/repositories.test.ts": {
-    "mtime": 1795183581.755172,
-    "seen": 1795184018.2215533,
-    "ast_hash": "d3ca75c87aa6aa6f4edc4814282dbebf",
+    "mtime": 1795185551.2940497,
+    "seen": 1795185864.3197048,
+    "ast_hash": "45ea282017e07cf5c5c64827c4a36acf",
     "semantic_hash": ""
   },
   "frontend/src/lib/repositories.ts": {
-    "mtime": 1795183535.8568375,
-    "seen": 1795184018.2215533,
-    "ast_hash": "7bfbf2e2d9db19ed4de3d4552264deaf",
+    "mtime": 1795185661.4868045,
+    "seen": 1795185864.3197048,
+    "ast_hash": "04dfb5e2eb16f05e69f22cfd5cee8d4c",
     "semantic_hash": ""
   },
   "frontend/src/lib/supabaseClient.ts": {
@@ -432,9 +432,9 @@
     "semantic_hash": "c54bc4338b4552045d4ff81e948ad087"
   },
   "frontend/src/types/index.ts": {
-    "mtime": 1795174176.4908767,
-    "seen": 1795180273.3554146,
-    "ast_hash": "aff8791e2ac7bbc86af646349c2c6cc7",
+    "mtime": 1795184794.6852646,
+    "seen": 1795185864.3197048,
+    "ast_hash": "1035cd3ef0cb3f91168c55fd71167fb2",
     "semantic_hash": ""
   },
   "frontend/src/utils/finance.ts": {
@@ -552,9 +552,9 @@
     "semantic_hash": ""
   },
   "backend/AGENT_TASK_QUEUE.md": {
-    "mtime": 1795183912.023001,
-    "seen": 1795184018.2215533,
-    "ast_hash": "485b71931b547e7b4739258c7ee951e2",
+    "mtime": 1795185850.8031735,
+    "seen": 1795185864.3197048,
+    "ast_hash": "5f699c94947166096055bed663a4d70b",
     "semantic_hash": ""
   },
   "backend/README.md": {
@@ -588,10 +588,10 @@
     "semantic_hash": "45cd1f6a036b0e2c7302487c13b2cff2"
   },
   "backend/docs/04-backend-workflows.md": {
-    "mtime": 1792845484.3057797,
-    "seen": 1794580988.7395577,
-    "ast_hash": "f150dd24b4d10105e0b76aefa53276bd",
-    "semantic_hash": "f150dd24b4d10105e0b76aefa53276bd"
+    "mtime": 1795185790.662435,
+    "seen": 1795185864.3197048,
+    "ast_hash": "f067e4e703df2dad831a22def2a53af9",
+    "semantic_hash": ""
   },
   "backend/docs/05-matching-and-sharing.md": {
     "mtime": 1795183800.4785326,
@@ -618,9 +618,9 @@
     "semantic_hash": "65395077f745a13f0af416e4b0596b0e"
   },
   "backend/docs/09-open-decisions.md": {
-    "mtime": 1794586344.873787,
-    "seen": 1794592657.6099265,
-    "ast_hash": "d56819dd9c683b958022d3539c882074",
+    "mtime": 1795185822.9855917,
+    "seen": 1795185864.3197048,
+    "ast_hash": "861c1b8607635b0faf950cd7778d7d8c",
     "semantic_hash": ""
   },
   "backend/docs/10-frontend-domain-inventory.md": {
@@ -702,9 +702,9 @@
     "semantic_hash": "aa3e89f60d835a6a5d4c87022c648dc2"
   },
   "backend/migrations/README.md": {
-    "mtime": 1795183772.6930263,
-    "seen": 1795184018.2215533,
-    "ast_hash": "8fa8da77382ff71c038dd2424f683a29",
+    "mtime": 1795185765.0862734,
+    "seen": 1795185864.3197048,
+    "ast_hash": "efcc23072e8c20e96ba44ac94d0bccc4",
     "semantic_hash": ""
   },
   "frontend/README.md": {
@@ -915,6 +915,18 @@
     "mtime": 1795182867.963246,
     "seen": 1795184018.2215533,
     "ast_hash": "3fda4bb6d44c0f39bdf454c4d038470e",
+    "semantic_hash": ""
+  },
+  "backend/migrations/00009_customer_portal_and_crm_enhancements.sql": {
+    "mtime": 1795184722.6825445,
+    "seen": 1795185864.3191626,
+    "ast_hash": "16d87745c5ed5190fddb16bb053ae0fc",
+    "semantic_hash": ""
+  },
+  "backend/tests/migration_00009.test.js": {
+    "mtime": 1795184764.8982427,
+    "seen": 1795185864.3197048,
+    "ast_hash": "a42ee92993d3acbbaa3e29c3c52ae596",
     "semantic_hash": ""
   },
   "backend/package-lock.json": {

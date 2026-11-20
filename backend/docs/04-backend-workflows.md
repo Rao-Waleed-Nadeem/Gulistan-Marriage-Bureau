@@ -131,7 +131,25 @@ Implemented in `frontend/src/lib/followUps.ts`, integrated into `frontend/src/Ap
 
 
 
-## 4.9 Error contract
+## 4.9 Customer Portal Recommendations, Preferences, and Follow-Up Reminder Delivery Model (T-036)
+
+Implemented under Task `T-036` and Migration `00009_customer_portal_and_crm_enhancements.sql`:
+- **Customer Recommendations Server RPC (`get_customer_recommendations`):**
+  - Bound strictly to profile ownership (`account_id = auth.uid()` or `created_by = auth.uid()`) and active account status (`auth_is_account_active()`).
+  - Queries match cases where status is strictly approved (`approved_by_nadeem`, `shared_with_parties`, `accepted_by_customer`).
+  - Projects sanitized candidate attributes (display pseudonym, age, gender, height, education, occupation, job title, city, area, religion, sect, caste, marital status, family background notes) while strictly withholding direct phone numbers, email addresses, and full legal names.
+- **Durable Preference Persistence (`update_profile_preferences`):**
+  - Customers with profiles in `pending_review`, `active`, or `introduction_authorized` status can persist preference adjustments (`ageMin`, `ageMax`, `educationMin`, `caste`, `cityPreferences`, `familyArrangement`, and `criteriaClassifications` importance weights).
+  - Server RPC executes an atomic upsert on `public.profile_preferences` and emits an audit event.
+- **Customer Self-Service Requests & Durable CRM Linkage:**
+  - Customers can submit `profile_correction`, `deactivation_request`, `photo_consent_change`, or `customer_inquiry` follow-ups directly through Customer Portal.
+  - Deactivation requests are categorized as `urgent`/`high` priority.
+  - Follow-up inserts resolve reference codes to database UUIDs (`profile_id`, `match_case_id`, `assigned_to`) and enforce validated contact information without inventing fabricated placeholder names or phone numbers (remediating P1-30 and P1-31).
+- **Follow-Up Reminder Delivery Model (P2-06):**
+  - Schema support in `public.crm_follow_ups` for `reminder_sent_at TIMESTAMPTZ` and `notification_channel VARCHAR(30)` (`in_app`, `email`, `whatsapp`, `sms`) with index on `(scheduled_date, status, reminder_sent_at)`.
+  - Baseline delivery engine is the in-app Operational Calling Desk (`FollowUpsView.tsx`) classifying pending items into `overdue`, `dueToday`, and `upcoming48h`. External channels (WhatsApp/email/SMS) remain configurable pending owner gateway credential approval.
+
+## 4.10 Error contract
 
 Use stable, non-sensitive error codes such as:
 - `UNAUTHENTICATED`

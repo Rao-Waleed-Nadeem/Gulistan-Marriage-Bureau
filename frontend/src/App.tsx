@@ -28,6 +28,7 @@ import { AdminPortal } from './features/admin/AdminPortal';
 import { SecurePhotoViewer } from './features/redemption/SecurePhotoViewer';
 import { ScrollAnimationBackground } from './components/ui/ScrollAnimationBackground';
 import { getClientConfig } from './lib/config';
+import { matchRepository } from './lib/repositories';
 import { 
   AuthSession, 
   getCurrentSession, 
@@ -116,10 +117,6 @@ export default function App() {
     recordAuditLog,
   } = useAuditLogs(session);
 
-  const [recommendations] = useState<MatchRecommendation[]>(() =>
-    isDemo ? INITIAL_RECOMMENDATIONS : []
-  );
-
   // Resolve explicit customer profile ownership per P0-15 and P1-15
   const customerProfile = useMemo(() => {
     if (!profiles || profiles.length === 0) return null;
@@ -135,6 +132,37 @@ export default function App() {
     }
     return profiles[0] || null;
   }, [profiles, session]);
+
+  const [recommendations, setRecommendations] = useState<MatchRecommendation[]>(() =>
+    isDemo ? INITIAL_RECOMMENDATIONS : []
+  );
+
+  // Load authorized customer recommendations reactively (P1-16)
+  useEffect(() => {
+    let isCancelled = false;
+    async function loadCustomerRecommendations() {
+      if (!customerProfile) {
+        if (!isDemo) setRecommendations([]);
+        return;
+      }
+      try {
+        const targetId = customerProfile.databaseId || customerProfile.id;
+        const recs = await matchRepository.getApprovedRecommendationsForCustomer(targetId, session);
+        if (!isCancelled) {
+          setRecommendations(recs);
+        }
+      } catch (err) {
+        console.error('[Gulistan] Failed to load customer recommendations:', err);
+        if (!isCancelled && isDemo) {
+          setRecommendations(INITIAL_RECOMMENDATIONS);
+        }
+      }
+    }
+    loadCustomerRecommendations();
+    return () => {
+      isCancelled = true;
+    };
+  }, [customerProfile?.id, customerProfile?.databaseId, session, isDemo]);
 
   // Validate public backend configuration boundary and initialize auth lifecycle at startup
   useEffect(() => {
@@ -515,6 +543,7 @@ export default function App() {
                 recommendations={recommendations}
                 candidateProfiles={profiles}
                 language={language}
+                session={session}
                 activeTab={
                   activeNav === 'preferences'
                     ? 'preferences'

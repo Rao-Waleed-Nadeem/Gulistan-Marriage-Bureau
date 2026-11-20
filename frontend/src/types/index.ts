@@ -123,6 +123,7 @@ export interface ProfileRecord {
 
 export interface MatchRecommendation {
   id: string;
+  caseCode?: string;
   requestingProfileId: string;
   candidateProfileId: string;
   matchScore: number;
@@ -133,6 +134,7 @@ export interface MatchRecommendation {
   disclosureSnapshot?: Record<string, boolean>;
   customerFeedback?: 'interested' | 'not_interested' | 'considering';
   reviewedDate: string;
+  candidateProfile?: Partial<ProfileRecord>;
 }
 
 export interface FollowUpItem {
@@ -141,11 +143,23 @@ export interface FollowUpItem {
   candidateId?: string;
   personName: string;
   contactPhone: string;
-  type: 'initial_consult' | 'proposal_decision' | 'meeting_arrangement' | 'photo_request' | 'payment_reminder' | 'profile_correction';
+  type:
+    | 'initial_consult'
+    | 'proposal_decision'
+    | 'meeting_arrangement'
+    | 'photo_request'
+    | 'payment_reminder'
+    | 'profile_correction'
+    | 'deactivation_request'
+    | 'photo_consent_change'
+    | 'customer_inquiry';
   dueDate: string;
-  priority: 'high' | 'medium' | 'low';
-  status: 'pending' | 'completed' | 'overdue';
+  priority: 'urgent' | 'high' | 'medium' | 'low';
+  status: 'pending' | 'completed' | 'overdue' | 'cancelled';
   notes: string;
+  assignedTo?: string;
+  reminderSentAt?: string;
+  notificationChannel?: 'in_app' | 'email' | 'whatsapp' | 'sms';
 }
 
 export interface ExternalMatchmaker {

@@ -915,3 +915,95 @@ test('MatchRepository: enforces canonical pairs, evaluation prerequisites, Nadee
   assert.equal(history.restoredEvaluation.humanDecisionStatus, 'approved_by_nadeem');
   assert.equal(history.restoredEvaluation.reviewNotes, 'Family background confirmed.');
 });
+
+test('Customer Portal & CRM: preferences save, customer recommendations, and durable CRM links (T-036)', async () => {
+  resetRepositoriesForTesting();
+
+  // 1. Finding P1-17: ProfileRepository.updatePreferences
+  const customerProfileId = 'GLS-401'; // Dr. Fatima Tariq
+  const fatimaOwnerSession: AuthSession = {
+    user: {
+      id: 'GLS-401',
+      email: 'fatima@gulistan.pk',
+      displayName: 'Dr. Fatima Tariq',
+      role: 'customer',
+      preferredLanguage: 'en',
+    },
+    role: 'customer',
+    token: 'owner-token',
+    expiresAt: Date.now() + 3600000,
+    isAuthenticated: true,
+  };
+
+  const otherCustomerSession: AuthSession = {
+    user: {
+      id: 'other-cust',
+      email: 'stranger@example.com',
+      displayName: 'Stranger',
+      role: 'customer',
+      preferredLanguage: 'en',
+    },
+    role: 'customer',
+    token: 'stranger-token',
+    expiresAt: Date.now() + 3600000,
+    isAuthenticated: true,
+  };
+
+  // Unauthorized stranger cannot update Fatima's preferences
+  await assert.rejects(
+    () => profileRepository.updatePreferences(customerProfileId, { ageMin: 26 }, otherCustomerSession),
+    /UNAUTHORIZED/
+  );
+
+  // Owner successfully updates preferences (P1-17)
+  const updatedPrefs = await profileRepository.updatePreferences(
+    customerProfileId,
+    {
+      ageMin: 27,
+      ageMax: 33,
+      caste: 'Syed or Qureshi',
+      criteriaClassifications: { caste: 'important', age: 'mandatory' } as any,
+    },
+    fatimaOwnerSession
+  );
+  assert.equal(updatedPrefs.ageMin, 27);
+  assert.equal(updatedPrefs.ageMax, 33);
+  assert.equal(updatedPrefs.caste, 'Syed or Qureshi');
+
+  // 2. Finding P1-16: matchRepository.getApprovedRecommendationsForCustomer
+  const recs = await matchRepository.getApprovedRecommendationsForCustomer(customerProfileId, fatimaOwnerSession);
+  assert.ok(Array.isArray(recs));
+  assert.ok(recs.length > 0, 'Must return approved recommendations for Fatima');
+  const firstRec = recs[0];
+  assert.equal(firstRec.status, 'approved_by_nadeem');
+  assert.ok(firstRec.candidateProfile, 'Must include sanitized candidate profile');
+  // Candidate contact details must remain private (P1-16)
+  assert.equal((firstRec.candidateProfile as any).contactPhone, '[Protected Phone - Introduction Required]');
+  assert.equal((firstRec.candidateProfile as any).contactEmail, undefined);
+
+  // 3. Finding P1-30 & P1-31: crmRepository.create requires valid contact details and rejects fabricated defaults
+  await assert.rejects(
+    () => crmRepository.create({ type: 'profile_correction' }, fatimaOwnerSession),
+    /VALIDATION_ERROR/
+  );
+
+  const followUp = await crmRepository.create(
+    {
+      profileId: customerProfileId,
+      personName: 'Dr. Fatima Tariq',
+      contactPhone: '+92 300 9876543',
+      type: 'profile_correction',
+      priority: 'high',
+      notes: 'Please update my office address.',
+      notificationChannel: 'whatsapp',
+    },
+    fatimaOwnerSession
+  );
+
+  assert.ok(followUp);
+  assert.equal(followUp.profileId, customerProfileId);
+  assert.equal(followUp.personName, 'Dr. Fatima Tariq');
+  assert.equal(followUp.contactPhone, '+92 300 9876543');
+  assert.notEqual(followUp.contactPhone, '+92 300 0000000', 'Must not fabricate dummy phone');
+  assert.equal(followUp.notificationChannel, 'whatsapp');
+});

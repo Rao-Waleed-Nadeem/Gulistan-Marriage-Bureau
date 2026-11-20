@@ -4,6 +4,7 @@ import {
   canAccessCRM,
   validateFollowUpInput,
   computeFollowUpStatus,
+  calculateFollowUpReminders,
   getFollowUps,
   createFollowUp,
   completeFollowUp,
@@ -392,4 +393,87 @@ test('completeFollowUp records resolution notes and is idempotent (CRM-03)', () 
   assert.equal(idempotentRetry.success, true);
   assert.equal(idempotentRetry.followUp?.status, 'completed');
   assert.equal(idempotentRetry.followUp?.completionNotes, 'Received verified studio photo via WhatsApp.');
+});
+
+test('calculateFollowUpReminders categorizes follow-ups into overdue, dueToday, upcoming48h, and completed (P2-06)', () => {
+  const asOf = new Date('2026-11-20T10:00:00Z');
+  const items = [
+    {
+      id: 'FU-1',
+      profileId: 'GLS-101',
+      personName: 'Customer One',
+      contactPhone: '+92 300 1111111',
+      type: 'initial_consult' as const,
+      dueDate: '2026-11-18', // overdue
+      priority: 'high' as const,
+      status: 'pending' as const,
+      notes: 'Overdue consultation',
+    },
+    {
+      id: 'FU-2',
+      profileId: 'GLS-102',
+      personName: 'Customer Two',
+      contactPhone: '+92 300 2222222',
+      type: 'proposal_decision' as const,
+      dueDate: '2026-11-20', // due today
+      priority: 'high' as const,
+      status: 'pending' as const,
+      notes: 'Decision due today',
+    },
+    {
+      id: 'FU-3',
+      profileId: 'GLS-103',
+      personName: 'Customer Three',
+      contactPhone: '+92 300 3333333',
+      type: 'meeting_arrangement' as const,
+      dueDate: '2026-11-21', // within 48h
+      priority: 'medium' as const,
+      status: 'pending' as const,
+      notes: 'Meeting tomorrow',
+    },
+    {
+      id: 'FU-4',
+      profileId: 'GLS-104',
+      personName: 'Customer Four',
+      contactPhone: '+92 300 4444444',
+      type: 'photo_request' as const,
+      dueDate: '2026-11-15', // completed, even though date is in past
+      priority: 'low' as const,
+      status: 'completed' as const,
+      notes: 'Done',
+    },
+  ];
+
+  const summary = calculateFollowUpReminders(items, asOf);
+  assert.equal(summary.overdue.length, 1);
+  assert.equal(summary.overdue[0].id, 'FU-1');
+  assert.equal(summary.dueToday.length, 1);
+  assert.equal(summary.dueToday[0].id, 'FU-2');
+  assert.equal(summary.upcoming48h.length, 1);
+  assert.equal(summary.upcoming48h[0].id, 'FU-3');
+  assert.equal(summary.completed.length, 1);
+  assert.equal(summary.completed[0].id, 'FU-4');
+  assert.equal(summary.counts.overdue, 1);
+  assert.equal(summary.counts.dueToday, 1);
+  assert.equal(summary.counts.upcoming48h, 1);
+  assert.equal(summary.counts.totalPending, 3);
+  assert.equal(summary.counts.completed, 1);
+});
+
+test('Customer can submit deactivation_request and profile_correction without staff role', () => {
+  const deactivationPayload: FollowUpInput = {
+    profileId: 'GLS-401',
+    personName: 'Dr. Fatima Tariq',
+    contactPhone: '+92 300 1234567',
+    type: 'deactivation_request',
+    dueDate: '2026-11-20',
+    priority: 'urgent',
+    notes: 'Please deactivate my profile as family has finalized match elsewhere.',
+  };
+
+  const res = createFollowUp(deactivationPayload, customerSession);
+  assert.equal(res.success, true);
+  assert.ok(res.followUp);
+  assert.equal(res.followUp.type, 'deactivation_request');
+  assert.equal(res.followUp.priority, 'urgent');
 });

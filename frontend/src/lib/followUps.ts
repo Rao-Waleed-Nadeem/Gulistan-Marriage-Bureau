@@ -26,10 +26,13 @@ export type FollowUpType =
   | 'meeting_arrangement'
   | 'photo_request'
   | 'payment_reminder'
-  | 'profile_correction';
+  | 'profile_correction'
+  | 'deactivation_request'
+  | 'photo_consent_change'
+  | 'customer_inquiry';
 
-export type FollowUpPriority = 'high' | 'medium' | 'low';
-export type FollowUpStatus = 'pending' | 'completed' | 'overdue';
+export type FollowUpPriority = 'urgent' | 'high' | 'medium' | 'low';
+export type FollowUpStatus = 'pending' | 'completed' | 'overdue' | 'cancelled';
 
 export interface FollowUpInput {
   profileId: string;
@@ -113,14 +116,17 @@ export function validateFollowUpInput(input: Partial<FollowUpInput>): {
     'photo_request',
     'payment_reminder',
     'profile_correction',
+    'deactivation_request',
+    'photo_consent_change',
+    'customer_inquiry',
   ];
   if (!input.type || !validTypes.includes(input.type)) {
     errors.type = `Follow-up type must be one of: ${validTypes.join(', ')}`;
   }
 
-  const validPriorities: FollowUpPriority[] = ['high', 'medium', 'low'];
+  const validPriorities: FollowUpPriority[] = ['urgent', 'high', 'medium', 'low'];
   if (!input.priority || !validPriorities.includes(input.priority)) {
-    errors.priority = 'Priority must be high, medium, or low.';
+    errors.priority = 'Priority must be urgent, high, medium, or low.';
   }
 
   if (!input.dueDate || isNaN(Date.parse(input.dueDate))) {
@@ -138,11 +144,11 @@ export function validateFollowUpInput(input: Partial<FollowUpInput>): {
  */
 export function computeFollowUpStatus(
   dueDate: string,
-  currentStatus: 'pending' | 'completed' | 'overdue',
+  currentStatus: FollowUpStatus,
   referenceDate: Date = new Date()
 ): FollowUpStatus {
-  if (currentStatus === 'completed') {
-    return 'completed';
+  if (currentStatus === 'completed' || currentStatus === 'cancelled') {
+    return currentStatus;
   }
 
   // Parse YYYY-MM-DD using local calendar date
@@ -156,6 +162,70 @@ export function computeFollowUpStatus(
   }
 
   return 'pending';
+}
+
+/**
+ * Categorizes follow-up tasks into overdue, due today, and upcoming 48 hours (P2-06).
+ */
+export interface FollowUpRemindersSummary {
+  overdue: FollowUpItem[];
+  dueToday: FollowUpItem[];
+  upcoming48h: FollowUpItem[];
+  completed: FollowUpItem[];
+  counts: {
+    totalPending: number;
+    overdue: number;
+    dueToday: number;
+    upcoming48h: number;
+    completed: number;
+  };
+}
+
+export function calculateFollowUpReminders(
+  items: FollowUpItem[],
+  asOfDate: Date = new Date()
+): FollowUpRemindersSummary {
+  const today = new Date(asOfDate);
+  today.setHours(0, 0, 0, 0);
+
+  const in48h = new Date(today.getTime() + 48 * 60 * 60 * 1000);
+  in48h.setHours(23, 59, 59, 999);
+
+  const overdue: FollowUpItem[] = [];
+  const dueToday: FollowUpItem[] = [];
+  const upcoming48h: FollowUpItem[] = [];
+  const completed: FollowUpItem[] = [];
+
+  for (const item of items) {
+    if (item.status === 'completed') {
+      completed.push(item);
+      continue;
+    }
+    const itemDate = new Date(item.dueDate);
+    itemDate.setHours(0, 0, 0, 0);
+
+    if (itemDate < today) {
+      overdue.push(item);
+    } else if (itemDate.getTime() === today.getTime()) {
+      dueToday.push(item);
+    } else if (itemDate <= in48h) {
+      upcoming48h.push(item);
+    }
+  }
+
+  return {
+    overdue,
+    dueToday,
+    upcoming48h,
+    completed,
+    counts: {
+      totalPending: overdue.length + dueToday.length + upcoming48h.length,
+      overdue: overdue.length,
+      dueToday: dueToday.length,
+      upcoming48h: upcoming48h.length,
+      completed: completed.length,
+    },
+  };
 }
 
 /**
@@ -212,8 +282,12 @@ export function createFollowUp(
   followUp?: DetailedFollowUpItem;
   error?: { code: string; messageEn: string; messageUrdu: string; details?: Record<string, string> };
 } {
-  const isProfileCorrection = input.type === 'profile_correction';
-  if (!canAccessCRM(session) && !isProfileCorrection) {
+  const isCustomerRequest =
+    input.type === 'profile_correction' ||
+    input.type === 'deactivation_request' ||
+    input.type === 'photo_consent_change' ||
+    input.type === 'customer_inquiry';
+  if (!canAccessCRM(session) && !isCustomerRequest) {
     return {
       success: false,
       error: {

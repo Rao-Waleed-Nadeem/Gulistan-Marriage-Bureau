@@ -27,6 +27,7 @@ Do not silently invent answers to these questions. Keep this file updated as the
 | OPEN-014 | Data jurisdiction/legal review | DECIDED | Middle East (me-central-1) or Singapore (ap-southeast-1) (Option A): Lowest network latency (40-70ms) to Pakistan with enterprise SOC 2 compliance. |
 | OPEN-015 | AI processing | OPEN | If enabled, which data may be sent to which provider, what notice/consent is needed, and what retention applies? |
 | OPEN-016 | PWA/offline behavior | DECIDED | Strictly prohibit offline caching/storage of sensitive candidate profiles, photos, and financial transactions. Candidate data must only exist in runtime memory and must never be persisted to IndexedDB, LocalStorage, or CacheStorage. Only the static app shell (HTML/CSS/JS bundles and public marketing copy) may be cached for offline presentation. |
+| OPEN-017 | Follow-up reminder notification channel | DECIDED | In-app operational desk by default (Option A); schema supports 'in_app', 'email', 'whatsapp', 'sms' for future external gateway integration when credentials are provided by the owner. |
 
 ## 9.2 Safe defaults while decisions are open
 

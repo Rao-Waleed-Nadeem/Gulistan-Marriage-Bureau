@@ -258,9 +258,9 @@
     "semantic_hash": ""
   },
   "frontend/src/features/matchmaker/NadeemDashboard.tsx": {
-    "mtime": 1794652899.5196583,
-    "seen": 1794653162.7751765,
-    "ast_hash": "8fb97ab5f7e88404321a3e49b6483270",
+    "mtime": 1795183740.9296453,
+    "seen": 1795184018.2215533,
+    "ast_hash": "ca64ece6b44751b83401942aa02a6395",
     "semantic_hash": ""
   },
   "frontend/src/features/matchmaker/ProfileWizard.tsx": {
@@ -372,15 +372,15 @@
     "semantic_hash": "2a1b849929994f4f45ce0cb1a58f9d87"
   },
   "frontend/src/lib/matching.test.ts": {
-    "mtime": 1794647707.880984,
-    "seen": 1794648019.634055,
-    "ast_hash": "1cc9c8238d96d4637550279792821caa",
+    "mtime": 1795183313.404532,
+    "seen": 1795184018.2215533,
+    "ast_hash": "1644a9ef4cccbd57d9e88d7de2bf8b56",
     "semantic_hash": ""
   },
   "frontend/src/lib/matching.ts": {
-    "mtime": 1794647620.5003748,
-    "seen": 1794648019.634055,
-    "ast_hash": "2a3cb9ba5e55c549bb3f7e4e888f0a35",
+    "mtime": 1795183238.83806,
+    "seen": 1795184018.2215533,
+    "ast_hash": "81d0d0ce328d665f966ea618c76987fd",
     "semantic_hash": ""
   },
   "frontend/src/lib/photos.test.ts": {
@@ -408,15 +408,15 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/repositories.test.ts": {
-    "mtime": 1795181883.7775328,
-    "seen": 1795182023.0232322,
-    "ast_hash": "c9fcda58ad46de0e31240648fa5f6d05",
+    "mtime": 1795183581.755172,
+    "seen": 1795184018.2215533,
+    "ast_hash": "d3ca75c87aa6aa6f4edc4814282dbebf",
     "semantic_hash": ""
   },
   "frontend/src/lib/repositories.ts": {
-    "mtime": 1795181373.829298,
-    "seen": 1795182023.0232322,
-    "ast_hash": "9fc175050f8b35e4126a6aa4ee074e4a",
+    "mtime": 1795183535.8568375,
+    "seen": 1795184018.2215533,
+    "ast_hash": "7bfbf2e2d9db19ed4de3d4552264deaf",
     "semantic_hash": ""
   },
   "frontend/src/lib/supabaseClient.ts": {
@@ -552,9 +552,9 @@
     "semantic_hash": ""
   },
   "backend/AGENT_TASK_QUEUE.md": {
-    "mtime": 1795182005.177133,
-    "seen": 1795182023.0232322,
-    "ast_hash": "bccfec77f90156a86f4c3c286085cfec",
+    "mtime": 1795183912.023001,
+    "seen": 1795184018.2215533,
+    "ast_hash": "485b71931b547e7b4739258c7ee951e2",
     "semantic_hash": ""
   },
   "backend/README.md": {
@@ -576,10 +576,10 @@
     "semantic_hash": "b01a55e2a1f5aa275c04f49d41e5293a"
   },
   "backend/docs/02-data-model.md": {
-    "mtime": 1792782204.8415782,
-    "seen": 1794580988.7395577,
-    "ast_hash": "01262d5b7399bcc9d9ea9bba04677505",
-    "semantic_hash": "01262d5b7399bcc9d9ea9bba04677505"
+    "mtime": 1795183814.7846096,
+    "seen": 1795184018.2215533,
+    "ast_hash": "bfe7c69f672959c6bc009db57ef2c272",
+    "semantic_hash": ""
   },
   "backend/docs/03-authorization-and-privacy.md": {
     "mtime": 1792841477.0443077,
@@ -594,10 +594,10 @@
     "semantic_hash": "f150dd24b4d10105e0b76aefa53276bd"
   },
   "backend/docs/05-matching-and-sharing.md": {
-    "mtime": 1792842889.0117185,
-    "seen": 1794580988.7395577,
-    "ast_hash": "ae4843d4b78f0c9b9a64cc7314cf8590",
-    "semantic_hash": "ae4843d4b78f0c9b9a64cc7314cf8590"
+    "mtime": 1795183800.4785326,
+    "seen": 1795184018.2215533,
+    "ast_hash": "2b46766e2f6cf1b1d2e4ac2dd024cfbc",
+    "semantic_hash": ""
   },
   "backend/docs/06-frontend-integration.md": {
     "mtime": 1792839971.6133235,
@@ -702,9 +702,9 @@
     "semantic_hash": "aa3e89f60d835a6a5d4c87022c648dc2"
   },
   "backend/migrations/README.md": {
-    "mtime": 1795181969.3546598,
-    "seen": 1795182023.0247393,
-    "ast_hash": "6aa55c7792275f6b28d0c7d0bea8c375",
+    "mtime": 1795183772.6930263,
+    "seen": 1795184018.2215533,
+    "ast_hash": "8fa8da77382ff71c038dd2424f683a29",
     "semantic_hash": ""
   },
   "frontend/README.md": {
@@ -903,6 +903,18 @@
     "mtime": 1795181519.7931364,
     "seen": 1795182023.0232322,
     "ast_hash": "b14fb45adc25d3fe6fcbde440f3ef8fd",
+    "semantic_hash": ""
+  },
+  "backend/migrations/00008_match_cases_and_decisions_enhancements.sql": {
+    "mtime": 1795182850.6784582,
+    "seen": 1795184018.2215533,
+    "ast_hash": "1a77e9a85f05e181e80a7c8c5f5a2c19",
+    "semantic_hash": ""
+  },
+  "backend/tests/migration_00008.test.js": {
+    "mtime": 1795182867.963246,
+    "seen": 1795184018.2215533,
+    "ast_hash": "3fda4bb6d44c0f39bdf454c4d038470e",
     "semantic_hash": ""
   },
   "backend/package-lock.json": {

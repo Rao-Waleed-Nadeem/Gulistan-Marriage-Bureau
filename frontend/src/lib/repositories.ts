@@ -20,6 +20,8 @@ import {
   PartnerAgreementFeeType,
   PartnerCommissionModel,
   AuditLogItem,
+  PartnerPreference,
+  MatchRecommendation,
 } from '../types';
 import { FinancialTransaction } from '../utils/finance';
 import { AuthSession, canAccessRole } from './auth';
@@ -34,6 +36,7 @@ import {
   ProfilePropertyRow,
   profileRowToDTO,
   profileDTOToRow,
+  profilePreferencesRowToDTO,
   profilePreferencesDTOToRow,
   profileSiblingDTOToRow,
   profilePropertyDTOToRow,
@@ -61,6 +64,7 @@ import {
   INITIAL_TRANSACTIONS,
   INITIAL_MATCHMAKERS,
   INITIAL_AUDIT_LOGS,
+  INITIAL_RECOMMENDATIONS,
 } from '../data/mockData';
 export type { PartnerLedgerSummary, BureauReconciliationSummary };
 import {
@@ -85,6 +89,11 @@ export interface IProfileRepository {
   findAll(session: AuthSession | null, filters?: ProfileFilters): Promise<ProfileRecord[]>;
   create(profileData: Partial<ProfileRecord>, session: AuthSession | null): Promise<ProfileRecord>;
   updateStatus(id: string, newStatus: ProfileStatus, session: AuthSession | null): Promise<ProfileRecord>;
+  updatePreferences(
+    id: string,
+    preferences: Partial<PartnerPreference>,
+    session: AuthSession | null
+  ): Promise<PartnerPreference>;
 }
 
 export interface IFinanceRepository {
@@ -199,6 +208,10 @@ export interface IMatchRepository {
     decisions: MatchDecisionRecord[];
     restoredEvaluation?: MatchEvaluation;
   } | null>;
+  getApprovedRecommendationsForCustomer(
+    profileId: string,
+    session: AuthSession | null
+  ): Promise<MatchRecommendation[]>;
 }
 
 export interface RegionalLandConventions {
@@ -726,6 +739,95 @@ class ProfileRepositoryImpl implements IProfileRepository {
     target.updatedAt = new Date().toISOString().split('T')[0];
     return target;
   }
+
+  async updatePreferences(
+    id: string,
+    preferences: Partial<PartnerPreference>,
+    session: AuthSession | null
+  ): Promise<PartnerPreference> {
+    if (!session || !session.isAuthenticated) {
+      throw new Error('UNAUTHENTICATED: Authentication required to update preferences.');
+    }
+
+    const config = getClientConfig();
+
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+
+      // Resolve profile UUID
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      let profileUuid = id;
+      if (!isUUID) {
+        const { data: prof, error: profErr } = await client
+          .from('profiles')
+          .select('id, account_id, created_by')
+          .eq('reference_code', id)
+          .maybeSingle();
+        if (profErr || !prof) throw new Error(`NOT_FOUND: Profile ${id} not found.`);
+        profileUuid = prof.id;
+      }
+
+      const rowPayload = profilePreferencesDTOToRow(preferences, profileUuid);
+
+      // Try server RPC (P1-17)
+      try {
+        const { data: rpcData, error: rpcErr } = await client.rpc('update_profile_preferences', {
+          p_profile_id: profileUuid,
+          p_preferences: rowPayload,
+        });
+
+        if (!rpcErr && rpcData) {
+          return profilePreferencesRowToDTO(rpcData);
+        }
+      } catch {
+        // Fall back to direct upsert
+      }
+
+      // Direct upsert with customer RLS policy
+      const { data: upsertData, error: upsertErr } = await client
+        .from('profile_preferences')
+        .upsert(rowPayload, { onConflict: 'profile_id' })
+        .select()
+        .single();
+
+      if (upsertErr || !upsertData) {
+        throw new Error(`DATABASE_ERROR: ${upsertErr?.message}`);
+      }
+
+      return profilePreferencesRowToDTO(upsertData);
+    }
+
+    // Demo Mode
+    const profile = demoProfilesStore.find(
+      (p) => p.id === id || p.referenceCode === id || p.databaseId === id
+    );
+    if (!profile) throw new Error(`NOT_FOUND: Profile ${id} not found.`);
+
+    const isStaff = canAccessRole(session, 'nadeem');
+    const isOwner =
+      session.user?.id &&
+      (session.user.id === profile.accountId ||
+        session.user.id === profile.createdBy ||
+        session.user.id === profile.databaseId ||
+        session.user.id === profile.id ||
+        (profile.contactEmail && session.user.email?.toLowerCase() === profile.contactEmail.toLowerCase()));
+
+    if (!isStaff && !isOwner) {
+      throw new Error('UNAUTHORIZED: Only profile owner or bureau staff can update partner preferences.');
+    }
+
+    profile.preferences = {
+      ...profile.preferences,
+      ...preferences,
+      criteriaClassifications: {
+        ...(profile.preferences?.criteriaClassifications || {}),
+        ...(preferences.criteriaClassifications || {}),
+      },
+    };
+    profile.updatedAt = new Date().toISOString().split('T')[0];
+    return profile.preferences;
+  }
 }
 
 // =============================================================================
@@ -974,6 +1076,51 @@ class FinanceRepositoryImpl implements IFinanceRepository {
 // =============================================================================
 
 class CRMRepositoryImpl implements ICRMRepository {
+  private async resolveProfileUuid(
+    idOrRef: string,
+    client: any
+  ): Promise<{ uuid: string; refCode: string; fullName?: string; phone?: string }> {
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrRef);
+    if (isUUID) {
+      const { data, error } = await client
+        .from('profiles')
+        .select('id, reference_code, full_name, contact_phone')
+        .eq('id', idOrRef)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        throw new Error(`DATABASE_ERROR: ${error.message}`);
+      }
+      return {
+        uuid: data?.id || idOrRef,
+        refCode: data?.reference_code || idOrRef,
+        fullName: data?.full_name,
+        phone: data?.contact_phone,
+      };
+    }
+
+    const { data, error } = await client
+      .from('profiles')
+      .select('id, reference_code, full_name, contact_phone')
+      .eq('reference_code', idOrRef)
+      .maybeSingle();
+
+    if (error && error.code !== 'PGRST116') {
+      throw new Error(`DATABASE_ERROR: ${error.message}`);
+    }
+
+    if (!data) {
+      return { uuid: idOrRef, refCode: idOrRef };
+    }
+
+    return {
+      uuid: data.id,
+      refCode: data.reference_code,
+      fullName: data.full_name,
+      phone: data.contact_phone,
+    };
+  }
+
   async findAll(
     session: AuthSession | null,
     filters?: { status?: string; priority?: string; profileId?: string }
@@ -1010,6 +1157,9 @@ class CRMRepositoryImpl implements ICRMRepository {
         dueDate: d.scheduled_date,
         priority: d.priority,
         status: d.status,
+        assignedTo: d.assigned_to || undefined,
+        reminderSentAt: d.reminder_sent_at || undefined,
+        notificationChannel: d.notification_channel || 'in_app',
         notes: d.notes || '',
       }));
     }
@@ -1046,6 +1196,9 @@ class CRMRepositoryImpl implements ICRMRepository {
         dueDate: data.scheduled_date,
         priority: data.priority,
         status: data.status,
+        assignedTo: data.assigned_to || undefined,
+        reminderSentAt: data.reminder_sent_at || undefined,
+        notificationChannel: data.notification_channel || 'in_app',
         notes: data.notes || '',
       };
     }
@@ -1055,11 +1208,15 @@ class CRMRepositoryImpl implements ICRMRepository {
   }
 
   async create(itemData: Partial<FollowUpItem>, session: AuthSession | null): Promise<FollowUpItem> {
-    const isProfileCorrection = itemData.type === 'profile_correction';
+    const isCustomerRequest =
+      itemData.type === 'profile_correction' ||
+      itemData.type === 'deactivation_request' ||
+      itemData.type === 'photo_consent_change' ||
+      itemData.type === 'customer_inquiry';
     const isStaff = canAccessRole(session, 'nadeem') || canAccessRole(session, 'admin');
-    const isCustomer = session?.role === 'customer' || (session === null && isProfileCorrection);
+    const isCustomer = session?.role === 'customer' || (session === null && isCustomerRequest);
 
-    if (!isStaff && !isProfileCorrection && !isCustomer) {
+    if (!isStaff && !isCustomerRequest && !isCustomer) {
       throw new Error('UNAUTHORIZED: Only bureau staff or candidate representatives can submit follow-up tasks.');
     }
 
@@ -1067,39 +1224,109 @@ class CRMRepositoryImpl implements ICRMRepository {
     const newRef = itemData.id || `FU-${100 + demoFollowUpsStore.length + 1}`;
     const now = new Date().toISOString().split('T')[0];
 
-    const newItem: FollowUpItem = {
-      id: newRef,
-      profileId: itemData.profileId || 'GLS-101',
-      candidateId: itemData.candidateId,
-      personName: itemData.personName || 'Candidate Representative',
-      contactPhone: itemData.contactPhone || '+92 300 0000000',
-      type: itemData.type || 'initial_consult',
-      dueDate: itemData.dueDate || now,
-      priority: itemData.priority || 'medium',
-      status: 'pending',
-      notes: itemData.notes || '',
-    };
+    // P1-31: Do NOT fabricate fallback contact info
+    let personName = itemData.personName?.trim();
+    let contactPhone = itemData.contactPhone?.trim();
+    let profileId = itemData.profileId?.trim() || '';
 
     if (config.mode === 'backend') {
       const client = getSupabaseClient();
       if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
 
+      let resolvedProfileUuid: string | null = null;
+      let resolvedMatchCaseUuid: string | null = null;
+
+      if (profileId) {
+        const resolved = await this.resolveProfileUuid(profileId, client);
+        resolvedProfileUuid = resolved.uuid;
+        profileId = resolved.refCode;
+        if (!personName && resolved.fullName) personName = resolved.fullName;
+        if (!contactPhone && resolved.phone) contactPhone = resolved.phone;
+      }
+
+      if (itemData.candidateId) {
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(itemData.candidateId);
+        if (isUUID) {
+          resolvedMatchCaseUuid = itemData.candidateId;
+        }
+      }
+
+      // Check validation: No fabricated defaults allowed (P1-31)
+      if (!personName) {
+        throw new Error('VALIDATION_ERROR: Contact person name is required for CRM follow-ups.');
+      }
+      if (!contactPhone) {
+        throw new Error('VALIDATION_ERROR: Contact phone number is required for CRM follow-ups.');
+      }
+
       const { data, error } = await client.from('crm_follow_ups').insert({
-        reference_code: newItem.id,
-        target_type: 'profile',
-        contact_person: newItem.personName,
-        contact_phone: newItem.contactPhone,
-        follow_up_type: newItem.type,
-        priority: newItem.priority,
-        scheduled_date: newItem.dueDate,
+        reference_code: newRef,
+        profile_id: resolvedProfileUuid,
+        match_case_id: resolvedMatchCaseUuid,
+        target_type: resolvedMatchCaseUuid ? 'match_case' : 'profile',
+        contact_person: personName,
+        contact_phone: contactPhone,
+        follow_up_type: itemData.type || 'initial_consult',
+        priority: itemData.priority || 'medium',
+        scheduled_date: itemData.dueDate || now,
         status: 'pending',
-        notes: newItem.notes,
+        assigned_to: itemData.assignedTo || null,
+        notification_channel: itemData.notificationChannel || 'in_app',
+        notes: itemData.notes || '',
         created_at: new Date().toISOString(),
       }).select().single();
 
       if (error || !data) throw new Error(`DATABASE_ERROR: ${error?.message}`);
-      return newItem;
+
+      return {
+        id: data.reference_code || data.id,
+        profileId: profileId || data.profile_id || '',
+        candidateId: data.match_case_id || undefined,
+        personName: data.contact_person,
+        contactPhone: data.contact_phone,
+        type: data.follow_up_type,
+        dueDate: data.scheduled_date,
+        priority: data.priority,
+        status: data.status,
+        assignedTo: data.assigned_to || undefined,
+        reminderSentAt: data.reminder_sent_at || undefined,
+        notificationChannel: data.notification_channel || 'in_app',
+        notes: data.notes || '',
+      };
     }
+
+    // Demo Mode
+    if (!personName) {
+      if (profileId) {
+        const found = demoProfilesStore.find((p) => p.id === profileId || p.referenceCode === profileId);
+        if (found) {
+          personName = found.fullName;
+          if (!contactPhone) contactPhone = found.contactPhone;
+        }
+      }
+    }
+
+    if (!personName) {
+      throw new Error('VALIDATION_ERROR: Contact person name is required for CRM follow-ups.');
+    }
+    if (!contactPhone) {
+      throw new Error('VALIDATION_ERROR: Contact phone number is required for CRM follow-ups.');
+    }
+
+    const newItem: FollowUpItem = {
+      id: newRef,
+      profileId: profileId,
+      candidateId: itemData.candidateId,
+      personName: personName,
+      contactPhone: contactPhone,
+      type: itemData.type || 'initial_consult',
+      dueDate: itemData.dueDate || now,
+      priority: itemData.priority || 'medium',
+      status: 'pending',
+      assignedTo: itemData.assignedTo,
+      notificationChannel: itemData.notificationChannel || 'in_app',
+      notes: itemData.notes || '',
+    };
 
     demoFollowUpsStore = [newItem, ...demoFollowUpsStore];
     return newItem;
@@ -1157,6 +1384,9 @@ class CRMRepositoryImpl implements ICRMRepository {
         dueDate: data.scheduled_date,
         priority: data.priority,
         status: 'completed',
+        assignedTo: data.assigned_to || undefined,
+        reminderSentAt: data.reminder_sent_at || undefined,
+        notificationChannel: data.notification_channel || 'in_app',
         notes: data.notes || '',
       };
     }
@@ -2090,6 +2320,64 @@ class MatchRepositoryImpl implements IMatchRepository {
       decisions,
       restoredEvaluation,
     };
+  }
+
+  async getApprovedRecommendationsForCustomer(
+    profileId: string,
+    session: AuthSession | null
+  ): Promise<MatchRecommendation[]> {
+    const config = getClientConfig();
+
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+
+      const { uuid: resolvedUuid } = await this.resolveProfileUuid(profileId, client);
+
+      const { data, error } = await client.rpc('get_customer_recommendations', {
+        p_profile_id: resolvedUuid,
+      });
+
+      if (error) {
+        throw new Error(`DATABASE_ERROR: ${error.message}`);
+      }
+
+      if (!Array.isArray(data)) return [];
+
+      return data.map((item: any) => ({
+        id: item.id,
+        caseCode: item.caseCode,
+        requestingProfileId: profileId,
+        candidateProfileId: item.candidateProfileId,
+        matchScore: item.matchScore,
+        compatibilitySummaryEn: item.compatibilitySummaryEn,
+        compatibilitySummaryUrdu: item.compatibilitySummaryUrdu,
+        status: item.status,
+        reviewedDate: item.reviewedDate,
+        candidateProfile: item.candidateProfile,
+      }));
+    }
+
+    // Demo Mode: Filter INITIAL_RECOMMENDATIONS for profileId where status is approved (P1-16)
+    const approvedStatuses = ['approved_by_nadeem', 'shared_with_parties', 'accepted_by_customer'];
+    const matchingRecs = INITIAL_RECOMMENDATIONS.filter(
+      (r) =>
+        (r.requestingProfileId === profileId || r.candidateProfileId === profileId) &&
+        approvedStatuses.includes(r.status)
+    );
+
+    return matchingRecs.map((rec) => {
+      const otherId = rec.requestingProfileId === profileId ? rec.candidateProfileId : rec.requestingProfileId;
+      const candidate = demoProfilesStore.find((p) => p.id === otherId || p.referenceCode === otherId);
+      const sanitizedCandidate = candidate
+        ? sanitizeProfileForRole(candidate, 'customer', false)
+        : undefined;
+
+      return {
+        ...rec,
+        candidateProfile: sanitizedCandidate,
+      };
+    });
   }
 }
 

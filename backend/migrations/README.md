@@ -222,5 +222,40 @@ Before applying pending migrations, the runner verifies that every already-appli
   COMMIT;
   ```
 
+### `00009_customer_portal_and_crm_enhancements.sql`
+* **Status:** Implemented under Task `T-036`.
+* **Scope:**
+  * Remediates independent audit findings P1-16, P1-17, P1-30, P1-31, and P2-06.
+  * Reminder delivery model schema enhancements on `public.crm_follow_ups`:
+    - Adds `reminder_sent_at TIMESTAMPTZ NULL` and `notification_channel VARCHAR(30) NOT NULL DEFAULT 'in_app'`.
+    - Check constraint `chk_followup_channel` enforcing `('in_app', 'email', 'whatsapp', 'sms')`.
+    - Composite index `idx_crm_follow_ups_reminders` on `(scheduled_date, status, reminder_sent_at)`.
+  * Customer self-service RLS policies on `public.crm_follow_ups`:
+    - `follow_ups_customer_insert`: allows customers with active accounts to submit requests (`profile_correction`, `deactivation_request`, `photo_consent_change`, `customer_inquiry`) on their owned profiles.
+    - `follow_ups_customer_select`: allows customers to view their own submitted requests.
+  * Customer preference update RLS policy `prefs_customer_own_update` on `public.profile_preferences` permitting preference updates for profiles in `pending_review`, `active`, or `introduction_authorized` status.
+  * Server RPC `public.update_profile_preferences(p_profile_id UUID, p_preferences JSONB)`:
+    - Atomically upserts preferences with owner/staff authorization check.
+    - Generates minimal audit record `profile_preferences_updated`.
+  * Server RPC `public.get_customer_recommendations(p_profile_id UUID)`:
+    - Provides authorized customer portal recommendation queries bound to caller ownership.
+    - Only returns match cases with status `approved_by_nadeem`, `shared_with_parties`, or `accepted_by_customer`.
+    - Projects privacy-filtered candidate info (display pseudonym, age, education, city, etc.) and strictly excludes sensitive direct contact details.
+* **Rollback Procedure:**
+  ```sql
+  BEGIN;
+  DROP FUNCTION IF EXISTS public.get_customer_recommendations(UUID);
+  DROP FUNCTION IF EXISTS public.update_profile_preferences(UUID, JSONB);
+  DROP POLICY IF EXISTS prefs_customer_own_update ON public.profile_preferences;
+  DROP POLICY IF EXISTS follow_ups_customer_select ON public.crm_follow_ups;
+  DROP POLICY IF EXISTS follow_ups_customer_insert ON public.crm_follow_ups;
+  DROP INDEX IF EXISTS public.idx_crm_follow_ups_reminders;
+  ALTER TABLE public.crm_follow_ups DROP CONSTRAINT IF EXISTS chk_followup_channel;
+  ALTER TABLE public.crm_follow_ups DROP COLUMN IF EXISTS notification_channel;
+  ALTER TABLE public.crm_follow_ups DROP COLUMN IF EXISTS reminder_sent_at;
+  COMMIT;
+  ```
+
+
 
 
