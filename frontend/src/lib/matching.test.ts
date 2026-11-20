@@ -176,6 +176,20 @@ const candidateSession: AuthSession = {
   isAuthenticated: true,
 };
 
+const adminSession: AuthSession = {
+  user: {
+    id: 'usr-admin',
+    email: 'admin@gulistan.pk',
+    displayName: 'Bureau Administrator',
+    role: 'admin',
+    preferredLanguage: 'en',
+  },
+  role: 'admin',
+  token: 'mock-admin-token',
+  expiresAt: Date.now() + 3600 * 1000,
+  isAuthenticated: true,
+};
+
 test('evaluateCandidateMatch prohibits self-pairing', () => {
   const result = evaluateCandidateMatch(samplePrimaryGroom, samplePrimaryGroom);
   assert.equal(result.isEligible, false);
@@ -582,12 +596,22 @@ test('MatchRepository persists cases, evaluations, decisions, and enforces appro
   assert.equal(decision.reasonCode, 'MUTUAL_ALIGNMENT');
   assert.equal(decision.notes, 'Family background confirmed.');
 
-  // Verify match case status updated to 'approved_by_nadeem'
+  // Verify match case status updated to 'approved_by_nadeem' and restored into evaluation DTO (P1-24)
   const history = await matchRepository.getCaseHistory(matchCase.id, staffSession);
   assert.ok(history);
   assert.equal(history.matchCase.status, 'approved_by_nadeem');
   assert.equal(history.evaluations.length, 1);
   assert.equal(history.decisions.length, 1);
+  assert.ok(history.restoredEvaluation);
+  assert.equal(history.restoredEvaluation.humanDecisionStatus, 'approved_by_nadeem');
+  assert.equal(history.restoredEvaluation.reviewedBy, 'usr-nadeem');
+
+  // Verify pre-share eligibility succeeds using restored match case status (P1-24)
+  const preShareCheck = verifyPreShareEligibility(samplePrimaryGroom, sampleCompatibleBride, undefined, {
+    matchCase: history.matchCase,
+  });
+  assert.equal(preShareCheck.isEligible, true);
+  assert.equal(preShareCheck.details.humanApprovalCheck, true);
 
   // 5. Invariant: Cannot approve a match case where mandatory criteria failed
   const case2 = await matchRepository.getOrCreateMatchCase('GLS-T01', 'GLS-T04', staffSession);
@@ -602,4 +626,40 @@ test('MatchRepository persists cases, evaluations, decisions, and enforces appro
     () => matchRepository.recordDecision(case2.id, 'approved', 'FORCE_APPROVE', staffSession),
     /CANNOT_APPROVE_INELIGIBLE_MATCH/
   );
+
+  // 6. Invariant (P1-20): Cannot approve a match case where NO evaluation has been persisted
+  const caseNoEval = await matchRepository.getOrCreateMatchCase('GLS-T01', 'GLS-T05', staffSession);
+  await assert.rejects(
+    () => matchRepository.recordDecision(caseNoEval.id, 'approved', 'PREMATURE_APPROVE', staffSession),
+    /CANNOT_APPROVE_WITHOUT_EVALUATION/
+  );
+
+  // 7. Invariant (P1-22): Administrator requires explicit adminOverride flag to approve match
+  const caseAdminTest = await matchRepository.getOrCreateMatchCase('GLS-T01', 'GLS-T06', staffSession);
+  const validEval = evaluateCandidateMatch(samplePrimaryGroom, sampleCompatibleBride);
+  await matchRepository.saveEvaluation(caseAdminTest.id, validEval, staffSession);
+
+  // Admin without override is rejected
+  await assert.rejects(
+    () => matchRepository.recordDecision(caseAdminTest.id, 'approved', 'ADMIN_ACTION', adminSession),
+    /ADMIN_OVERRIDE_REQUIRED/
+  );
+
+  // Admin with explicit override succeeds
+  const overrideDec = await matchRepository.recordDecision(
+    caseAdminTest.id,
+    'approved',
+    'ADMIN_EXCEPTION_VERIFIED',
+    adminSession,
+    'Audited owner exception applied.',
+    true
+  );
+  assert.ok(overrideDec.id);
+  assert.equal(overrideDec.decision, 'approved');
+
+  // 8. Invariant (P1-23): Canonical profile pair ordering ensures reverse order pair returns identical match case
+  const pairA = await matchRepository.getOrCreateMatchCase('GLS-111', 'GLS-222', staffSession);
+  const pairB = await matchRepository.getOrCreateMatchCase('GLS-222', 'GLS-111', staffSession);
+  assert.equal(pairA.id, pairB.id);
+  assert.equal(pairA.caseCode, pairB.caseCode);
 });

@@ -837,7 +837,12 @@ export function verifyPreShareEligibility(
   primary: ProfileRecord,
   candidate: ProfileRecord,
   evaluation?: MatchEvaluation,
-  options?: { requirePhotoConsent?: boolean }
+  options?: {
+    requirePhotoConsent?: boolean;
+    matchCase?: { status?: string };
+    matchCaseStatus?: string;
+    latestDecision?: { decision?: string };
+  }
 ): PreShareEligibilityResult {
   const selfPairCheck = primary.id !== candidate.id;
   if (!selfPairCheck) {
@@ -922,7 +927,11 @@ export function verifyPreShareEligibility(
     };
   }
 
-  const humanApprovalCheck = evalToUse.humanDecisionStatus === 'approved_by_nadeem';
+  const isCaseApproved =
+    options?.matchCaseStatus === 'approved_by_nadeem' ||
+    options?.matchCase?.status === 'approved_by_nadeem' ||
+    options?.latestDecision?.decision === 'approved';
+  const humanApprovalCheck = isCaseApproved || evalToUse.humanDecisionStatus === 'approved_by_nadeem';
   if (!humanApprovalCheck) {
     return {
       isEligible: false,

@@ -196,4 +196,31 @@ Before applying pending migrations, the runner verifies that every already-appli
   COMMIT;
   ```
 
+### `00008_match_cases_and_decisions_enhancements.sql`
+* **Status:** Implemented under Task `T-035`.
+* **Scope:**
+  * Remediates independent audit findings P0-06, P1-20, P1-21, P1-22, P1-23, and P1-24.
+  * Creates canonical profile pair unique index on `public.match_cases`:
+    `CREATE UNIQUE INDEX IF NOT EXISTS uq_match_cases_canonical_pair ON public.match_cases (LEAST(profile_a_id, profile_b_id), GREATEST(profile_a_id, profile_b_id));`
+  * Implements atomic transactional server RPCs (`SECURITY DEFINER`):
+    - `public.get_or_create_match_case`: ensures canonical pair ordering `(LEAST, GREATEST)` server-side, verifies self-pairing prevention, and validates staff caller.
+    - `public.record_match_decision`:
+      * Constrains human decision authority strictly to Lead Matchmaker Nadeem (`matchmaker` role) per project rules.
+      * Permits Administrator override only with explicit `admin_override = true` flag and generates an immutable `match_approval_admin_override` audit trail.
+      * Enforces evaluation prerequisite: requires a latest evaluation record to exist on the match case with `mandatory_satisfied = TRUE` before `'approved'` status is accepted.
+      * Executes atomic update: inserts decision into `public.match_decisions` and transitions `public.match_cases.status` to `approved_by_nadeem`, `rejected`, or `deferred` in a single ACID transaction.
+  * Tightens Row-Level Security on `public.match_decisions` (`decisions_matchmaker_manage`) to restrict decision creation to matchmaker and admin roles.
+* **Rollback Procedure:**
+  ```sql
+  BEGIN;
+  DROP POLICY IF EXISTS decisions_matchmaker_manage ON public.match_decisions;
+  CREATE POLICY decisions_staff_manage ON public.match_decisions
+      FOR ALL TO authenticated USING (public.auth_is_staff()) WITH CHECK (public.auth_is_staff());
+  DROP FUNCTION IF EXISTS public.record_match_decision(UUID, VARCHAR, VARCHAR, TEXT, UUID, BOOLEAN);
+  DROP FUNCTION IF EXISTS public.get_or_create_match_case(UUID, UUID, UUID);
+  DROP INDEX IF EXISTS public.uq_match_cases_canonical_pair;
+  COMMIT;
+  ```
+
+
 

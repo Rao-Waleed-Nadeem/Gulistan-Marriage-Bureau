@@ -13,6 +13,8 @@ import { translations } from '../../i18n/translations';
 import { ProfileCard } from '../../components/ui/ProfileCard';
 import { ProfileDetailModal } from '../../components/ui/ProfileDetailModal';
 import { ControlledSharingModal } from '../../components/matching/ControlledSharingModal';
+import { getCurrentSession } from '../../lib/auth';
+import { matchRepository } from '../../lib/repositories';
 import { MatchReview } from './MatchReview';
 import { FollowUpsView } from './FollowUpsView';
 import { BestMatchView } from './BestMatchView';
@@ -176,13 +178,43 @@ export const NadeemDashboard: React.FC<NadeemDashboardProps> = ({
         candidateProfile={activeMatchReview.candidate}
         recommendation={activeMatchReview.rec}
         language={language}
-        onApprove={() => {
-          alert(isRTL ? 'تجویز منظور کر لی گئی!' : 'Proposal Approved by Nadeem!');
-          setActiveMatchReview(null);
+        onApprove={async (evalParam) => {
+          try {
+            const currentSession = getCurrentSession();
+            const mc = await matchRepository.getOrCreateMatchCase(
+              activeMatchReview.primary.id,
+              activeMatchReview.candidate.id,
+              currentSession
+            );
+            if (evalParam) {
+              await matchRepository.saveEvaluation(mc.id, evalParam, currentSession);
+            }
+            await matchRepository.recordDecision(mc.id, 'approved', 'MUTUAL_ALIGNMENT', currentSession);
+            alert(isRTL ? 'تجویز منظور کر لی گئی!' : 'Proposal Approved by Nadeem!');
+            setActiveMatchReview(null);
+          } catch (err: any) {
+            console.error('[Gulistan] Match approval error:', err);
+            alert(err?.message || (isRTL ? 'منظوری ریکارڈ نہ ہو سکی' : 'Failed to record approval'));
+          }
         }}
-        onReject={() => {
-          alert(isRTL ? 'تجویز مسترد کر دی گئی۔' : 'Proposal declined.');
-          setActiveMatchReview(null);
+        onReject={async (evalParam) => {
+          try {
+            const currentSession = getCurrentSession();
+            const mc = await matchRepository.getOrCreateMatchCase(
+              activeMatchReview.primary.id,
+              activeMatchReview.candidate.id,
+              currentSession
+            );
+            if (evalParam) {
+              await matchRepository.saveEvaluation(mc.id, evalParam, currentSession);
+            }
+            await matchRepository.recordDecision(mc.id, 'rejected', 'MUTUAL_MISALIGNMENT', currentSession);
+            alert(isRTL ? 'تجویز مسترد کر دی گئی۔' : 'Proposal declined.');
+            setActiveMatchReview(null);
+          } catch (err: any) {
+            console.error('[Gulistan] Match rejection error:', err);
+            alert(err?.message || (isRTL ? 'مستردگی ریکارڈ نہ ہو سکی' : 'Failed to record decline'));
+          }
         }}
         onOpenControlledShare={() => {
           setSelectedProfileForSharing(activeMatchReview.candidate);

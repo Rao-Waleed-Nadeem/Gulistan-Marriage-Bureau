@@ -123,4 +123,25 @@ Implemented in `frontend/src/lib/disclosure.ts`, wired into `frontend/src/compon
 - **Urdu & English Cultural Drafts:** Produces respectful, localized proposals with Islamic greetings, bulleted attributes, custom note sanitization, and dignity closing disclaimer ("آپ کے خاندان کا وقار اور رازداری ہماری اولین ترجیح ہے").
 - **Audit Minimization (Section 3.7):** Audit payload (`createDisclosureAuditRecord`) records only operational telemetry (`grantId`, `authorizedFields`, `expiresAt`). Full message bodies, raw phone numbers, candidate legal names, photo URLs, and bearer tokens are strictly omitted.
 
+## 5.12 Match Cases, Canonical Uniqueness and Atomic Decision Prerequisites (T-035)
+
+Implemented in `backend/migrations/00008_match_cases_and_decisions_enhancements.sql`, `frontend/src/lib/repositories.ts`, and `frontend/src/lib/matching.ts`:
+- **Canonical Pair Uniqueness (P1-23):**
+  - Database index `uq_match_cases_canonical_pair` on `(LEAST(profile_a_id, profile_b_id), GREATEST(profile_a_id, profile_b_id))` prevents reversed duplicate match cases `(B, A)` when `(A, B)` exists.
+  - Server-side RPC `get_or_create_match_case(p_profile_a_id, p_profile_b_id, p_created_by)` canonicalizes orientation before lookup/insert and guarantees single-case idempotency.
+- **UUID & Human Reference Code Translation (P0-06):**
+  - `MatchRepositoryImpl` maps human reference codes (e.g. `GLS-101`) to PostgreSQL UUIDs before database queries and inserts, eliminating UUID type errors at the data boundary.
+- **Evaluation Prerequisite for Approval (P1-20):**
+  - Match proposals cannot be approved unless a persisted match evaluation exists for the match case AND `mandatory_satisfied = TRUE`.
+  - Rejects premature approval attempts with `CANNOT_APPROVE_WITHOUT_EVALUATION` and blocks ineligible matches with `CANNOT_APPROVE_INELIGIBLE_MATCH`.
+- **Atomic Match Decision & Case Status Update (P1-21):**
+  - Server-side RPC `record_match_decision` atomically inserts into `match_decisions` and updates `match_cases.status` to `approved_by_nadeem`, `rejected`, or `deferred` within a single ACID transaction.
+- **Matchmaker (Nadeem) Decision Authority with Audited Admin Override (P1-22):**
+  - Match approval is strictly reserved for Lead Matchmaker Nadeem (`matchmaker` role).
+  - Bureau Administrator approval requires an explicit `admin_override = true` flag and generates an immutable `match_approval_admin_override` audit trail in `audit_events`.
+- **Restored Evaluation DTO & Pre-Share Authorization (P1-24):**
+  - `getCaseHistory()` reconstructs the latest `MatchEvaluation` DTO with `humanDecisionStatus` derived from persisted `match_cases.status` and `match_decisions`.
+  - `verifyPreShareEligibility()` validates disclosure preconditions directly against persisted match case and decision records.
+
+
 

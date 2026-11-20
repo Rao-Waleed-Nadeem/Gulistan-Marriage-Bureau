@@ -152,6 +152,8 @@ export interface MatchCaseRecord {
   caseCode: string;
   profileAId: string;
   profileBId: string;
+  profileAUuid?: string;
+  profileBUuid?: string;
   status: MatchCaseStatus;
   createdBy?: string;
   createdAt: string;
@@ -188,12 +190,14 @@ export interface IMatchRepository {
     decision: 'approved' | 'rejected' | 'deferred',
     reasonCode: string,
     session: AuthSession | null,
-    notes?: string
+    notes?: string,
+    adminOverride?: boolean
   ): Promise<MatchDecisionRecord>;
   getCaseHistory(matchCaseId: string, session: AuthSession | null): Promise<{
     matchCase: MatchCaseRecord;
     evaluations: MatchEvaluationRecord[];
     decisions: MatchDecisionRecord[];
+    restoredEvaluation?: MatchEvaluation;
   } | null>;
 }
 
@@ -1539,6 +1543,48 @@ class MatchmakerRepositoryImpl implements IMatchmakerRepository {
 // =============================================================================
 
 class MatchRepositoryImpl implements IMatchRepository {
+  private async resolveProfileUuid(
+    idOrRef: string,
+    client: any
+  ): Promise<{ uuid: string; refCode: string }> {
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrRef);
+    if (isUUID) {
+      const { data, error } = await client
+        .from('profiles')
+        .select('id, reference_code')
+        .eq('id', idOrRef)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        throw new Error(`DATABASE_ERROR: ${error.message}`);
+      }
+
+      return {
+        uuid: idOrRef,
+        refCode: data?.reference_code || idOrRef,
+      };
+    }
+
+    const { data, error } = await client
+      .from('profiles')
+      .select('id, reference_code')
+      .eq('reference_code', idOrRef)
+      .maybeSingle();
+
+    if (error && error.code !== 'PGRST116') {
+      throw new Error(`DATABASE_ERROR: ${error.message}`);
+    }
+
+    if (!data) {
+      throw new Error(`PROFILE_NOT_FOUND: Profile with reference code "${idOrRef}" not found.`);
+    }
+
+    return {
+      uuid: data.id,
+      refCode: data.reference_code,
+    };
+  }
+
   async getOrCreateMatchCase(
     profileAId: string,
     profileBId: string,
@@ -1554,18 +1600,52 @@ class MatchRepositoryImpl implements IMatchRepository {
       const client = getSupabaseClient();
       if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
 
+      const profA = await this.resolveProfileUuid(profileAId, client);
+      const profB = await this.resolveProfileUuid(profileBId, client);
+
+      const [lowUuid, highUuid] = profA.uuid < profB.uuid ? [profA.uuid, profB.uuid] : [profB.uuid, profA.uuid];
+
+      // Try RPC first for canonical ordering and atomic insertion (P1-23)
+      const { data: rpcData, error: rpcErr } = await client.rpc('get_or_create_match_case', {
+        p_profile_a_id: lowUuid,
+        p_profile_b_id: highUuid,
+        p_created_by: session?.user?.id || null,
+      });
+
+      if (!rpcErr && rpcData) {
+        return {
+          id: rpcData.id,
+          caseCode: rpcData.case_code,
+          profileAId: rpcData.profile_a_id === profA.uuid ? profA.refCode : profB.refCode,
+          profileBId: rpcData.profile_b_id === profB.uuid ? profB.refCode : profA.refCode,
+          profileAUuid: rpcData.profile_a_id,
+          profileBUuid: rpcData.profile_b_id,
+          status: rpcData.status,
+          createdBy: rpcData.created_by || undefined,
+          createdAt: rpcData.created_at,
+          updatedAt: rpcData.updated_at,
+        };
+      }
+
+      // Fallback direct table query if RPC is not deployed yet or for compatibility
       const { data: existing, error: findErr } = await client
         .from('match_cases')
         .select('*')
-        .or(`and(profile_a_id.eq.${profileAId},profile_b_id.eq.${profileBId}),and(profile_a_id.eq.${profileBId},profile_b_id.eq.${profileAId})`)
+        .or(`and(profile_a_id.eq.${lowUuid},profile_b_id.eq.${highUuid}),and(profile_a_id.eq.${highUuid},profile_b_id.eq.${lowUuid})`)
         .maybeSingle();
 
-      if (!findErr && existing) {
+      if (findErr && findErr.code !== 'PGRST116') {
+        throw new Error(`DATABASE_ERROR: ${findErr.message}`);
+      }
+
+      if (existing) {
         return {
           id: existing.id,
           caseCode: existing.case_code,
-          profileAId: existing.profile_a_id,
-          profileBId: existing.profile_b_id,
+          profileAId: existing.profile_a_id === profA.uuid ? profA.refCode : profB.refCode,
+          profileBId: existing.profile_b_id === profB.uuid ? profB.refCode : profA.refCode,
+          profileAUuid: existing.profile_a_id,
+          profileBUuid: existing.profile_b_id,
           status: existing.status,
           createdBy: existing.created_by || undefined,
           createdAt: existing.created_at,
@@ -1573,13 +1653,13 @@ class MatchRepositoryImpl implements IMatchRepository {
         };
       }
 
-      const caseCode = `MC-${profileAId.slice(-4)}-${profileBId.slice(-4)}-${Math.floor(100 + Math.random() * 900)}`;
+      const caseCode = `MC-${profA.refCode.slice(-4)}-${profB.refCode.slice(-4)}-${Math.floor(100 + Math.random() * 900)}`;
       const { data: created, error: insertErr } = await client
         .from('match_cases')
         .insert({
           case_code: caseCode,
-          profile_a_id: profileAId,
-          profile_b_id: profileBId,
+          profile_a_id: lowUuid,
+          profile_b_id: highUuid,
           status: 'suggested',
           created_by: session?.user?.id || null,
         })
@@ -1593,8 +1673,10 @@ class MatchRepositoryImpl implements IMatchRepository {
       return {
         id: created.id,
         caseCode: created.case_code,
-        profileAId: created.profile_a_id,
-        profileBId: created.profile_b_id,
+        profileAId: created.profile_a_id === profA.uuid ? profA.refCode : profB.refCode,
+        profileBId: created.profile_b_id === profB.uuid ? profB.refCode : profA.refCode,
+        profileAUuid: created.profile_a_id,
+        profileBUuid: created.profile_b_id,
         status: created.status,
         createdBy: created.created_by || undefined,
         createdAt: created.created_at,
@@ -1602,11 +1684,13 @@ class MatchRepositoryImpl implements IMatchRepository {
       };
     }
 
-    // Demo Mode
+    // Demo Mode: Enforce canonical profile pair ordering (P1-23)
+    const [canonicalA, canonicalB] = profileAId < profileBId ? [profileAId, profileBId] : [profileBId, profileAId];
+
     const existing = demoMatchCasesStore.find(
       (m) =>
-        (m.profileAId === profileAId && m.profileBId === profileBId) ||
-        (m.profileAId === profileBId && m.profileBId === profileAId)
+        (m.profileAId === canonicalA && m.profileBId === canonicalB) ||
+        (m.profileAId === canonicalB && m.profileBId === canonicalA)
     );
 
     if (existing) {
@@ -1616,9 +1700,9 @@ class MatchRepositoryImpl implements IMatchRepository {
     const now = new Date().toISOString();
     const newCase: MatchCaseRecord = {
       id: generateCryptoUUID(),
-      caseCode: `MC-${profileAId.slice(-4)}-${profileBId.slice(-4)}-${Math.floor(100 + Math.random() * 900)}`,
-      profileAId,
-      profileBId,
+      caseCode: `MC-${canonicalA.slice(-4)}-${canonicalB.slice(-4)}-${Math.floor(100 + Math.random() * 900)}`,
+      profileAId: canonicalA,
+      profileBId: canonicalB,
       status: 'suggested',
       createdBy: session?.user?.id,
       createdAt: now,
@@ -1640,19 +1724,30 @@ class MatchRepositoryImpl implements IMatchRepository {
       const client = getSupabaseClient();
       if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
 
+      const profA = await this.resolveProfileUuid(profileAId, client);
+      const profB = await this.resolveProfileUuid(profileBId, client);
+
+      const [lowUuid, highUuid] = profA.uuid < profB.uuid ? [profA.uuid, profB.uuid] : [profB.uuid, profA.uuid];
+
       const { data, error } = await client
         .from('match_cases')
         .select('*')
-        .or(`and(profile_a_id.eq.${profileAId},profile_b_id.eq.${profileBId}),and(profile_a_id.eq.${profileBId},profile_b_id.eq.${profileAId})`)
+        .or(`and(profile_a_id.eq.${lowUuid},profile_b_id.eq.${highUuid}),and(profile_a_id.eq.${highUuid},profile_b_id.eq.${lowUuid})`)
         .maybeSingle();
 
-      if (error || !data) return null;
+      if (error) {
+        if (error.code === 'PGRST116') return null;
+        throw new Error(`DATABASE_ERROR: ${error.message}`);
+      }
+      if (!data) return null;
 
       return {
         id: data.id,
         caseCode: data.case_code,
-        profileAId: data.profile_a_id,
-        profileBId: data.profile_b_id,
+        profileAId: data.profile_a_id === profA.uuid ? profA.refCode : profB.refCode,
+        profileBId: data.profile_b_id === profB.uuid ? profB.refCode : profA.refCode,
+        profileAUuid: data.profile_a_id,
+        profileBUuid: data.profile_b_id,
         status: data.status,
         createdBy: data.created_by || undefined,
         createdAt: data.created_at,
@@ -1730,10 +1825,19 @@ class MatchRepositoryImpl implements IMatchRepository {
     decision: 'approved' | 'rejected' | 'deferred',
     reasonCode: string,
     session: AuthSession | null,
-    notes?: string
+    notes?: string,
+    adminOverride?: boolean
   ): Promise<MatchDecisionRecord> {
-    if (!canAccessRole(session, 'nadeem') && !canAccessRole(session, 'admin')) {
+    const isNadeem = !!(session?.isAuthenticated && session?.role === 'nadeem');
+    const isAdmin = !!(session?.isAuthenticated && session?.role === 'admin');
+
+    if (!isNadeem && !isAdmin) {
       throw new Error('UNAUTHORIZED: Only bureau staff may record match review decisions.');
+    }
+
+    // P1-22: Admin override requires explicit flag
+    if (isAdmin && !adminOverride) {
+      throw new Error('ADMIN_OVERRIDE_REQUIRED: Administrative match decision requires explicit admin_override flag.');
     }
 
     const config = getClientConfig();
@@ -1742,56 +1846,40 @@ class MatchRepositoryImpl implements IMatchRepository {
       const client = getSupabaseClient();
       if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
 
-      if (decision === 'approved') {
-        const { data: latestEval } = await client
-          .from('match_evaluations')
-          .select('mandatory_satisfied')
-          .eq('match_case_id', matchCaseId)
-          .order('evaluated_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+      // Call atomic database RPC (P1-20, P1-21, P1-22)
+      const { data: rpcResult, error: rpcErr } = await client.rpc('record_match_decision', {
+        p_match_case_id: matchCaseId,
+        p_decision: decision,
+        p_reason_code: reasonCode,
+        p_notes: notes?.trim() || null,
+        p_decided_by: session?.user?.id || null,
+        p_admin_override: !!adminOverride || (isAdmin && !isNadeem),
+      });
 
-        if (latestEval && !latestEval.mandatory_satisfied) {
+      if (rpcErr) {
+        if (rpcErr.message.includes('NO_EVALUATION_FOUND')) {
+          throw new Error('CANNOT_APPROVE_WITHOUT_EVALUATION: A match cannot be approved without a persisted match evaluation.');
+        }
+        if (rpcErr.message.includes('CANNOT_APPROVE_INELIGIBLE_MATCH')) {
           throw new Error('CANNOT_APPROVE_INELIGIBLE_MATCH: Mandatory criteria violated.');
         }
+        if (rpcErr.message.includes('ADMIN_OVERRIDE_REQUIRED')) {
+          throw new Error('ADMIN_OVERRIDE_REQUIRED: Administrative match decision requires explicit admin_override flag.');
+        }
+        if (rpcErr.message.includes('UNAUTHORIZED')) {
+          throw new Error('UNAUTHORIZED: Only bureau staff may record match review decisions.');
+        }
+        throw new Error(`DB_DECISION_FAILED: ${rpcErr.message}`);
       }
-
-      const { data: decisionRow, error: decErr } = await client
-        .from('match_decisions')
-        .insert({
-          match_case_id: matchCaseId,
-          decision,
-          decided_by: session?.user?.id || null,
-          reason_code: reasonCode,
-          notes: notes?.trim() || null,
-        })
-        .select('*')
-        .single();
-
-      if (decErr || !decisionRow) {
-        throw new Error(`DB_INSERT_FAILED: ${decErr?.message || 'Could not record decision.'}`);
-      }
-
-      const newCaseStatus =
-        decision === 'approved'
-          ? 'approved_by_nadeem'
-          : decision === 'rejected'
-          ? 'rejected'
-          : 'deferred';
-
-      await client
-        .from('match_cases')
-        .update({ status: newCaseStatus, updated_at: new Date().toISOString() })
-        .eq('id', matchCaseId);
 
       return {
-        id: decisionRow.id,
-        matchCaseId: decisionRow.match_case_id,
-        decision: decisionRow.decision,
-        decidedBy: decisionRow.decided_by || undefined,
-        reasonCode: decisionRow.reason_code,
-        notes: decisionRow.notes || undefined,
-        decidedAt: decisionRow.decided_at,
+        id: rpcResult.decision_id,
+        matchCaseId: rpcResult.match_case_id,
+        decision: rpcResult.decision,
+        decidedBy: rpcResult.decided_by || undefined,
+        reasonCode: rpcResult.reason_code,
+        notes: rpcResult.notes || undefined,
+        decidedAt: rpcResult.decided_at,
       };
     }
 
@@ -1801,12 +1889,14 @@ class MatchRepositoryImpl implements IMatchRepository {
       throw new Error(`NOT_FOUND: Match case ${matchCaseId} not found.`);
     }
 
+    // P1-20: Mandatory evaluation check before approval
     if (decision === 'approved') {
-      const latestEval = demoMatchEvaluationsStore
-        .filter((e) => e.matchCaseId === matchCaseId)
-        .slice(-1)[0];
-
-      if (latestEval && !latestEval.mandatorySatisfied) {
+      const evals = demoMatchEvaluationsStore.filter((e) => e.matchCaseId === matchCaseId);
+      if (evals.length === 0) {
+        throw new Error('CANNOT_APPROVE_WITHOUT_EVALUATION: A match cannot be approved without a persisted match evaluation.');
+      }
+      const latestEval = evals[evals.length - 1];
+      if (!latestEval.mandatorySatisfied) {
         throw new Error('CANNOT_APPROVE_INELIGIBLE_MATCH: Mandatory criteria violated.');
       }
     }
@@ -1824,6 +1914,7 @@ class MatchRepositoryImpl implements IMatchRepository {
 
     demoMatchDecisionsStore.push(newDecision);
 
+    // Atomic update of status in memory (P1-21)
     matchCase.status =
       decision === 'approved'
         ? 'approved_by_nadeem'
@@ -1842,6 +1933,7 @@ class MatchRepositoryImpl implements IMatchRepository {
     matchCase: MatchCaseRecord;
     evaluations: MatchEvaluationRecord[];
     decisions: MatchDecisionRecord[];
+    restoredEvaluation?: MatchEvaluation;
   } | null> {
     const config = getClientConfig();
 
@@ -1855,19 +1947,85 @@ class MatchRepositoryImpl implements IMatchRepository {
         .eq('id', matchCaseId)
         .maybeSingle();
 
-      if (cErr || !cData) return null;
+      if (cErr) {
+        throw new Error(`DATABASE_ERROR: ${cErr.message}`);
+      }
+      if (!cData) return null;
 
-      const { data: eData } = await client
+      const { data: eData, error: eErr } = await client
         .from('match_evaluations')
         .select('*')
         .eq('match_case_id', matchCaseId)
-        .order('evaluated_at', { ascending: true });
+        .order('evaluated_at', { ascending: false });
 
-      const { data: dData } = await client
+      if (eErr) {
+        throw new Error(`DATABASE_ERROR: ${eErr.message}`);
+      }
+
+      const { data: dData, error: dErr } = await client
         .from('match_decisions')
         .select('*')
         .eq('match_case_id', matchCaseId)
-        .order('decided_at', { ascending: true });
+        .order('decided_at', { ascending: false });
+
+      if (dErr) {
+        throw new Error(`DATABASE_ERROR: ${dErr.message}`);
+      }
+
+      const evaluationsList: MatchEvaluationRecord[] = (eData || []).map((e: any) => ({
+        id: e.id,
+        matchCaseId: e.match_case_id,
+        algorithmVersion: e.algorithm_version,
+        compatibilityScore: e.compatibility_score,
+        mandatorySatisfied: e.mandatory_satisfied,
+        criteriaBreakdown: e.criteria_breakdown,
+        evaluationNotes: e.evaluation_notes || undefined,
+        evaluatedAt: e.evaluated_at,
+      }));
+
+      const decisionsList: MatchDecisionRecord[] = (dData || []).map((d: any) => ({
+        id: d.id,
+        matchCaseId: d.match_case_id,
+        decision: d.decision,
+        decidedBy: d.decided_by || undefined,
+        reasonCode: d.reason_code,
+        notes: d.notes || undefined,
+        decidedAt: d.decided_at,
+      }));
+
+      // Restore decision state onto evaluation DTO (P1-24)
+      let restoredEvaluation: MatchEvaluation | undefined = undefined;
+      if (evaluationsList.length > 0) {
+        const latestEval = evaluationsList[0];
+        const latestDec = decisionsList.length > 0 ? decisionsList[0] : undefined;
+
+        let effectiveDecision: 'pending_review' | 'approved_by_nadeem' | 'deferred' | 'rejected' = 'pending_review';
+        if (cData.status === 'approved_by_nadeem') {
+          effectiveDecision = 'approved_by_nadeem';
+        } else if (latestDec) {
+          if (latestDec.decision === 'approved') effectiveDecision = 'approved_by_nadeem';
+          else if (latestDec.decision === 'rejected') effectiveDecision = 'rejected';
+          else if (latestDec.decision === 'deferred') effectiveDecision = 'deferred';
+        }
+
+        restoredEvaluation = {
+          primaryProfileId: cData.profile_a_id,
+          candidateProfileId: cData.profile_b_id,
+          evaluatedAt: latestEval.evaluatedAt,
+          algorithmVersion: latestEval.algorithmVersion,
+          overallScore: latestEval.compatibilityScore,
+          isEligible: latestEval.mandatorySatisfied,
+          isMandatorySatisfied: latestEval.mandatorySatisfied,
+          criteria: latestEval.criteriaBreakdown as EvaluatedCriterion[],
+          summaryEn: latestEval.evaluationNotes || '',
+          summaryUrdu: '',
+          requiresHumanApproval: true,
+          humanDecisionStatus: effectiveDecision,
+          reviewedBy: latestDec?.decidedBy,
+          reviewedAt: latestDec?.decidedAt,
+          reviewNotes: latestDec?.notes,
+        };
+      }
 
       return {
         matchCase: {
@@ -1880,25 +2038,9 @@ class MatchRepositoryImpl implements IMatchRepository {
           createdAt: cData.created_at,
           updatedAt: cData.updated_at,
         },
-        evaluations: (eData || []).map((e) => ({
-          id: e.id,
-          matchCaseId: e.match_case_id,
-          algorithmVersion: e.algorithm_version,
-          compatibilityScore: e.compatibility_score,
-          mandatorySatisfied: e.mandatory_satisfied,
-          criteriaBreakdown: e.criteria_breakdown,
-          evaluationNotes: e.evaluation_notes || undefined,
-          evaluatedAt: e.evaluated_at,
-        })),
-        decisions: (dData || []).map((d) => ({
-          id: d.id,
-          matchCaseId: d.match_case_id,
-          decision: d.decision,
-          decidedBy: d.decided_by || undefined,
-          reasonCode: d.reason_code,
-          notes: d.notes || undefined,
-          decidedAt: d.decided_at,
-        })),
+        evaluations: evaluationsList,
+        decisions: decisionsList,
+        restoredEvaluation,
       };
     }
 
@@ -1908,10 +2050,45 @@ class MatchRepositoryImpl implements IMatchRepository {
     const evaluations = demoMatchEvaluationsStore.filter((e) => e.matchCaseId === matchCaseId);
     const decisions = demoMatchDecisionsStore.filter((d) => d.matchCaseId === matchCaseId);
 
+    // Restore decision state onto evaluation DTO in demo mode (P1-24)
+    let restoredEvaluation: MatchEvaluation | undefined = undefined;
+    if (evaluations.length > 0) {
+      const latestEval = evaluations[evaluations.length - 1];
+      const latestDec = decisions.length > 0 ? decisions[decisions.length - 1] : undefined;
+
+      let effectiveDecision: 'pending_review' | 'approved_by_nadeem' | 'deferred' | 'rejected' = 'pending_review';
+      if (matchCase.status === 'approved_by_nadeem') {
+        effectiveDecision = 'approved_by_nadeem';
+      } else if (latestDec) {
+        if (latestDec.decision === 'approved') effectiveDecision = 'approved_by_nadeem';
+        else if (latestDec.decision === 'rejected') effectiveDecision = 'rejected';
+        else if (latestDec.decision === 'deferred') effectiveDecision = 'deferred';
+      }
+
+      restoredEvaluation = {
+        primaryProfileId: matchCase.profileAId,
+        candidateProfileId: matchCase.profileBId,
+        evaluatedAt: latestEval.evaluatedAt,
+        algorithmVersion: latestEval.algorithmVersion,
+        overallScore: latestEval.compatibilityScore,
+        isEligible: latestEval.mandatorySatisfied,
+        isMandatorySatisfied: latestEval.mandatorySatisfied,
+        criteria: latestEval.criteriaBreakdown as EvaluatedCriterion[],
+        summaryEn: latestEval.evaluationNotes || '',
+        summaryUrdu: '',
+        requiresHumanApproval: true,
+        humanDecisionStatus: effectiveDecision,
+        reviewedBy: latestDec?.decidedBy,
+        reviewedAt: latestDec?.decidedAt,
+        reviewNotes: latestDec?.notes,
+      };
+    }
+
     return {
       matchCase,
       evaluations,
       decisions,
+      restoredEvaluation,
     };
   }
 }

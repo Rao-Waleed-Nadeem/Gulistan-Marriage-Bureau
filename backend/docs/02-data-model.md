@@ -28,9 +28,9 @@ Do not force fake values for unknown or withheld information. For sensitive opti
 - `profile_status_history`: old/new status, actor, timestamp, reason code; avoid dumping sensitive details.
 
 ### Matching and introductions
-- `match_cases`: a candidate pair / request context, both profile IDs, status, created-by, timestamps, and duplicate-pair prevention.
-- `match_evaluations`: versioned scoring result, eligibility, score, criterion-by-criterion explanation, missing/unverified indicators and algorithm version.
-- `match_decisions`: human review decision, actor, time and reason; do not overwrite history when a decision changes.
+- `match_cases`: a candidate pair / request context, both profile UUIDs, status, created-by, timestamps, and canonical duplicate-pair prevention (`uq_match_cases_canonical_pair` on `LEAST(profile_a_id, profile_b_id), GREATEST(profile_a_id, profile_b_id)`). Created/resolved via `get_or_create_match_case` RPC.
+- `match_evaluations`: versioned scoring result, eligibility, score, criterion-by-criterion explanation, missing/unverified indicators and algorithm version. Required prerequisite (`mandatory_satisfied = TRUE`) for any human approval.
+- `match_decisions`: human review decision, actor, time, reason code and notes; append-only decision audit trail. Recorded atomically alongside `match_cases.status` update via `record_match_decision` RPC, constrained to Lead Matchmaker Nadeem with audited Administrator override.
 - `introductions` (or `share_grants`): intended recipients/party scope, selected disclosure fields, approved snapshot, status, expiry/revocation, creator and approval references.
 - `share_grants` should store a hash of a high-entropy bearer token, not the raw token. Never put personal data in the token or URL.
 

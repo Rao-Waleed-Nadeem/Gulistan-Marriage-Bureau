@@ -9,6 +9,7 @@ import {
   auditRepository,
   photoRepository,
   shareGrantRepository,
+  matchRepository,
   resetRepositoriesForTesting,
 } from './repositories';
 import {
@@ -857,4 +858,60 @@ test('ShareGrantRepository: persists share grant, redeems via token, and revokes
   // 4. Post-revoke redemption fails closed
   const postRevoke = await shareGrantRepository.redeemGrant(mockSnapshot.token);
   assert.equal(postRevoke.valid, false);
+});
+
+test('MatchRepository: enforces canonical pairs, evaluation prerequisites, Nadeem decisions, and restored DTO (P0-06, P1-20..P1-24)', async () => {
+  resetRepositoriesForTesting();
+
+  // 1. Canonical pair ordering (P1-23): (B, A) and (A, B) return same case
+  const caseA = await matchRepository.getOrCreateMatchCase('GLS-X01', 'GLS-X02', staffSession);
+  const caseB = await matchRepository.getOrCreateMatchCase('GLS-X02', 'GLS-X01', staffSession);
+  assert.equal(caseA.id, caseB.id);
+  assert.equal(caseA.caseCode, caseB.caseCode);
+
+  // 2. Finding P1-20: Cannot approve without evaluation
+  await assert.rejects(
+    () => matchRepository.recordDecision(caseA.id, 'approved', 'EARLY', staffSession),
+    /CANNOT_APPROVE_WITHOUT_EVALUATION/
+  );
+
+  // 3. Save evaluation
+  const mockEval: any = {
+    primaryProfileId: 'GLS-X01',
+    candidateProfileId: 'GLS-X02',
+    evaluatedAt: new Date().toISOString(),
+    algorithmVersion: 'v1.0.0-deterministic',
+    overallScore: 88,
+    isEligible: true,
+    isMandatorySatisfied: true,
+    criteria: [],
+    summaryEn: 'High compatibility match.',
+    summaryUrdu: '',
+    humanDecisionStatus: 'pending_review',
+  };
+  await matchRepository.saveEvaluation(caseA.id, mockEval, staffSession);
+
+  // 4. Finding P1-22: Admin without override is rejected
+  await assert.rejects(
+    () => matchRepository.recordDecision(caseA.id, 'approved', 'ADMIN_ACTION', adminSession),
+    /ADMIN_OVERRIDE_REQUIRED/
+  );
+
+  // 5. Finding P1-22: Nadeem approves match
+  const decision = await matchRepository.recordDecision(
+    caseA.id,
+    'approved',
+    'MUTUAL_ALIGNMENT',
+    staffSession,
+    'Family background confirmed.'
+  );
+  assert.equal(decision.decision, 'approved');
+
+  // 6. Finding P1-24: Case history restores decision state onto evaluation DTO
+  const history = await matchRepository.getCaseHistory(caseA.id, staffSession);
+  assert.ok(history);
+  assert.equal(history.matchCase.status, 'approved_by_nadeem');
+  assert.ok(history.restoredEvaluation);
+  assert.equal(history.restoredEvaluation.humanDecisionStatus, 'approved_by_nadeem');
+  assert.equal(history.restoredEvaluation.reviewNotes, 'Family background confirmed.');
 });

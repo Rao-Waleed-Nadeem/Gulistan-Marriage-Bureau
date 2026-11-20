@@ -710,10 +710,24 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 **Completion record:** Completed on 2026-11-20. Created additive database migration `00007_storage_and_share_grants_enhancements.sql` provisioning private storage bucket `candidate-photos`, storage.objects RLS policies, enhanced share_grants schema, and atomic server RPCs. Implemented binary file uploads and signed URL resolution in photos.ts and repositories.ts. Added share grant database persistence, redemption, and revocation in disclosure.ts and repositories.ts. Remediated synthetic staff session fabrication in ControlledSharingModal.tsx. Added SecurePhotoViewer redemption route in App.tsx. Added 5 backend migration tests and 7 frontend tests across photos, disclosure, and repositories. Verified with 112 backend tests and 167 frontend tests (279 total passing), `tsc --noEmit` (0 errors), and `vite build` (1.34s). Verified commit `67c433b` on `main`.
 
 ### T-035 — Match UUID mapping, canonical pair uniqueness, persisted current evaluation, Nadeem-only decision and atomic approval/share preconditions
-**Status:** READY  
+**Status:** DONE  
 **Priority:** P0  
 **Dependencies:** T-032, T-033, T-034  
-**Scope:** Remediation of Findings P0-06, P0-09, P1-16 through P1-19. Match-case UUID mapping, canonical profile pair ordering/uniqueness constraint, database-persisted match evaluations, Nadeem-only decision enforcement, atomic approval checks.
+**Scope:** Remediation of Findings P0-06, P1-20, P1-21, P1-22, P1-23, and P1-24. Match-case UUID mapping, canonical profile pair ordering/uniqueness constraint, database-persisted match evaluations, Nadeem-only decision enforcement, atomic approval checks.
+
+**Acceptance criteria:**
+- [x] MATCH-UUID-01: `MatchRepositoryImpl` resolves human reference codes (e.g. `GLS-101`) to PostgreSQL UUIDs before database queries and inserts (P0-06).
+- [x] MATCH-PAIR-01: Canonical pair unique index `uq_match_cases_canonical_pair` on `(LEAST(profile_a_id, profile_b_id), GREATEST(profile_a_id, profile_b_id))` prevents reversed duplicate match cases (P1-23).
+- [x] MATCH-RPC-01: Server-side RPC `get_or_create_match_case` canonicalizes profile pair ordering server-side and guarantees single-case idempotency (P1-23).
+- [x] MATCH-PRE-01: Match approval requires persisted evaluation on the match case with `mandatory_satisfied = TRUE`; premature approval without evaluation rejected (P1-20).
+- [x] MATCH-ATOMIC-01: Server-side RPC `record_match_decision` atomically inserts decision and updates `match_cases.status` in a single database transaction (P1-21).
+- [x] MATCH-AUTH-01: Decision authority constrained to Lead Matchmaker Nadeem (`matchmaker` role); Administrator requires explicit `admin_override = true` and logs `match_approval_admin_override` audit event (P1-22).
+- [x] MATCH-DTO-01: `getCaseHistory` restores persisted human decision state onto evaluation DTO; `verifyPreShareEligibility` validates against persisted match case status (P1-24).
+- [x] MIG-00008-01: Additive migration `00008_match_cases_and_decisions_enhancements.sql` replays cleanly within transaction block (`BEGIN ... COMMIT`) with zero mock seeding.
+- [x] 118 backend tests + 168 frontend tests verified (286 total passing), `tsc --noEmit` (0 errors), `vite build` (1.61s).
+- [x] Queue updated and commit verified directly on `main`.
+
+**Completion record:** Completed on 2026-11-20. Created additive database migration `00008_match_cases_and_decisions_enhancements.sql` provisioning canonical pair unique index `uq_match_cases_canonical_pair`, server-side RPC `get_or_create_match_case`, atomic decision recording RPC `record_match_decision`, and tightened RLS policy `decisions_matchmaker_manage`. Implemented UUID and reference code mapping in `MatchRepositoryImpl`. Enforced evaluation prerequisite before approval (`CANNOT_APPROVE_WITHOUT_EVALUATION`). Enforced Nadeem role authority with explicit audited `adminOverride`. Added decision state restoration into evaluation DTOs in `getCaseHistory` and wired `verifyPreShareEligibility` to validate persisted match case status. Wired async decision recording into `NadeemDashboard.tsx`. Added 6 backend migration tests and 2 frontend tests across matching and repositories. Verified with 118 backend tests and 168 frontend tests (286 total passing), `tsc --noEmit` (0 errors), and `vite build` (1.61s). Verified commit pending on `main`.
 
 ### T-036 — Customer portal recommendations, preference save, correction/deactivation requests, durable CRM links and reminder model
 **Status:** READY  
@@ -782,3 +796,6 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-11-14 | T-030 | DONE | cf3d0a2 | Refactor W9: Backup, restore, monitoring, Android/RTL & final release; 234 tests passed. |
 | 2026-11-19 | T-031 | DONE | 529c259 | Real PostgreSQL migration runner, schema_migrations history tracking, SHA-256 checksum tampering detection, transaction atomicity; 244 tests passed. |
 | 2026-11-19 | T-032 | DONE | 96fec7e | Additive Migration 00005, customer profile ownership, intake RLS, consent fixes, database lifecycle state machine, account status enforcement; 259 tests passed. |
+| 2026-11-20 | T-033 | DONE | cedddb3 | Additive Migration 00006, profile UUID resolution, complete nested DTO mapping, transactional intake RPC create_profile_bundle, assisted and self-service ownership; 269 tests passed. |
+| 2026-11-20 | T-034 | DONE | 67c433b | Additive Migration 00007, private photo storage bucket, storage RLS, share_grants match_case_id/snapshot, atomic RPCs create/redeem/revoke, privacy erasure; 279 tests passed. |
+| 2026-11-20 | T-035 | DONE | Pending | Additive Migration 00008, canonical pair unique index, get_or_create_match_case RPC, atomic record_match_decision RPC, Nadeem-only approval with audited admin override, restored evaluation DTO; 286 tests passed. |
