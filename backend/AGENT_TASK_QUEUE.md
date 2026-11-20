@@ -730,10 +730,23 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 **Completion record:** Completed on 2026-11-20. Created additive database migration `00008_match_cases_and_decisions_enhancements.sql` provisioning canonical pair unique index `uq_match_cases_canonical_pair`, server-side RPC `get_or_create_match_case`, atomic decision recording RPC `record_match_decision`, and tightened RLS policy `decisions_matchmaker_manage`. Implemented UUID and reference code mapping in `MatchRepositoryImpl`. Enforced evaluation prerequisite before approval (`CANNOT_APPROVE_WITHOUT_EVALUATION`). Enforced Nadeem role authority with explicit audited `adminOverride`. Added decision state restoration into evaluation DTOs in `getCaseHistory` and wired `verifyPreShareEligibility` to validate persisted match case status. Wired async decision recording into `NadeemDashboard.tsx`. Added 6 backend migration tests and 2 frontend tests across matching and repositories. Verified with 118 backend tests and 168 frontend tests (286 total passing), `tsc --noEmit` (0 errors), and `vite build` (1.61s). Verified commit `ba58162` on `main`.
 
 ### T-036 — Customer portal recommendations, preference save, correction/deactivation requests, durable CRM links and reminder model
-**Status:** READY  
+**Status:** DONE  
 **Priority:** P1  
 **Dependencies:** T-033, T-034, T-035  
-**Scope:** Remediation of Findings P1-13, P1-30, P1-31, P2-06. Customer portal recommendation viewing bound to consent and Nadeem approval, preference persistence, correction/deactivation request flow, durable CRM links.
+**Scope:** Remediation of Findings P1-13, P1-16, P1-17, P1-30, P1-31, P2-06. Customer portal recommendation viewing bound to consent and Nadeem approval, preference persistence, correction/deactivation request flow, durable CRM links.
+
+**Acceptance criteria:**
+- [x] CUST-REC-01: Server RPC `get_customer_recommendations` and `MatchRepository.getApprovedRecommendationsForCustomer` deliver authorized, privacy-sanitized introductions bound to caller ownership and Nadeem approval (P1-16).
+- [x] CUST-PREF-01: Interactive preference editor in `CustomerPortal.tsx` and `profileRepository.updatePreferences` with server RPC `update_profile_preferences` and RLS policy persist criteria weights and preferences atomically (P1-17).
+- [x] CUST-REQ-01: Self-service correction, deactivation, and consent update request flows with customer RLS policies on `crm_follow_ups` link requests durably to candidate profile UUIDs with priority categorization (P1-30).
+- [x] CRM-LINK-01: `CRMRepositoryImpl` resolves profile reference codes to database UUIDs, persisting `profile_id`, `match_case_id`, `assigned_to`, and notification channel (P1-30).
+- [x] CRM-NODUMMY-01: Complete elimination of fabricated contact defaults (`GLS-101`, `Candidate Representative`, `+92 300 0000000`); requires validated person and phone data (P1-31).
+- [x] CRM-REMIND-01: Reminder delivery schema enhancements (`reminder_sent_at`, `notification_channel`, check constraint, index) and domain engine `calculateFollowUpReminders` classifying overdue, dueToday, and upcoming48h tasks (P2-06, DECIDED: OPEN-017).
+- [x] MIG-00009-01: Migration `00009_customer_portal_and_crm_enhancements.sql` wraps in transaction block (`BEGIN ... COMMIT`) with zero mock seeding.
+- [x] 125 backend tests + 171 frontend tests verified (296 total passing), `tsc --noEmit` (0 errors), `vite build` (2.54s).
+- [x] Queue updated and commit verified directly on `main`.
+
+**Completion record:** Completed on 2026-11-20. Created additive database migration `00009_customer_portal_and_crm_enhancements.sql` provisioning reminder metadata columns (`reminder_sent_at`, `notification_channel`, index, check constraint), customer RLS policies on `public.crm_follow_ups`, customer preference update RLS policy `prefs_customer_own_update`, atomic preference upsert RPC `update_profile_preferences`, and privacy-sanitized customer recommendations RPC `get_customer_recommendations`. Remediated `CRMRepositoryImpl` to resolve reference codes to UUIDs, persist `profile_id`/`match_case_id`/`assigned_to`, and eliminate fabricated fallback values (`GLS-101`, `Candidate Representative`, `+92 300 0000000`). Implemented `updatePreferences` in `ProfileRepositoryImpl` with authorization and audit logging. Implemented `getApprovedRecommendationsForCustomer` in `MatchRepositoryImpl`. Upgraded `CustomerPortal.tsx` with interactive preferences editor form and data correction/deactivation request flows. Wired reactive recommendation loading in `App.tsx`. Implemented `calculateFollowUpReminders` engine in `followUps.ts`. Added 7 backend migration tests and 3 frontend tests across repositories and follow-ups. Verified with 125 backend tests and 171 frontend tests (296 total passing), `tsc --noEmit` (0 errors), and `vite build` (2.54s). Verified commit `0bd81b3` on `main`.
 
 ### T-037 — Matchmaker UUID/code correction, referral attribution, tiered agreement schema, finance settlement/reversal integrity and accounting tests
 **Status:** READY  
@@ -799,3 +812,4 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 | 2026-11-20 | T-033 | DONE | cedddb3 | Additive Migration 00006, profile UUID resolution, complete nested DTO mapping, transactional intake RPC create_profile_bundle, assisted and self-service ownership; 269 tests passed. |
 | 2026-11-20 | T-034 | DONE | 67c433b | Additive Migration 00007, private photo storage bucket, storage RLS, share_grants match_case_id/snapshot, atomic RPCs create/redeem/revoke, privacy erasure; 279 tests passed. |
 | 2026-11-20 | T-035 | DONE | ba58162 | Additive Migration 00008, canonical pair unique index, get_or_create_match_case RPC, atomic record_match_decision RPC, Nadeem-only approval with audited admin override, restored evaluation DTO; 286 tests passed. |
+| 2026-11-20 | T-036 | DONE | 0bd81b3 | Additive Migration 00009, reminder delivery schema & channel constraint, customer follow-up RLS, customer preference update policy & RPC, privacy-sanitized recommendations RPC, durable CRM UUID links & no fabricated defaults; 296 tests passed. |
