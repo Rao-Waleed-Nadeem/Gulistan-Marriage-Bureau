@@ -10,7 +10,7 @@
 /**
  * Computes standard 64-character lowercase SHA-256 hex hash synchronously.
  */
-export function computeSha256(input: string): string {
+export function computeSha256(input: string | Uint8Array): string {
   function rightRotate(value: number, amount: number): number {
     return (value >>> amount) | (value << (32 - amount));
   }
@@ -23,8 +23,10 @@ export function computeSha256(input: string): string {
   let result = '';
   const words: number[] = [];
   
-  // Safe UTF-8 conversion
-  const ascii = unescape(encodeURIComponent(input || ''));
+  // Safe UTF-8 / byte conversion
+  const ascii = typeof input === 'string'
+    ? unescape(encodeURIComponent(input || ''))
+    : Array.from(input).map((b) => String.fromCharCode(b)).join('');
   const asciiBitLength = ascii[lengthProperty] * 8;
   let hash: number[] = [];
   const k: number[] = [];

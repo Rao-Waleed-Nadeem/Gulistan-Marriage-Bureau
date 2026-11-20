@@ -12,11 +12,12 @@ import {
   executeBatchImport,
   reconcileMigrationBatch,
   rollbackMigrationBatch,
+  purgeStagedRawContent,
   resetMigrationStateForTesting,
   GalleryPhotoEntry,
 } from './migration';
 import { AuthSession } from './auth';
-import { profileRepository, auditRepository } from './repositories';
+import { profileRepository, auditRepository, resetRepositoriesForTesting } from './repositories';
 
 const adminSession: AuthSession = {
   user: {
@@ -62,31 +63,34 @@ const customerSession: AuthSession = {
 
 beforeEach(() => {
   resetMigrationStateForTesting();
+  resetRepositoriesForTesting();
 });
 
 test('MIG-01: computeSourceChecksum computes deterministic 64-char SHA-256 hash', () => {
   const hash1 = computeSourceChecksum('Sample chat export content');
   const hash2 = computeSourceChecksum('Sample chat export content');
   const hash3 = computeSourceChecksum('Different content');
+  const hashBytes = computeSourceChecksum(new Uint8Array([1, 2, 3, 4, 5]));
 
   assert.equal(hash1.length, 64);
   assert.equal(hash1, hash2);
   assert.notEqual(hash1, hash3);
+  assert.equal(hashBytes.length, 64);
 });
 
-test('MIG-01: createMigrationBatch enforces authorization and creates cataloged batch', () => {
+test('MIG-01: createMigrationBatch enforces authorization and creates cataloged batch', async () => {
   // Negative test: customer or null session rejected
-  assert.throws(
-    () => createMigrationBatch('whatsapp_chat_export', 'Export_2026.txt', 'Raw Data', customerSession),
+  await assert.rejects(
+    async () => createMigrationBatch('whatsapp_chat_export', 'Export_2026.txt', 'Raw Data', customerSession),
     /Unauthorized/
   );
-  assert.throws(
-    () => createMigrationBatch('whatsapp_chat_export', 'Export_2026.txt', 'Raw Data', null),
+  await assert.rejects(
+    async () => createMigrationBatch('whatsapp_chat_export', 'Export_2026.txt', 'Raw Data', null),
     /Unauthorized/
   );
 
   // Positive test: staff session creates batch
-  const batch = createMigrationBatch('whatsapp_chat_export', 'WhatsApp_Chat_Family_Inquiries.txt', 'Raw Data 123', nadeemSession);
+  const batch = await createMigrationBatch('whatsapp_chat_export', 'WhatsApp_Chat_Family_Inquiries.txt', 'Raw Data 123', nadeemSession);
 
   assert.ok(batch.id.startsWith('mig-batch-'));
   assert.ok(batch.batchCode.startsWith('MIG-WH-'));
@@ -98,8 +102,8 @@ test('MIG-01: createMigrationBatch enforces authorization and creates cataloged 
   assert.equal(batch.createdBy, 'nadeem@gulistan.pk');
 });
 
-test('MIG-02: parseWhatsAppChatExport extracts Pakistani biodata and preserves consent states', () => {
-  const batch = createMigrationBatch('whatsapp_chat_export', 'ChatExport.txt', 'content', adminSession);
+test('MIG-02: parseWhatsAppChatExport extracts Pakistani biodata and quarantines uncertified records (P1-43)', async () => {
+  const batch = await createMigrationBatch('whatsapp_chat_export', 'ChatExport.txt', 'content', adminSession);
 
   const rawChat = `
 [12/03/2026, 10:15:20] Matchmaker: Candidate Biodata Received
@@ -134,11 +138,11 @@ Note: Family has granted full permission and consent to register.
 والد: حاجی احمد حسن
 `;
 
-  const staged = parseWhatsAppChatExport(rawChat, batch.id, adminSession);
+  const staged = await parseWhatsAppChatExport(rawChat, batch.id, adminSession);
 
   assert.equal(staged.length, 2);
 
-  // Candidate 1: English format with explicit consent
+  // Candidate 1: English format
   const c1 = staged[0];
   assert.equal(c1.parsedData.fullName, 'Zainab Fatima');
   assert.equal(c1.parsedData.age, 26);
@@ -151,11 +155,12 @@ Note: Family has granted full permission and consent to register.
   assert.equal(c1.parsedData.education, 'Masters in Computer Science');
   assert.equal(c1.parsedData.currentCity, 'Lahore');
   assert.equal(c1.parsedData.contactPhone, '923019876543');
-  assert.equal(c1.consentVerification.representativeConsentCertified, true);
-  assert.equal(c1.status, 'staged');
-  assert.equal(c1.quarantineReason, undefined);
+  // P1-43 Invariant: Text keyword does not certify legal consent; requires affirmative reviewer action
+  assert.equal(c1.consentVerification.representativeConsentCertified, false);
+  assert.equal(c1.status, 'quarantined');
+  assert.equal(c1.quarantineReason, 'CONSENT_UNVERIFIED');
 
-  // Candidate 2: Urdu format without explicit consent
+  // Candidate 2: Urdu format
   const c2 = staged[1];
   assert.equal(c2.parsedData.fullName, 'بلال احمد');
   assert.equal(c2.parsedData.age, 30);
@@ -167,13 +172,14 @@ Note: Family has granted full permission and consent to register.
   assert.equal(c2.parsedData.currentCity, 'فیصل آباد');
   assert.equal(c2.parsedData.contactPhone, '923214567890');
   assert.equal(c2.consentVerification.representativeConsentCertified, false);
-  // Quarantined due to unverified consent
   assert.equal(c2.status, 'quarantined');
   assert.equal(c2.quarantineReason, 'CONSENT_UNVERIFIED');
 });
 
-test('MIG-02: parsePhoneGalleryMetadata validates photo constraints and consent', () => {
-  const batch = createMigrationBatch('phone_gallery_archive', 'Archive_Nadeem_GalaxyS22', 'dummy', adminSession);
+test('MIG-02: parsePhoneGalleryMetadata validates photo constraints, consent, and byte hashing (P1-44)', async () => {
+  const batch = await createMigrationBatch('phone_gallery_archive', 'Archive_Nadeem_GalaxyS22', 'dummy', adminSession);
+
+  const realBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
 
   const photos: GalleryPhotoEntry[] = [
     {
@@ -183,6 +189,7 @@ test('MIG-02: parsePhoneGalleryMetadata validates photo constraints and consent'
       candidateName: 'Kamran Ali',
       contactPhone: '0300 7654321',
       consentConfirmed: true,
+      fileBytes: realBytes, // P1-44: Real byte content
     },
     {
       fileName: 'IMG_20260301_002_HEAVY.png',
@@ -210,14 +217,15 @@ test('MIG-02: parsePhoneGalleryMetadata validates photo constraints and consent'
     },
   ];
 
-  const staged = parsePhoneGalleryMetadata(photos, batch.id, nadeemSession);
+  const staged = await parsePhoneGalleryMetadata(photos, batch.id, nadeemSession);
 
   assert.equal(staged.length, 4);
 
-  // Photo 1: Valid
+  // Photo 1: Valid and computed from real bytes
   assert.equal(staged[0].status, 'staged');
   assert.equal(staged[0].quarantineReason, undefined);
   assert.ok(staged[0].parsedData.photoUrl?.includes('IMG_20260301_001.jpg'));
+  assert.equal(staged[0].sourceProvenance.sourceChecksum, computeSourceChecksum(realBytes));
 
   // Photo 2: Exceeds 5MB size limit
   assert.equal(staged[1].status, 'quarantined');
@@ -232,10 +240,9 @@ test('MIG-02: parsePhoneGalleryMetadata validates photo constraints and consent'
   assert.equal(staged[3].quarantineReason, 'DATA_VALIDATION_ERROR');
 });
 
-test('MIG-04: evaluateDeduplicationAndQuarantine flags existing and intra-batch duplicates with zero silent overwrite', async () => {
-  const batch = createMigrationBatch('whatsapp_chat_export', 'Export_Dupe_Test.txt', 'content', adminSession);
+test('MIG-04: evaluateDeduplicationAndQuarantine flags duplicates with zero silent overwrite', async () => {
+  const batch = await createMigrationBatch('whatsapp_chat_export', 'Export_Dupe_Test.txt', 'content', adminSession);
 
-  // Existing database candidate has phone: +92 300 1234567 (GLS-401 / GLS-001)
   const existingProfiles = await profileRepository.findAll(adminSession);
   const knownPhone = existingProfiles[0]?.contactPhone || '923001234567';
 
@@ -244,22 +251,24 @@ Name: Duplicate Candidate A
 Age: 28
 Gender: Male
 Contact Phone: ${knownPhone}
-Consent: granted by family
 ---
 Name: Unique Candidate B
 Age: 24
 Gender: Female
 Contact Phone: +92 333 7778899
-Consent: granted by family
 ---
 Name: Intra Batch Dupe C
 Age: 24
 Gender: Female
 Contact Phone: +92 333 7778899
-Consent: granted by family
 `;
 
-  parseWhatsAppChatExport(rawChat, batch.id, adminSession);
+  const staged = await parseWhatsAppChatExport(rawChat, batch.id, adminSession);
+
+  // Affirm consent on records so deduplication evaluator can focus on duplicates
+  for (const s of staged) {
+    await resolveQuarantinedRecord(s.id, 'create_new', 'Reviewer verified candidate consent', nadeemSession);
+  }
 
   const evaluation = await evaluateDeduplicationAndQuarantine(batch.id, adminSession);
 
@@ -267,20 +276,19 @@ Consent: granted by family
   assert.equal(evaluation.quarantinedCount, 2);
   assert.equal(evaluation.stagedCount, 1);
 
-  // Verify that database duplicate preserved existing record and did not overwrite it
+  // Verify that database duplicate did not overwrite existing record
   const postCheckProfiles = await profileRepository.findAll(adminSession);
   assert.equal(postCheckProfiles.length, existingProfiles.length);
 });
 
 test('MIG-06: simulateMigrationDryRun calculates summary without altering database', async () => {
-  const batch = createMigrationBatch('whatsapp_chat_export', 'DryRunTest.txt', 'content', adminSession);
+  const batch = await createMigrationBatch('whatsapp_chat_export', 'DryRunTest.txt', 'content', adminSession);
 
   const rawChat = `
 Name: Verified Candidate
 Age: 27
 Gender: Male
 Contact Phone: +92 345 1112233
-Consent: Family consent confirmed
 ---
 Name: Tariq Unconfirmed
 Age: 23
@@ -288,11 +296,13 @@ Gender: Female
 Contact Phone: +92 345 4445566
 `;
 
-  parseWhatsAppChatExport(rawChat, batch.id, adminSession);
+  const staged = await parseWhatsAppChatExport(rawChat, batch.id, adminSession);
+  // Affirm consent for record 1
+  await resolveQuarantinedRecord(staged[0].id, 'create_new', 'Affirmed consent', nadeemSession);
 
   const profilesBefore = (await profileRepository.findAll(adminSession)).length;
 
-  const dryRun = simulateMigrationDryRun(batch.id, adminSession);
+  const dryRun = await simulateMigrationDryRun(batch.id, adminSession);
 
   assert.equal(dryRun.totalRows, 2);
   assert.equal(dryRun.validRows, 1);
@@ -304,8 +314,8 @@ Contact Phone: +92 345 4445566
   assert.equal(profilesAfter, profilesBefore);
 });
 
-test('MIG-05: resolveQuarantinedRecord supports human review and resolution actions', () => {
-  const batch = createMigrationBatch('whatsapp_chat_export', 'ResolveTest.txt', 'content', adminSession);
+test('MIG-05: resolveQuarantinedRecord supports human review and resolution actions', async () => {
+  const batch = await createMigrationBatch('whatsapp_chat_export', 'ResolveTest.txt', 'content', adminSession);
 
   const rawChat = `
 Name: Quarantined Candidate
@@ -314,12 +324,12 @@ Gender: Female
 Contact Phone: +92 312 9998877
 `;
 
-  const staged = parseWhatsAppChatExport(rawChat, batch.id, adminSession);
+  const staged = await parseWhatsAppChatExport(rawChat, batch.id, adminSession);
   const rec = staged[0];
   assert.equal(rec.status, 'quarantined');
 
   // Human review: create_new override
-  const resolved = resolveQuarantinedRecord(
+  const resolved = await resolveQuarantinedRecord(
     rec.id,
     'create_new',
     'Nadeem spoke with wali on phone; explicit consent granted and verified.',
@@ -329,21 +339,30 @@ Contact Phone: +92 312 9998877
   assert.equal(resolved.status, 'approved');
   assert.equal(resolved.resolutionAction, 'create_new');
   assert.equal(resolved.resolvedBy, 'nadeem@gulistan.pk');
-  assert.equal(resolved.resolutionNotes, 'Nadeem spoke with wali on phone; explicit consent granted and verified.');
+  assert.equal(resolved.consentVerification.candidateConsentGranted, true);
+  assert.equal(resolved.consentVerification.representativeConsentCertified, true);
 });
 
 test('MIG-07: executeBatchImport enforces owner approval gate and fails closed without it', async () => {
-  const batch = createMigrationBatch('whatsapp_chat_export', 'ApprovalGateTest.txt', 'content', adminSession);
+  const batch = await createMigrationBatch('whatsapp_chat_export', 'ApprovalGateTest.txt', 'content', adminSession);
 
   const rawChat = `
 Name: Import Candidate
 Age: 28
 Gender: Male
+Marital Status: Never Married
+Religion: Islam
+Aqeedah: Sunni
+Caste: Arain
+Education: Masters in Business Administration
+Occupation: Marketing Manager
+City: Lahore
 Contact Phone: +92 321 8887766
-Consent: Confirmed by guardian
+Contact Person: Father
 `;
 
-  parseWhatsAppChatExport(rawChat, batch.id, adminSession);
+  const staged = await parseWhatsAppChatExport(rawChat, batch.id, adminSession);
+  await resolveQuarantinedRecord(staged[0].id, 'create_new', 'Consent confirmed by guardian', nadeemSession);
 
   // Attempt import without owner approval -> MUST throw MIGRATION_BLOCKED
   await assert.rejects(
@@ -352,13 +371,13 @@ Consent: Confirmed by guardian
   );
 
   // Owner approval by non-admin is rejected
-  assert.throws(
-    () => approveMigrationBatchByOwner(batch.id, customerSession),
+  await assert.rejects(
+    async () => approveMigrationBatchByOwner(batch.id, customerSession),
     /Unauthorized/
   );
 
   // Affirmative owner approval by admin
-  const approvedBatch = approveMigrationBatchByOwner(batch.id, adminSession);
+  const approvedBatch = await approveMigrationBatchByOwner(batch.id, adminSession);
   assert.equal(approvedBatch.status, 'approved_by_owner');
 
   // Now import succeeds
@@ -366,12 +385,7 @@ Consent: Confirmed by guardian
   assert.equal(result.importedCount, 1);
   assert.equal(result.batch.status, 'imported');
 
-  // Verify created profile has status: pending_review and source: whatsapp_migration
-  const importedProfile = await profileRepository.findById(
-    (result.batch as any).id ? (result.batch as any).id : 'whatever',
-    adminSession
-  );
-  // Find the profile by contact phone
+  // Find the created profile
   const allProfiles = await profileRepository.findAll(adminSession);
   const found = allProfiles.find((p) => p.contactPhone === '923218887766');
   assert.ok(found);
@@ -379,31 +393,47 @@ Consent: Confirmed by guardian
   assert.equal(found.source, 'whatsapp_migration');
 });
 
-test('MIG-08: reconcileMigrationBatch verifies mathematical row balance', async () => {
-  const batch = createMigrationBatch('whatsapp_chat_export', 'ReconcileTest.txt', 'content', adminSession);
-
+test('MIG-08: reconcileMigrationBatch verifies mathematical row balance and recomputed SHA-256 (P1-45)', async () => {
   const rawChat = `
 Name: Candidate One
 Age: 25
 Gender: Female
+Marital Status: Never Married
+Religion: Islam
+Aqeedah: Sunni
+Caste: Mughal
+Education: Bachelors
+Occupation: Teacher
+City: Lahore
 Contact Phone: +92 311 1111111
-Consent: Confirmed
+Contact Person: Mother
 ---
 Name: Candidate Two
 Age: 29
 Gender: Male
+Marital Status: Never Married
+Religion: Islam
+Aqeedah: Sunni
+Caste: Rajput
+Education: Masters
+Occupation: Software Engineer
+City: Islamabad
 Contact Phone: +92 311 2222222
+Contact Person: Father
 `;
 
-  parseWhatsAppChatExport(rawChat, batch.id, adminSession);
-  // Candidate 1 is staged, Candidate 2 is quarantined
+  const batch = await createMigrationBatch('whatsapp_chat_export', 'ReconcileTest.txt', rawChat, adminSession);
+  const staged = await parseWhatsAppChatExport(rawChat, batch.id, adminSession);
+
+  // Affirm Candidate 1
+  await resolveQuarantinedRecord(staged[0].id, 'create_new', 'Consent verified', nadeemSession);
 
   // Approve batch and import
-  approveMigrationBatchByOwner(batch.id, adminSession);
+  await approveMigrationBatchByOwner(batch.id, adminSession);
   await executeBatchImport(batch.id, adminSession);
 
-  // Reconcile
-  const report = reconcileMigrationBatch(batch.id, adminSession);
+  // Reconcile with exact source content (P1-45)
+  const report = await reconcileMigrationBatch(batch.id, rawChat, adminSession);
 
   assert.equal(report.totalBatchRows, 2);
   assert.equal(report.importedCount, 1);
@@ -412,21 +442,33 @@ Contact Phone: +92 311 2222222
   assert.equal(report.discrepancyCount, 0);
   assert.equal(report.isBalanced, true);
   assert.equal(report.checksumVerified, true);
+
+  // Tampered source content fails checksum verification (P1-45)
+  const tamperedReport = await reconcileMigrationBatch(batch.id, 'Tampered Chat Export Text', adminSession);
+  assert.equal(tamperedReport.checksumVerified, false);
 });
 
-test('MIG-08: rollbackMigrationBatch deactivates imported profiles with audit trail', async () => {
-  const batch = createMigrationBatch('whatsapp_chat_export', 'RollbackTest.txt', 'content', adminSession);
+test('MIG-08: rollbackMigrationBatch deactivates imported profiles with audit trail (P1-46)', async () => {
+  const batch = await createMigrationBatch('whatsapp_chat_export', 'RollbackTest.txt', 'content', adminSession);
 
   const rawChat = `
 Name: Rollback Candidate
 Age: 26
 Gender: Female
+Marital Status: Never Married
+Religion: Islam
+Aqeedah: Sunni
+Caste: Butt
+Education: BS English
+Occupation: Content Strategist
+City: Rawalpindi
 Contact Phone: +92 315 5556677
-Consent: Confirmed
+Contact Person: Uncle
 `;
 
-  parseWhatsAppChatExport(rawChat, batch.id, adminSession);
-  approveMigrationBatchByOwner(batch.id, adminSession);
+  const staged = await parseWhatsAppChatExport(rawChat, batch.id, adminSession);
+  await resolveQuarantinedRecord(staged[0].id, 'create_new', 'Consent confirmed', nadeemSession);
+  await approveMigrationBatchByOwner(batch.id, adminSession);
   await executeBatchImport(batch.id, adminSession);
 
   const allBefore = await profileRepository.findAll(adminSession);
@@ -450,4 +492,141 @@ Consent: Confirmed
   // Verify profile status changed to restricted
   const profileAfter = await profileRepository.findById(candidate.id, adminSession);
   assert.equal(profileAfter?.status, 'restricted');
+});
+
+test('P1-40: Importer preserves unstated fields as undefined and quarantines records missing mandatory invariants', async () => {
+  // Case A: Missing mandatory field (maritalStatus, religion, etc.) results in quarantine, NOT default fabrication
+  const invalidChat = `
+Name: Incomplete Biodata
+Age: 28
+Gender: Female
+Contact Phone: +92 344 1112233
+`;
+  const invalidBatch = await createMigrationBatch('whatsapp_chat_export', 'InvalidExport.txt', invalidChat, adminSession);
+  const invalidStaged = await parseWhatsAppChatExport(invalidChat, invalidBatch.id, adminSession);
+  await resolveQuarantinedRecord(invalidStaged[0].id, 'create_new', 'Reviewer override', nadeemSession);
+  await approveMigrationBatchByOwner(invalidBatch.id, adminSession);
+  const invalidImport = await executeBatchImport(invalidBatch.id, adminSession);
+  assert.equal(invalidImport.importedCount, 0, 'Must not import records missing mandatory profile invariants');
+
+  // Case B: Required fields present, optional fields absent (no height, no educationField, no jobTitle, no hometown, no residenceArea)
+  const validChat = `
+Name: Minimal Biodata
+Age: 28
+Gender: Female
+Marital Status: Never Married
+Religion: Islam
+Aqeedah: Sunni
+Caste: Sheikh
+Education: BS Mathematics
+Occupation: Data Analyst
+City: Faisalabad
+Contact Phone: +92 344 8889900
+Contact Person: Guardian
+`;
+
+  const batch = await createMigrationBatch('whatsapp_chat_export', 'MinimalExport.txt', validChat, adminSession);
+  const staged = await parseWhatsAppChatExport(validChat, batch.id, adminSession);
+
+  await resolveQuarantinedRecord(staged[0].id, 'create_new', 'Consent verified', nadeemSession);
+  await approveMigrationBatchByOwner(batch.id, adminSession);
+  await executeBatchImport(batch.id, adminSession);
+
+  const allProfiles = await profileRepository.findAll(adminSession);
+  const candidate = allProfiles.find((p) => p.contactPhone === '923448889900');
+  assert.ok(candidate);
+
+  // P1-40: Missing optional demographics must NOT be defaulted to fabricated values
+  assert.notEqual(candidate.educationField, 'General');
+  assert.notEqual(candidate.jobTitle, 'Employee');
+  assert.notEqual(candidate.hometown, 'Lahore');
+  assert.notEqual(candidate.residenceArea, 'Local');
+  assert.ok(!candidate.educationField);
+  assert.ok(!candidate.jobTitle);
+  assert.ok(!candidate.hometown);
+  assert.ok(!candidate.residenceArea);
+});
+
+test('P1-41: True merge update modifies existing candidate profile without creating duplicate', async () => {
+  const allExisting = await profileRepository.findAll(adminSession);
+  const targetProfile = allExisting[0];
+  assert.ok(targetProfile);
+  const initialProfileCount = allExisting.length;
+
+  const rawChat = `
+Name: ${targetProfile.fullName}
+Age: ${targetProfile.age}
+Gender: ${targetProfile.gender}
+Marital Status: Never Married
+Religion: Islam
+Aqeedah: Sunni
+Caste: ${targetProfile.caste || 'Syed'}
+Education: PhD Mechanical Engineering
+Occupation: University Professor
+City: ${targetProfile.currentCity || 'Lahore'}
+Contact Phone: ${targetProfile.contactPhone}
+`;
+
+  const batch = await createMigrationBatch('whatsapp_chat_export', 'MergeTest.txt', rawChat, adminSession);
+  const staged = await parseWhatsAppChatExport(rawChat, batch.id, adminSession);
+
+  // Evaluate deduplication -> must flag as suspected duplicate of targetProfile
+  await evaluateDeduplicationAndQuarantine(batch.id, adminSession);
+
+  // Human review: Nadeem chooses merge_update
+  await resolveQuarantinedRecord(
+    staged[0].id,
+    'merge_update',
+    'Matched existing candidate; merge updated qualification',
+    nadeemSession
+  );
+
+  await approveMigrationBatchByOwner(batch.id, adminSession);
+  const importResult = await executeBatchImport(batch.id, adminSession);
+
+  assert.equal(importResult.importedCount, 1);
+
+  // Total profile count must NOT increase (no duplicate profile created)
+  const afterProfiles = await profileRepository.findAll(adminSession);
+  assert.equal(afterProfiles.length, initialProfileCount);
+
+  // Target profile was updated with extracted field
+  const updated = await profileRepository.findById(targetProfile.id, adminSession);
+  assert.equal(updated?.education, 'PhD Mechanical Engineering');
+});
+
+test('P1-47: purgeStagedRawContent nulls raw conversation export while preserving cryptographic hash', async () => {
+  const rawChat = `
+Name: Sensitive Candidate
+Age: 27
+Gender: Male
+Marital Status: Never Married
+Religion: Islam
+Aqeedah: Sunni
+Caste: Qureshi
+Education: Bachelors in Accounting
+Occupation: Auditor
+City: Multan
+Contact Phone: +92 300 7776655
+Contact Person: Father
+Private Details: CNIC 35202-1234567-1, confidential family details.
+`;
+
+  const batch = await createMigrationBatch('whatsapp_chat_export', 'SensitiveExport.txt', rawChat, adminSession);
+  const staged = await parseWhatsAppChatExport(rawChat, batch.id, adminSession);
+
+  await resolveQuarantinedRecord(staged[0].id, 'create_new', 'Verified', nadeemSession);
+  await approveMigrationBatchByOwner(batch.id, adminSession);
+  await executeBatchImport(batch.id, adminSession);
+
+  // Purge raw chat content (P1-47)
+  const purgeResult = await purgeStagedRawContent(batch.id, adminSession);
+  assert.equal(purgeResult.purgedCount, 1);
+
+  // Verify staged record in repository has null content and preserved hash
+  const records = await (await import('./repositories')).migrationRepository.findStagedRecordsByBatch(batch.id, adminSession);
+  assert.equal(records[0].rawContent, null);
+  assert.equal(records[0].isRawPurged, true);
+  assert.ok(records[0].rawContentHash);
+  assert.equal(records[0].rawContentHash.length, 64);
 });

@@ -221,3 +221,125 @@ export interface AuditLogItem {
   targetId: string;
   details: string;
 }
+
+// =============================================================================
+// Staged Migration & Quarantine Domain Types (T-028, T-038)
+// =============================================================================
+
+export type MigrationSourceType = 'whatsapp_chat_export' | 'phone_gallery_archive' | 'csv_template';
+
+export type MigrationBatchStatus =
+  | 'cataloged'
+  | 'staged'
+  | 'dry_run_completed'
+  | 'approved_by_owner'
+  | 'imported'
+  | 'reconciled'
+  | 'rolled_back';
+
+export type MigrationRecordStatus =
+  | 'staged'
+  | 'quarantined'
+  | 'approved'
+  | 'imported'
+  | 'rejected'
+  | 'rolled_back';
+
+export type ResolutionAction = 'create_new' | 'merge_update' | 'reject';
+
+export interface SourceProvenance {
+  sourceType: MigrationSourceType;
+  sourceReference: string;
+  sourceChecksum: string;
+  extractedBy: string;
+  extractedAt: string;
+}
+
+export interface ConsentVerification {
+  representativeConsentCertified: boolean;
+  candidateConsentGranted: boolean;
+  photoConsentGranted: boolean;
+  verifiedBy: string;
+  verifiedAt: string;
+  notes?: string;
+}
+
+export interface MigrationBatchRecord {
+  id: string;
+  batchCode: string;
+  sourceType: MigrationSourceType;
+  sourceReference: string;
+  sourceChecksum: string;
+  totalRecords: number;
+  stagedRecords: number;
+  quarantinedRecords: number;
+  importedRecords: number;
+  status: MigrationBatchStatus;
+  createdBy: string;
+  createdAt: string;
+  updatedAt?: string;
+  ownerApprovedBy?: string;
+  ownerApprovedAt?: string;
+  reconciledAt?: string;
+  rolledBackAt?: string;
+  rollbackReason?: string;
+}
+
+export interface MigrationStagedRecord {
+  id: string;
+  batchId: string;
+  rowIndex: number;
+  rawContent?: string | null;
+  parsedData: Partial<ProfileRecord>;
+  sourceProvenance: SourceProvenance;
+  consentVerification: ConsentVerification;
+  status: MigrationRecordStatus;
+  quarantineReason?: 'DUPLICATE_SUSPECT' | 'CONSENT_UNVERIFIED' | 'DATA_VALIDATION_ERROR';
+  conflictProfileId?: string;
+  conflictDetails?: string;
+  resolutionAction?: ResolutionAction;
+  resolutionNotes?: string;
+  resolvedBy?: string;
+  resolvedAt?: string;
+  importedProfileId?: string;
+  createdAt?: string;
+  isRawPurged?: boolean;
+  rawContentHash?: string;
+}
+
+export interface DryRunSummary {
+  batchId: string;
+  batchCode: string;
+  totalRows: number;
+  validRows: number;
+  quarantinedDuplicates: number;
+  quarantinedMissingConsent: number;
+  readyForImport: number;
+  validationErrors: Array<{ rowIndex: number; field: string; error: string }>;
+  requiresOwnerApproval: boolean;
+  simulatedAt: string;
+}
+
+export interface ReconciliationReport {
+  batchId: string;
+  batchCode: string;
+  totalBatchRows: number;
+  importedCount: number;
+  quarantinedCount: number;
+  rejectedCount: number;
+  discrepancyCount: number;
+  checksumVerified: boolean;
+  isBalanced: boolean;
+  details: string;
+}
+
+export interface GalleryPhotoEntry {
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  candidateName?: string;
+  contactPhone?: string;
+  consentConfirmed?: boolean;
+  fileBytes?: Uint8Array | string;
+}
+

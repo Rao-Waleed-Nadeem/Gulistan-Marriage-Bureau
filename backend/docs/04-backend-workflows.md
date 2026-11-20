@@ -182,3 +182,32 @@ Use stable, non-sensitive error codes such as:
 - `INTERNAL_ERROR`
 
 Do not return SQL errors, stack traces, secrets, storage paths, or private record values to clients. Provide localized user-facing messages separately from machine-readable error codes.
+
+## 4.11 Staged Migration Engine, Consent Review, and Durable Rollback (T-038)
+
+Implemented under Task `T-038` and Migration `00011_durable_migration_batches_and_reconciliation.sql`, verified by `frontend/src/lib/migration.test.ts` (13 tests) and `backend/tests/migration_00011.test.js` (8 tests):
+- **Durable Persistence via Migration Repository (P1-39):**
+  - Migration batches and staged records are managed through `IMigrationRepository` (`MigrationRepositoryImpl`), supporting PostgreSQL PostgREST in backend mode and in-memory storage in demo mode. No transient in-memory arrays are used across functional boundaries.
+- **Zero Demographic Fact Fabrication (P1-40):**
+  - Invariant validation (`validateProfileInput`) strictly verifies mandatory Pakistani matrimonial fields: `fullName`, `contactPhone`, `gender`, `age`, `maritalStatus`, `religion`, `aqeedah`, `caste`, `education`, `occupation`, and `currentCity`.
+  - Records with missing mandatory invariants are quarantined with reason `DATA_VALIDATION_ERROR` rather than manufactured.
+  - Optional fields (`height`, `educationField`, `jobTitle`, `hometown`, `residenceArea`) are left blank or unset when absent; no default values (e.g. "5'6\"", "General", "Employee", "Lahore", "Local") are ever injected into customer candidate profiles.
+- **Conflict Merge Update Semantics (P1-41):**
+  - When a staged record matches an existing profile and is marked with `resolutionAction === 'merge_update'`, the system invokes `profileRepository.updateProfileDetails()` to update the candidate's existing record (qualifications, occupation, internal notes, etc.) without creating a duplicate candidate profile.
+- **Atomic Server-Side Batch Import (P1-42):**
+  - Staged imports require affirmative owner approval (`status = 'approved_by_owner'` with non-null `owner_approved_by`).
+  - Server RPC `import_migration_batch` executes inside a single transaction with a row lock `FOR UPDATE` on `migration_batches`, creating candidate profiles, executing merge updates, setting staged statuses to `imported`, and recording batch counts atomically.
+- **Explicit Independent Consent Review (P1-43):**
+  - Regular expression keyword matching (e.g. "consent", "رضامندی", "اجازت") in chat messages is treated strictly as an unverified text mention, never as certified legal consent.
+  - Legal consent requires explicit reviewer certification: candidate consent and guardian/representative consent are evaluated independently and must be confirmed prior to intake authorization.
+- **Cryptographic Byte Hashing for Photo Assets (P1-44):**
+  - SHA-256 asset checksums in `computeSha256` are calculated over the actual binary content bytes (`Uint8Array` or string), not metadata strings such as file names or byte sizes.
+- **Deterministic Reconciliation & Record Counting (P1-45):**
+  - Reconciliation recomputes SHA-256 hashes from source payloads and compares them directly against persisted batch digests.
+  - Verifies exact record balance: `totalRecords === importedRecords + quarantinedRecords + skippedRecords`. Any mismatch flags reconciliation failure.
+- **Durable Rollback with Granular Row Error Tracking (P1-46):**
+  - Batch rollback via server RPC `rollback_migration_batch` and `rollbackMigrationBatch` deactivates imported candidate profiles to `restricted` status, deactivates photo records, updates staged records to `rolled_back`, updates batch status to `rolled_back`, and writes an audit event.
+  - Catches and records per-row errors without swallowing failures or corrupting state.
+- **Raw Conversation Minimization & Purge (P1-47):**
+  - Staged raw conversations often contain sensitive third-party PII. RPC `purge_staged_raw_content` and `purgeStagedRawContent` null out the plaintext `raw_content` while persisting the SHA-256 `raw_content_hash` for provenance and setting `is_raw_purged = TRUE`.
+

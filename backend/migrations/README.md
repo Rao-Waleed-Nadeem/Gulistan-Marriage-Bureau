@@ -291,6 +291,47 @@ Before applying pending migrations, the runner verifies that every already-appli
   COMMIT;
   ```
 
+### `00011_durable_migration_batches_and_reconciliation.sql`
+* **Status:** Implemented under Task `T-038`.
+* **Scope:**
+  * Remediates independent audit findings P1-39, P1-40, P1-41, P1-42, P1-43, P1-44, P1-45, P1-46, and P1-47.
+  * Durable Batch Schema Enhancements on `public.migration_batches`:
+    - Adds `reconciled_at TIMESTAMPTZ NULL`, `rolled_back_at TIMESTAMPTZ NULL`, and `rollback_reason TEXT NULL`.
+  * Staged Record Privacy and Rollback Enhancements on `public.migration_staged_records`:
+    - Relaxes `raw_content` to `NULL` to enable sensitive raw content purging while retaining SHA-256 provenance hashes.
+    - Adds `is_raw_purged BOOLEAN NOT NULL DEFAULT FALSE` and `raw_content_hash VARCHAR(64) NULL`.
+    - Updates check constraint `chk_migration_record_status` to support `'rolled_back'`.
+  * Atomic Batch Import Server RPC `public.import_migration_batch(p_batch_id UUID, p_actor_id UUID)`:
+    - Acquires `FOR UPDATE` row lock on batch, enforces affirmative owner approval check (`approved_by_owner`), and validates staff authorization.
+    - Supports conflict merge updates (`merge_update`) on existing profiles without duplicate profile generation.
+    - Strictly checks mandatory profile invariants (`fullName`, `contactPhone`, `gender`, `age`, `maritalStatus`, `religion`, `aqeedah`, `caste`, `education`, `occupation`, `currentCity`) and quarantines invalid records with `DATA_VALIDATION_ERROR` rather than manufacturing demographic facts.
+    - Inserts new candidate profiles with reference codes, sets staged status to `imported`, updates batch imported and quarantined counts, and transitions batch status to `completed` in a single transaction.
+  * Durable Rollback Server RPC `public.rollback_migration_batch(p_batch_id UUID, p_reason TEXT, p_actor_id UUID)`:
+    - Transitions imported candidate profiles from the batch to `restricted` status and deactivates associated photo records.
+    - Transitions staged records from `'imported'` to `'rolled_back'`.
+    - Records batch `rolled_back_at` timestamp, rollback reason, transitions batch status to `'rolled_back'`, and writes an audit event `migration_batch_rolled_back`.
+  * Raw Content Minimization & Purge Server RPC `public.purge_staged_raw_content(p_batch_id UUID, p_actor_id UUID)`:
+    - Minimizes raw conversation text containing third-party PII by computing/verifying SHA-256 hash, setting `raw_content = NULL`, and marking `is_raw_purged = TRUE`.
+    - Appends audit event `migration_raw_content_purged`.
+* **Rollback Procedure:**
+  ```sql
+  BEGIN;
+  DROP FUNCTION IF EXISTS public.purge_staged_raw_content(UUID, UUID);
+  DROP FUNCTION IF EXISTS public.rollback_migration_batch(UUID, TEXT, UUID);
+  DROP FUNCTION IF EXISTS public.import_migration_batch(UUID, UUID);
+  ALTER TABLE public.migration_staged_records DROP CONSTRAINT IF EXISTS chk_migration_record_status;
+  ALTER TABLE public.migration_staged_records ADD CONSTRAINT chk_migration_record_status
+      CHECK (status IN ('staged', 'validated', 'quarantined', 'imported', 'skipped'));
+  ALTER TABLE public.migration_staged_records DROP COLUMN IF EXISTS raw_content_hash;
+  ALTER TABLE public.migration_staged_records DROP COLUMN IF EXISTS is_raw_purged;
+  ALTER TABLE public.migration_staged_records ALTER COLUMN raw_content SET NOT NULL;
+  ALTER TABLE public.migration_batches DROP COLUMN IF EXISTS rollback_reason;
+  ALTER TABLE public.migration_batches DROP COLUMN IF EXISTS rolled_back_at;
+  ALTER TABLE public.migration_batches DROP COLUMN IF EXISTS reconciled_at;
+  COMMIT;
+  ```
+
+
 
 
 

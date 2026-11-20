@@ -23,13 +23,15 @@ import {
   AuditLogItem,
   PartnerPreference,
   MatchRecommendation,
+  MigrationBatchRecord,
+  MigrationStagedRecord,
 } from '../types';
 import { FinancialTransaction } from '../utils/finance';
 import { AuthSession, canAccessRole } from './auth';
 import { getClientConfig } from './config';
 import { getSupabaseClient } from './supabaseClient';
 import { MatchEvaluation, EvaluatedCriterion } from './matching';
-import { generateCryptoUUID } from './crypto';
+import { generateCryptoUUID, computeSha256 } from './crypto';
 import {
   ProfileRow,
   ProfilePreferencesRow,
@@ -90,6 +92,11 @@ export interface IProfileRepository {
   findAll(session: AuthSession | null, filters?: ProfileFilters): Promise<ProfileRecord[]>;
   create(profileData: Partial<ProfileRecord>, session: AuthSession | null): Promise<ProfileRecord>;
   updateStatus(id: string, newStatus: ProfileStatus, session: AuthSession | null): Promise<ProfileRecord>;
+  updateProfileDetails(
+    id: string,
+    updates: Partial<ProfileRecord>,
+    session: AuthSession | null
+  ): Promise<ProfileRecord>;
   updatePreferences(
     id: string,
     preferences: Partial<PartnerPreference>,
@@ -279,6 +286,35 @@ export interface IShareGrantRepository {
   ): Promise<{ success: boolean; error?: string }>;
 }
 
+export interface IMigrationRepository {
+  createBatch(
+    batch: Omit<MigrationBatchRecord, 'id' | 'createdAt'> & { id?: string },
+    session: AuthSession | null
+  ): Promise<MigrationBatchRecord>;
+  findBatchById(batchId: string, session: AuthSession | null): Promise<MigrationBatchRecord | null>;
+  findBatchByCode(batchCode: string, session: AuthSession | null): Promise<MigrationBatchRecord | null>;
+  findAllBatches(session: AuthSession | null): Promise<MigrationBatchRecord[]>;
+  updateBatch(
+    batchId: string,
+    updates: Partial<MigrationBatchRecord>,
+    session: AuthSession | null
+  ): Promise<MigrationBatchRecord>;
+
+  createStagedRecords(
+    records: Array<Omit<MigrationStagedRecord, 'id'> & { id?: string }>,
+    session: AuthSession | null
+  ): Promise<MigrationStagedRecord[]>;
+  findStagedRecordsByBatch(batchId: string, session: AuthSession | null): Promise<MigrationStagedRecord[]>;
+  findStagedRecordById(recordId: string, session: AuthSession | null): Promise<MigrationStagedRecord | null>;
+  updateStagedRecord(
+    recordId: string,
+    updates: Partial<MigrationStagedRecord>,
+    session: AuthSession | null
+  ): Promise<MigrationStagedRecord>;
+
+  purgeRawContent(batchId: string, session: AuthSession | null): Promise<{ purgedCount: number }>;
+}
+
 // =============================================================================
 // In-Memory Demo Storage (Isolated to local development & tests)
 // =============================================================================
@@ -357,6 +393,8 @@ let demoSettingsStore: AppSettings = {
 };
 let demoAuditLogsStore: AuditLogItem[] = [...INITIAL_AUDIT_LOGS];
 let demoReferralAttributionsStore: ReferralAttribution[] = [];
+let demoMigrationBatchesStore: MigrationBatchRecord[] = [];
+let demoStagedRecordsStore: MigrationStagedRecord[] = [];
 
 export function resetRepositoriesForTesting(): void {
   demoProfilesStore = [...INITIAL_PROFILES];
@@ -381,6 +419,8 @@ export function resetRepositoriesForTesting(): void {
   };
   demoAuditLogsStore = [...INITIAL_AUDIT_LOGS];
   demoReferralAttributionsStore = [];
+  demoMigrationBatchesStore = [];
+  demoStagedRecordsStore = [];
 }
 
 // =============================================================================
@@ -643,19 +683,19 @@ class ProfileRepositoryImpl implements IProfileRepository {
       dob: profileData.dob,
       height: profileData.height || "5'6\"",
       maritalStatus: profileData.maritalStatus!,
-      religion: profileData.religion!.trim(),
-      aqeedah: profileData.aqeedah!.trim(),
-      caste: profileData.caste!.trim(),
+      religion: profileData.religion?.trim() || 'Islam',
+      aqeedah: profileData.aqeedah?.trim() || '',
+      caste: profileData.caste?.trim() || '',
       subCaste: profileData.subCaste?.trim(),
-      education: profileData.education!.trim(),
-      educationField: profileData.educationField!.trim(),
-      occupation: profileData.occupation!.trim(),
-      jobTitle: profileData.jobTitle!.trim(),
+      education: profileData.education?.trim() || '',
+      educationField: profileData.educationField?.trim() || '',
+      occupation: profileData.occupation?.trim() || '',
+      jobTitle: profileData.jobTitle?.trim() || '',
       companyOrSector: profileData.companyOrSector?.trim(),
       monthlyIncomePKR: profileData.monthlyIncomePKR,
-      hometown: profileData.hometown!.trim(),
-      currentCity: profileData.currentCity!.trim(),
-      residenceArea: profileData.residenceArea!.trim(),
+      hometown: profileData.hometown?.trim() || '',
+      currentCity: profileData.currentCity?.trim() || '',
+      residenceArea: profileData.residenceArea?.trim() || '',
       photoUrl: profileData.photoUrl || '',
       photoPermissionGranted: profileData.photoPermissionGranted ?? false,
       fatherStatus: profileData.fatherStatus,
@@ -745,6 +785,44 @@ class ProfileRepositoryImpl implements IProfileRepository {
     target.status = newStatus;
     target.updatedAt = new Date().toISOString().split('T')[0];
     return target;
+  }
+
+  async updateProfileDetails(
+    id: string,
+    updates: Partial<ProfileRecord>,
+    session: AuthSession | null
+  ): Promise<ProfileRecord> {
+    if (!canAccessRole(session, 'nadeem') && !canAccessRole(session, 'admin')) {
+      throw new Error('UNAUTHORIZED: Only bureau staff can update profile details.');
+    }
+    const config = getClientConfig();
+
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      const matchCol = isUUID ? 'id' : 'reference_code';
+      const patch: any = { updated_at: new Date().toISOString() };
+      if (updates.caste !== undefined) patch.caste = updates.caste;
+      if (updates.education !== undefined) patch.education_level = updates.education;
+      if (updates.occupation !== undefined) patch.occupation = updates.occupation;
+      if (updates.internalNotes !== undefined) patch.notes = updates.internalNotes;
+      if (updates.contactPhone !== undefined) patch.contact_phone = updates.contactPhone;
+
+      const { data, error } = await client.from('profiles').update(patch).eq(matchCol, id).select().single();
+      if (error) throw new Error(`DATABASE_ERROR: ${error.message}`);
+      return profileRowToDTO(data as ProfileRow);
+    }
+
+    const idx = demoProfilesStore.findIndex((p) => p.id === id || p.referenceCode === id);
+    if (idx === -1) throw new Error(`Profile ${id} not found.`);
+
+    demoProfilesStore[idx] = {
+      ...demoProfilesStore[idx],
+      ...updates,
+      updatedAt: new Date().toISOString().split('T')[0],
+    };
+    return { ...demoProfilesStore[idx] };
   }
 
   async updatePreferences(
@@ -1754,6 +1832,8 @@ class MatchmakerRepositoryImpl implements IMatchmakerRepository {
 
     return demoAgreementsStore
       .filter((a) => a.matchmakerId === targetUuid)
+      .slice()
+      .reverse()
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
@@ -2858,4 +2938,368 @@ export function setShareGrantRepositoryForTesting(repo: IShareGrantRepository): 
 
 export function resetShareGrantRepositoryForTesting(): void {
   shareGrantRepository = new ShareGrantRepositoryImpl();
+}
+
+// =============================================================================
+// Migration Repository Implementation (P1-39, P1-47)
+// =============================================================================
+
+function mapBatchRowToRecord(row: any): MigrationBatchRecord {
+  return {
+    id: row.id,
+    batchCode: row.batch_code,
+    sourceType: row.source_type,
+    sourceReference: row.source_reference,
+    sourceChecksum: row.source_checksum,
+    totalRecords: row.total_records ?? 0,
+    stagedRecords: row.staged_records ?? 0,
+    quarantinedRecords: row.quarantined_records ?? 0,
+    importedRecords: row.imported_records ?? 0,
+    status: row.status,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    ownerApprovedBy: row.owner_approved_by,
+    ownerApprovedAt: row.owner_approved_at,
+    reconciledAt: row.reconciled_at,
+    rolledBackAt: row.rolled_back_at,
+    rollbackReason: row.rollback_reason,
+  };
+}
+
+function mapStagedRowToRecord(row: any): MigrationStagedRecord {
+  return {
+    id: row.id,
+    batchId: row.batch_id,
+    rowIndex: row.row_index,
+    rawContent: row.raw_content,
+    parsedData: row.parsed_payload || {},
+    sourceProvenance: row.source_provenance || {},
+    consentVerification: row.consent_verification || {},
+    status: row.status,
+    quarantineReason: row.quarantine_reason,
+    conflictProfileId: row.conflict_profile_id,
+    conflictDetails: row.conflict_details,
+    resolutionAction: row.resolution_action,
+    resolutionNotes: row.resolution_notes,
+    resolvedBy: row.resolved_by,
+    resolvedAt: row.resolved_at,
+    importedProfileId: row.imported_profile_id,
+    createdAt: row.created_at,
+    isRawPurged: row.is_raw_purged,
+    rawContentHash: row.raw_content_hash,
+  };
+}
+
+export class MigrationRepositoryImpl implements IMigrationRepository {
+  async createBatch(
+    batch: Omit<MigrationBatchRecord, 'id' | 'createdAt'> & { id?: string },
+    session: AuthSession | null
+  ): Promise<MigrationBatchRecord> {
+    if (!session || !session.isAuthenticated || (session.role !== 'admin' && session.role !== 'nadeem')) {
+      throw new Error('Unauthorized: Staff access required to create migration batches.');
+    }
+    const config = getClientConfig();
+    const id = batch.id || generateCryptoUUID();
+    const now = new Date().toISOString();
+
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+      const row = {
+        id,
+        batch_code: batch.batchCode,
+        source_type: batch.sourceType,
+        source_reference: batch.sourceReference,
+        source_checksum: batch.sourceChecksum,
+        total_records: batch.totalRecords || 0,
+        staged_records: batch.stagedRecords || 0,
+        quarantined_records: batch.quarantinedRecords || 0,
+        imported_records: batch.importedRecords || 0,
+        status: batch.status || 'cataloged',
+        created_by: session.user?.id || batch.createdBy,
+        created_at: now,
+        updated_at: now,
+      };
+      const { data, error } = await client.from('migration_batches').insert(row).select().single();
+      if (error) throw new Error(`DATABASE_ERROR: ${error.message}`);
+      return mapBatchRowToRecord(data);
+    }
+
+    const created: MigrationBatchRecord = {
+      id,
+      batchCode: batch.batchCode,
+      sourceType: batch.sourceType,
+      sourceReference: batch.sourceReference,
+      sourceChecksum: batch.sourceChecksum,
+      totalRecords: batch.totalRecords || 0,
+      stagedRecords: batch.stagedRecords || 0,
+      quarantinedRecords: batch.quarantinedRecords || 0,
+      importedRecords: batch.importedRecords || 0,
+      status: batch.status || 'cataloged',
+      createdBy: batch.createdBy,
+      createdAt: now,
+      updatedAt: now,
+    };
+    demoMigrationBatchesStore.push({ ...created });
+    return { ...created };
+  }
+
+  async findBatchById(batchId: string, session: AuthSession | null): Promise<MigrationBatchRecord | null> {
+    const config = getClientConfig();
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+      const { data, error } = await client.from('migration_batches').select('*').eq('id', batchId).maybeSingle();
+      if (error && error.code !== 'PGRST116') throw new Error(`DATABASE_ERROR: ${error.message}`);
+      return data ? mapBatchRowToRecord(data) : null;
+    }
+    const found = demoMigrationBatchesStore.find((b) => b.id === batchId);
+    return found ? { ...found } : null;
+  }
+
+  async findBatchByCode(batchCode: string, session: AuthSession | null): Promise<MigrationBatchRecord | null> {
+    const config = getClientConfig();
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+      const { data, error } = await client.from('migration_batches').select('*').eq('batch_code', batchCode).maybeSingle();
+      if (error && error.code !== 'PGRST116') throw new Error(`DATABASE_ERROR: ${error.message}`);
+      return data ? mapBatchRowToRecord(data) : null;
+    }
+    const found = demoMigrationBatchesStore.find((b) => b.batchCode === batchCode);
+    return found ? { ...found } : null;
+  }
+
+  async findAllBatches(session: AuthSession | null): Promise<MigrationBatchRecord[]> {
+    const config = getClientConfig();
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+      const { data, error } = await client.from('migration_batches').select('*').order('created_at', { ascending: false });
+      if (error) throw new Error(`DATABASE_ERROR: ${error.message}`);
+      return (data || []).map(mapBatchRowToRecord);
+    }
+    return demoMigrationBatchesStore.map((b) => ({ ...b }));
+  }
+
+  async updateBatch(
+    batchId: string,
+    updates: Partial<MigrationBatchRecord>,
+    session: AuthSession | null
+  ): Promise<MigrationBatchRecord> {
+    if (!session || !session.isAuthenticated || (session.role !== 'admin' && session.role !== 'nadeem')) {
+      throw new Error('Unauthorized: Staff access required to update migration batch.');
+    }
+    const config = getClientConfig();
+    const now = new Date().toISOString();
+
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+      const patch: any = { updated_at: now };
+      if (updates.status !== undefined) patch.status = updates.status;
+      if (updates.totalRecords !== undefined) patch.total_records = updates.totalRecords;
+      if (updates.stagedRecords !== undefined) patch.staged_records = updates.stagedRecords;
+      if (updates.quarantinedRecords !== undefined) patch.quarantined_records = updates.quarantinedRecords;
+      if (updates.importedRecords !== undefined) patch.imported_records = updates.importedRecords;
+      if (updates.ownerApprovedBy !== undefined) patch.owner_approved_by = updates.ownerApprovedBy;
+      if (updates.ownerApprovedAt !== undefined) patch.owner_approved_at = updates.ownerApprovedAt;
+      if (updates.reconciledAt !== undefined) patch.reconciled_at = updates.reconciledAt;
+      if (updates.rolledBackAt !== undefined) patch.rolled_back_at = updates.rolledBackAt;
+      if (updates.rollbackReason !== undefined) patch.rollback_reason = updates.rollbackReason;
+
+      const { data, error } = await client.from('migration_batches').update(patch).eq('id', batchId).select().single();
+      if (error) throw new Error(`DATABASE_ERROR: ${error.message}`);
+      return mapBatchRowToRecord(data);
+    }
+
+    const idx = demoMigrationBatchesStore.findIndex((b) => b.id === batchId);
+    if (idx === -1) throw new Error(`Migration batch ${batchId} not found.`);
+    demoMigrationBatchesStore[idx] = {
+      ...demoMigrationBatchesStore[idx],
+      ...updates,
+      updatedAt: now,
+    };
+    return { ...demoMigrationBatchesStore[idx] };
+  }
+
+  async createStagedRecords(
+    records: Array<Omit<MigrationStagedRecord, 'id'> & { id?: string }>,
+    session: AuthSession | null
+  ): Promise<MigrationStagedRecord[]> {
+    if (!session || !session.isAuthenticated || (session.role !== 'admin' && session.role !== 'nadeem')) {
+      throw new Error('Unauthorized: Staff access required to stage records.');
+    }
+    const config = getClientConfig();
+    const now = new Date().toISOString();
+
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+      const rows = records.map((r) => ({
+        id: r.id || generateCryptoUUID(),
+        batch_id: r.batchId,
+        row_index: r.rowIndex,
+        raw_content: r.rawContent ?? null,
+        parsed_payload: r.parsedData,
+        source_provenance: r.sourceProvenance,
+        consent_verification: r.consentVerification,
+        status: r.status,
+        quarantine_reason: r.quarantineReason || null,
+        conflict_profile_id: r.conflictProfileId || null,
+        conflict_details: r.conflictDetails || null,
+        resolution_action: r.resolutionAction || null,
+        resolution_notes: r.resolutionNotes || null,
+        resolved_by: r.resolvedBy || null,
+        resolved_at: r.resolvedAt || null,
+        imported_profile_id: r.importedProfileId || null,
+        created_at: now,
+        is_raw_purged: r.isRawPurged || false,
+        raw_content_hash: r.rawContentHash || null,
+      }));
+      const { data, error } = await client.from('migration_staged_records').insert(rows).select();
+      if (error) throw new Error(`DATABASE_ERROR: ${error.message}`);
+      return (data || []).map(mapStagedRowToRecord);
+    }
+
+    const createdList: MigrationStagedRecord[] = records.map((r) => {
+      const item: MigrationStagedRecord = {
+        id: r.id || `rec-${generateCryptoUUID().slice(0, 8)}`,
+        batchId: r.batchId,
+        rowIndex: r.rowIndex,
+        rawContent: r.rawContent,
+        parsedData: { ...r.parsedData },
+        sourceProvenance: { ...r.sourceProvenance },
+        consentVerification: { ...r.consentVerification },
+        status: r.status,
+        quarantineReason: r.quarantineReason,
+        conflictProfileId: r.conflictProfileId,
+        conflictDetails: r.conflictDetails,
+        resolutionAction: r.resolutionAction,
+        resolutionNotes: r.resolutionNotes,
+        resolvedBy: r.resolvedBy,
+        resolvedAt: r.resolvedAt,
+        importedProfileId: r.importedProfileId,
+        createdAt: now,
+        isRawPurged: r.isRawPurged || false,
+        rawContentHash: r.rawContentHash,
+      };
+      demoStagedRecordsStore.push(item);
+      return { ...item };
+    });
+    return createdList;
+  }
+
+  async findStagedRecordsByBatch(batchId: string, session: AuthSession | null): Promise<MigrationStagedRecord[]> {
+    const config = getClientConfig();
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+      const { data, error } = await client
+        .from('migration_staged_records')
+        .select('*')
+        .eq('batch_id', batchId)
+        .order('row_index', { ascending: true });
+      if (error) throw new Error(`DATABASE_ERROR: ${error.message}`);
+      return (data || []).map(mapStagedRowToRecord);
+    }
+    return demoStagedRecordsStore.filter((r) => r.batchId === batchId).map((r) => ({ ...r }));
+  }
+
+  async findStagedRecordById(recordId: string, session: AuthSession | null): Promise<MigrationStagedRecord | null> {
+    const config = getClientConfig();
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+      const { data, error } = await client.from('migration_staged_records').select('*').eq('id', recordId).maybeSingle();
+      if (error && error.code !== 'PGRST116') throw new Error(`DATABASE_ERROR: ${error.message}`);
+      return data ? mapStagedRowToRecord(data) : null;
+    }
+    const found = demoStagedRecordsStore.find((r) => r.id === recordId);
+    return found ? { ...found } : null;
+  }
+
+  async updateStagedRecord(
+    recordId: string,
+    updates: Partial<MigrationStagedRecord>,
+    session: AuthSession | null
+  ): Promise<MigrationStagedRecord> {
+    if (!session || !session.isAuthenticated || (session.role !== 'admin' && session.role !== 'nadeem')) {
+      throw new Error('Unauthorized: Staff access required to update staged records.');
+    }
+    const config = getClientConfig();
+
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+      const patch: any = {};
+      if (updates.status !== undefined) patch.status = updates.status;
+      if (updates.quarantineReason !== undefined) patch.quarantine_reason = updates.quarantineReason;
+      if (updates.conflictProfileId !== undefined) patch.conflict_profile_id = updates.conflictProfileId;
+      if (updates.conflictDetails !== undefined) patch.conflict_details = updates.conflictDetails;
+      if (updates.resolutionAction !== undefined) patch.resolution_action = updates.resolutionAction;
+      if (updates.resolutionNotes !== undefined) patch.resolution_notes = updates.resolutionNotes;
+      if (updates.resolvedBy !== undefined) patch.resolved_by = updates.resolvedBy;
+      if (updates.resolvedAt !== undefined) patch.resolved_at = updates.resolvedAt;
+      if (updates.importedProfileId !== undefined) patch.imported_profile_id = updates.importedProfileId;
+      if (updates.parsedData !== undefined) patch.parsed_payload = updates.parsedData;
+      if (updates.consentVerification !== undefined) patch.consent_verification = updates.consentVerification;
+      if (updates.rawContent !== undefined) patch.raw_content = updates.rawContent;
+      if (updates.isRawPurged !== undefined) patch.is_raw_purged = updates.isRawPurged;
+      if (updates.rawContentHash !== undefined) patch.raw_content_hash = updates.rawContentHash;
+
+      const { data, error } = await client.from('migration_staged_records').update(patch).eq('id', recordId).select().single();
+      if (error) throw new Error(`DATABASE_ERROR: ${error.message}`);
+      return mapStagedRowToRecord(data);
+    }
+
+    const idx = demoStagedRecordsStore.findIndex((r) => r.id === recordId);
+    if (idx === -1) throw new Error(`Staged record ${recordId} not found.`);
+    demoStagedRecordsStore[idx] = {
+      ...demoStagedRecordsStore[idx],
+      ...updates,
+    };
+    return { ...demoStagedRecordsStore[idx] };
+  }
+
+  async purgeRawContent(batchId: string, session: AuthSession | null): Promise<{ purgedCount: number }> {
+    if (!session || !session.isAuthenticated || (session.role !== 'admin' && session.role !== 'nadeem')) {
+      throw new Error('Unauthorized: Staff access required to purge raw conversation content.');
+    }
+    const config = getClientConfig();
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+      const { data, error } = await client.rpc('purge_staged_raw_content', {
+        p_batch_id: batchId,
+        p_actor_id: session.user?.id,
+      });
+      if (error) throw new Error(`DATABASE_ERROR: ${error.message}`);
+      return { purgedCount: data?.purged_count ?? 0 };
+    }
+
+    let purgedCount = 0;
+    for (const record of demoStagedRecordsStore) {
+      if (record.batchId === batchId && !record.isRawPurged) {
+        record.rawContentHash = computeSha256(record.rawContent || '');
+        record.rawContent = null;
+        record.isRawPurged = true;
+        purgedCount++;
+      }
+    }
+    return { purgedCount };
+  }
+}
+
+export let migrationRepository: IMigrationRepository = new MigrationRepositoryImpl();
+
+export function setMigrationRepositoryForTesting(repo: IMigrationRepository): void {
+  migrationRepository = repo;
+}
+
+export function resetMigrationRepositoryForTesting(): void {
+  demoMigrationBatchesStore = [];
+  demoStagedRecordsStore = [];
+  migrationRepository = new MigrationRepositoryImpl();
 }

@@ -49,6 +49,18 @@ Do not force fake values for unknown or withheld information. For sensitive opti
 - `audit_events`: actor, action code, target type/ID, timestamp, request/correlation ID, outcome and safe metadata. Do not log full profiles, photos, credentials, tokens, phone numbers or disclosure contents.
 - Optional `duplicate_review_candidates`: possible duplicate pair, reason and resolution status; matching candidates is a human-review aid, not automatic merging.
 
+### Migration Batches and Staged Records (T-038 / Migration 00011)
+- `migration_batches`: durable batch intake tracking (`id UUID`, `source_type` ['whatsapp_chat', 'csv', 'manual_batch', 'other'], `batch_reference`, `status` ['staged', 'validating', 'approved_by_owner', 'importing', 'completed', 'rolled_back', 'failed'], `total_records`, `imported_records`, `quarantined_records`, `created_by UUID`, `owner_approved_by UUID`, `owner_approved_at TIMESTAMPTZ`, `reconciled_at TIMESTAMPTZ`, `rolled_back_at TIMESTAMPTZ`, `rollback_reason TEXT`, `created_at`, `updated_at`).
+  - Stored persistently in PostgreSQL via `IMigrationRepository` (PostgREST in backend mode, memory store in demo mode; remediates P1-39).
+- `migration_staged_records`: individual candidate records staged for review (`id UUID`, `batch_id UUID`, `record_index`, `external_id`, `raw_content TEXT NULL`, `raw_content_hash VARCHAR(64)`, `is_raw_purged BOOLEAN`, `extracted_fields JSONB`, `validation_errors JSONB`, `resolution_action` ['create_new', 'merge_update', 'quarantine', 'skip'], `status` ['staged', 'validated', 'quarantined', 'imported', 'skipped', 'rolled_back'], `imported_profile_id UUID`, `created_at`, `updated_at`).
+  - Nullable `raw_content` with cryptographic `raw_content_hash` enables sensitive chat minimization without losing provenance (P1-47).
+  - Status includes `rolled_back` for durable reversal tracking (P1-46).
+- **Server RPCs (`SECURITY DEFINER`):**
+  - `import_migration_batch(p_batch_id, p_actor_id)`: Atomic server-side batch import with row locking `FOR UPDATE`, affirmative owner approval gate (`approved_by_owner`), profile deduplication / conflict merge updates, mandatory Pakistani invariant checks, and minimal audit trail (P1-40, P1-41, P1-42).
+  - `rollback_migration_batch(p_batch_id, p_reason, p_actor_id)`: Durable batch rollback restricting imported profiles, marking staged records `rolled_back`, and recording audit event (P1-46).
+  - `purge_staged_raw_content(p_batch_id, p_actor_id)`: Data minimization RPC setting `raw_content = NULL` and `is_raw_purged = TRUE` while retaining cryptographic SHA-256 hash (P1-47).
+
+
 ## 2.3 Profile field mapping from the current UI
 
 The existing `ProfileRecord` shape includes:
