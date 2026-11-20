@@ -35,10 +35,14 @@ Do not force fake values for unknown or withheld information. For sensitive opti
 - `share_grants` should store a hash of a high-entropy bearer token, not the raw token. Never put personal data in the token or URL.
 
 ### External matchmakers and finance
-- `external_matchmakers`: identity, business contact, city, status, approved business terms and timestamps; restricted to authorized staff.
-- `financial_transactions`: append-only business entries for payable, receivable, payment, receipt, commission or adjustment; amount, currency, effective date, party, optional profile/match case, description/code, creator and timestamps.
-- Corrections should be represented by a reversal/adjustment referencing the original entry rather than silently rewriting financial history. Exact accounting rules remain an open business decision.
-- Ledger balance should be derived from entries using an explicitly documented sign convention; never trust a client-provided balance.
+- `external_matchmakers`: identity, canonical UUID `id`, human code `code` (e.g. `MM-MUL-01`), business contact, city, status, commission model, referral count, and timestamps; restricted to authorized staff.
+- `matchmaker_agreements`: versioned partner agreements (`matchmaker_id UUID`, `agreement_code`, `fee_type` ['percentage', 'flat_fee', 'tiered'], `percentage_rate`, `flat_fee_pkr`, `tiered_rules` JSONB for progressive tier brackets, `effective_from`, `effective_to`, `terms_text`, `is_active`, `created_at`). Active agreements supersede prior agreements automatically.
+- `referral_attributions`: durable partner-to-candidate attribution records (`matchmaker_id UUID`, `profile_id UUID`, `referral_source`, `attributed_by UUID`, `notes`, `created_at`). Deduplicated and protected against race conditions via unique constraint `uq_referral_partner_profile` and atomic server RPC `attribute_profile_referral`.
+- `financial_transactions`: append-only partner clearinghouse sub-ledger entries (`transaction_type` ['payable', 'receivable', 'paid', 'received', 'reversal'], non-negative integer `amount_pkr`, `currency = 'PKR'`, status ['pending', 'settled', 'reversed'], `reversal_of UUID`, `reversal_reason`, `effective_date`, `matchmaker_id`, `created_by`, `created_at`).
+  - Single-reversal integrity enforced by partial unique index `uq_financial_transactions_reversal` on `(reversal_of) WHERE reversal_of IS NOT NULL`.
+  - Reversals must be settled with non-null reversal_of via check constraint `chk_financial_tx_reversal_status`.
+  - Executed atomically with row locking `FOR UPDATE` via server RPC `record_financial_reversal`.
+  - Net partner balance formula: `Net Balance = Total Pending Receivable - Total Pending Payable` (positive = partner owes bureau; negative = bureau owes partner).
 
 ### Operations
 - `follow_ups`: profile/match context, due date, type, priority, status, assigned user, minimal notes and completion timestamps.

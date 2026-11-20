@@ -4,6 +4,7 @@
 
 export interface FinancialTransaction {
   id: string;
+  referenceCode?: string;
   matchmakerId: string;
   matchmakerName: string;
   date: string;

@@ -193,6 +193,16 @@ export interface PartnerAgreement {
   createdAt: string;
 }
 
+export interface ReferralAttribution {
+  id: string;
+  matchmakerId: string;
+  profileId: string;
+  referralSource: string;
+  attributedBy?: string;
+  notes?: string;
+  createdAt: string;
+}
+
 export interface DetailedExternalMatchmaker extends ExternalMatchmaker {
   code: string;
   email?: string;

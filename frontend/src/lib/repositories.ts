@@ -19,6 +19,7 @@ import {
   PartnerAgreement,
   PartnerAgreementFeeType,
   PartnerCommissionModel,
+  ReferralAttribution,
   AuditLogItem,
   PartnerPreference,
   MatchRecommendation,
@@ -145,7 +146,11 @@ export interface IMatchmakerRepository {
     profileId: string,
     session: AuthSession | null,
     notes?: string
-  ): Promise<{ success: boolean; matchmaker: DetailedExternalMatchmaker }>;
+  ): Promise<{ success: boolean; matchmaker: DetailedExternalMatchmaker; attribution?: ReferralAttribution }>;
+  getReferralAttributions(
+    matchmakerId: string,
+    session: AuthSession | null
+  ): Promise<ReferralAttribution[]>;
 }
 
 export type MatchCaseStatus =
@@ -351,6 +356,7 @@ let demoSettingsStore: AppSettings = {
   updatedBy: 'system',
 };
 let demoAuditLogsStore: AuditLogItem[] = [...INITIAL_AUDIT_LOGS];
+let demoReferralAttributionsStore: ReferralAttribution[] = [];
 
 export function resetRepositoriesForTesting(): void {
   demoProfilesStore = [...INITIAL_PROFILES];
@@ -374,6 +380,7 @@ export function resetRepositoriesForTesting(): void {
     updatedBy: 'system',
   };
   demoAuditLogsStore = [...INITIAL_AUDIT_LOGS];
+  demoReferralAttributionsStore = [];
 }
 
 // =============================================================================
@@ -862,7 +869,8 @@ class FinanceRepositoryImpl implements IFinanceRepository {
       if (error || !data) return [];
 
       return data.map((d: any) => ({
-        id: d.reference_code || d.id,
+        id: d.id,
+        referenceCode: d.reference_code || d.id,
         matchmakerId: d.matchmaker_id,
         matchmakerName: d.matchmaker_name,
         profileId: d.profile_id || undefined,
@@ -903,7 +911,8 @@ class FinanceRepositoryImpl implements IFinanceRepository {
       if (error || !data) return null;
 
       return {
-        id: data.reference_code || data.id,
+        id: data.id,
+        referenceCode: data.reference_code || data.id,
         matchmakerId: data.matchmaker_id,
         matchmakerName: data.matchmaker_name,
         profileId: data.profile_id || undefined,
@@ -917,7 +926,7 @@ class FinanceRepositoryImpl implements IFinanceRepository {
       };
     }
 
-    const item = demoTransactionsStore.find((t) => t.id === id);
+    const item = demoTransactionsStore.find((t) => t.id === id || t.referenceCode === id);
     return item || null;
   }
 
@@ -928,16 +937,23 @@ class FinanceRepositoryImpl implements IFinanceRepository {
 
     const config = getClientConfig();
     const now = new Date().toISOString().split('T')[0];
-    const newRef = txData.id || `TXN-${1000 + demoTransactionsStore.length + 1}`;
+    const newId = generateCryptoUUID();
+    const newRef = txData.referenceCode || txData.id || `TXN-${1000 + demoTransactionsStore.length + 1}`;
+
+    const defaultStatus = (txData.type === 'paid' || txData.type === 'received' || txData.type === 'reversal')
+      ? 'settled'
+      : 'pending';
+    const status = txData.status || defaultStatus;
 
     const newTx: FinancialTransaction = {
-      id: newRef,
+      id: newId,
+      referenceCode: newRef,
       matchmakerId: txData.matchmakerId || 'mm-01',
       matchmakerName: txData.matchmakerName || 'Partner Agency',
       profileId: txData.profileId,
       type: txData.type || 'receivable',
       amount: txData.amount || 0,
-      status: txData.status || 'pending',
+      status,
       description: txData.description || 'Matrimonial introduction commission',
       date: txData.date || now,
     };
@@ -947,7 +963,8 @@ class FinanceRepositoryImpl implements IFinanceRepository {
       if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
 
       const { data, error } = await client.from('financial_transactions').insert({
-        reference_code: newTx.id,
+        id: newTx.id,
+        reference_code: newTx.referenceCode,
         matchmaker_id: newTx.matchmakerId,
         matchmaker_name: newTx.matchmakerName,
         profile_id: newTx.profileId || null,
@@ -973,6 +990,10 @@ class FinanceRepositoryImpl implements IFinanceRepository {
       throw new Error('UNAUTHORIZED: Only bureau staff can reverse financial transactions.');
     }
 
+    if (!reason || reason.trim().length === 0) {
+      throw new Error('REVERSAL_REASON_REQUIRED: A valid business justification is mandatory to execute a reversal.');
+    }
+
     const config = getClientConfig();
 
     if (config.mode === 'backend') {
@@ -986,62 +1007,64 @@ class FinanceRepositoryImpl implements IFinanceRepository {
         .single();
 
       if (fetchErr || !original) throw new Error(`NOT_FOUND: Transaction ${id} not found.`);
-      if (original.status === 'reversed') throw new Error(`ALREADY_REVERSED: Transaction ${id} has already been reversed.`);
+      if (original.transaction_type === 'reversal' || original.reversal_of) {
+        throw new Error(`CANNOT_REVERSE_REVERSAL: Transaction ${id} is already a reversal.`);
+      }
+      if (original.status === 'reversed') {
+        throw new Error(`ALREADY_REVERSED: Transaction ${id} has already been reversed.`);
+      }
 
-      const reversalRef = `REV-${Date.now().toString().slice(-6)}`;
-      const now = new Date().toISOString().split('T')[0];
+      const { data: revData, error: rpcError } = await client.rpc('record_financial_reversal', {
+        p_original_id: original.id,
+        p_reason: reason.trim(),
+        p_recorded_by: session?.user?.id || null,
+      });
 
-      const { data: rev, error: revErr } = await client.from('financial_transactions').insert({
-        reference_code: reversalRef,
-        matchmaker_id: original.matchmaker_id,
-        matchmaker_name: original.matchmaker_name,
-        profile_id: original.profile_id,
-        transaction_type: 'reversal',
-        amount_pkr: original.amount_pkr,
-        currency: 'PKR',
-        status: 'settled',
-        reversal_of: original.id,
-        reversal_reason: reason.trim(),
-        description: `Reversal of ${id}: ${reason.trim()}`,
-        effective_date: now,
-        created_by: session?.user?.id || null,
-      }).select().single();
-
-      if (revErr || !rev) throw new Error(`DATABASE_ERROR: ${revErr?.message}`);
+      if (rpcError) {
+        throw new Error(`DATABASE_ERROR: ${rpcError.message}`);
+      }
 
       return {
-        id: reversalRef,
-        matchmakerId: original.matchmaker_id,
-        matchmakerName: original.matchmaker_name,
-        profileId: original.profile_id || undefined,
+        id: revData.id,
+        referenceCode: revData.referenceCode,
+        matchmakerId: revData.matchmakerId,
+        matchmakerName: revData.matchmakerName,
+        profileId: revData.profileId || undefined,
         type: 'reversal',
-        amount: Number(original.amount_pkr),
+        amount: Number(revData.amount),
         status: 'settled',
-        description: `Reversal of ${id}: ${reason.trim()}`,
-        date: now,
-        reversalOf: original.reference_code,
-        reversalReason: reason.trim(),
+        description: revData.description,
+        date: revData.date,
+        reversalOf: revData.reversalOf,
+        reversalReason: revData.reversalReason,
       };
     }
 
-    const original = demoTransactionsStore.find((t) => t.id === id);
+    const original = demoTransactionsStore.find((t) => t.id === id || t.referenceCode === id);
     if (!original) throw new Error(`NOT_FOUND: Transaction ${id} not found.`);
-    if (original.status === 'reversed') throw new Error(`ALREADY_REVERSED: Transaction ${id} has already been reversed.`);
+    if (original.type === 'reversal' || original.reversalOf) {
+      throw new Error(`CANNOT_REVERSE_REVERSAL: Transaction ${id} is already a reversal.`);
+    }
+    if (original.status === 'reversed' || demoTransactionsStore.some((t) => t.reversalOf === original.id)) {
+      throw new Error(`ALREADY_REVERSED: Transaction ${id} has already been reversed.`);
+    }
 
     original.status = 'reversed';
 
+    const reversalUuid = generateCryptoUUID();
     const reversalRef = `REV-${1000 + demoTransactionsStore.length + 1}`;
     const now = new Date().toISOString().split('T')[0];
 
     const reversalTx: FinancialTransaction = {
-      id: reversalRef,
+      id: reversalUuid,
+      referenceCode: reversalRef,
       matchmakerId: original.matchmakerId,
       matchmakerName: original.matchmakerName,
       profileId: original.profileId,
       type: 'reversal',
       amount: original.amount,
       status: 'settled',
-      description: `Reversal of ${id}: ${reason.trim()}`,
+      description: `Reversal of ${original.referenceCode || original.id}: ${reason.trim()}`,
       date: now,
       reversalOf: original.id,
       reversalReason: reason.trim(),
@@ -1451,6 +1474,7 @@ class MatchmakerRepositoryImpl implements IMatchmakerRepository {
           feeType: a.fee_type,
           percentageRate: a.percentage_rate ? Number(a.percentage_rate) : undefined,
           flatFeePKR: a.flat_fee_pkr ? Number(a.flat_fee_pkr) : undefined,
+          tieredRulesJson: a.tiered_rules || undefined,
           effectiveFrom: a.effective_from,
           effectiveTo: a.effective_to || undefined,
           termsText: a.terms_text,
@@ -1460,7 +1484,7 @@ class MatchmakerRepositoryImpl implements IMatchmakerRepository {
         const activeAgreement = agreements.find((a) => a.isActive);
 
         return {
-          id: d.code || d.id,
+          id: d.id,
           code: d.code,
           name: d.contact_person,
           agencyName: d.agency_name,
@@ -1654,6 +1678,7 @@ class MatchmakerRepositoryImpl implements IMatchmakerRepository {
           fee_type: newAgreement.feeType,
           percentage_rate: newAgreement.percentageRate || null,
           flat_fee_pkr: newAgreement.flatFeePKR || null,
+          tiered_rules: newAgreement.tieredRulesJson || null,
           effective_from: newAgreement.effectiveFrom,
           effective_to: newAgreement.effectiveTo || null,
           terms_text: newAgreement.termsText,
@@ -1696,6 +1721,8 @@ class MatchmakerRepositoryImpl implements IMatchmakerRepository {
       throw new Error('UNAUTHORIZED: Only bureau staff can view partner agreements.');
     }
 
+    const mm = await this.findById(matchmakerId, session);
+    const targetUuid = mm ? mm.id : matchmakerId;
     const config = getClientConfig();
 
     if (config.mode === 'backend') {
@@ -1705,7 +1732,7 @@ class MatchmakerRepositoryImpl implements IMatchmakerRepository {
       const { data, error } = await client
         .from('matchmaker_agreements')
         .select('*')
-        .eq('matchmaker_id', matchmakerId)
+        .eq('matchmaker_id', targetUuid)
         .order('created_at', { ascending: false });
 
       if (error || !data) return [];
@@ -1716,6 +1743,7 @@ class MatchmakerRepositoryImpl implements IMatchmakerRepository {
         feeType: a.fee_type,
         percentageRate: a.percentage_rate ? Number(a.percentage_rate) : undefined,
         flatFeePKR: a.flat_fee_pkr ? Number(a.flat_fee_pkr) : undefined,
+        tieredRulesJson: a.tiered_rules || undefined,
         effectiveFrom: a.effective_from,
         effectiveTo: a.effective_to || undefined,
         termsText: a.terms_text,
@@ -1725,8 +1753,49 @@ class MatchmakerRepositoryImpl implements IMatchmakerRepository {
     }
 
     return demoAgreementsStore
-      .filter((a) => a.matchmakerId === matchmakerId)
+      .filter((a) => a.matchmakerId === targetUuid)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  private async resolveProfileUuid(
+    idOrRef: string,
+    client: any
+  ): Promise<{ uuid: string; refCode: string }> {
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrRef);
+    if (isUUID) {
+      const { data, error } = await client
+        .from('profiles')
+        .select('id, reference_code')
+        .eq('id', idOrRef)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        throw new Error(`DATABASE_ERROR: ${error.message}`);
+      }
+      return {
+        uuid: idOrRef,
+        refCode: data?.reference_code || idOrRef,
+      };
+    }
+
+    const { data, error } = await client
+      .from('profiles')
+      .select('id, reference_code')
+      .eq('reference_code', idOrRef)
+      .maybeSingle();
+
+    if (error && error.code !== 'PGRST116') {
+      throw new Error(`DATABASE_ERROR: ${error.message}`);
+    }
+
+    if (!data) {
+      return { uuid: idOrRef, refCode: idOrRef };
+    }
+
+    return {
+      uuid: data.id,
+      refCode: data.reference_code,
+    };
   }
 
   async attributeReferral(
@@ -1734,7 +1803,7 @@ class MatchmakerRepositoryImpl implements IMatchmakerRepository {
     profileId: string,
     session: AuthSession | null,
     notes?: string
-  ): Promise<{ success: boolean; matchmaker: DetailedExternalMatchmaker }> {
+  ): Promise<{ success: boolean; matchmaker: DetailedExternalMatchmaker; attribution?: ReferralAttribution }> {
     if (!canAccessRole(session, 'nadeem') && !canAccessRole(session, 'admin')) {
       throw new Error('UNAUTHORIZED: Only bureau staff can attribute profile referrals.');
     }
@@ -1754,17 +1823,96 @@ class MatchmakerRepositoryImpl implements IMatchmakerRepository {
       const client = getSupabaseClient();
       if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
 
-      await client
-        .from('external_matchmakers')
-        .update({
-          referral_count: matchmaker.profilesReferredCount + 1,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', matchmaker.id);
+      const profileRes = await this.resolveProfileUuid(profileId, client);
+
+      const { data: rpcData, error: rpcError } = await client.rpc('attribute_profile_referral', {
+        p_matchmaker_id: matchmaker.id,
+        p_profile_id: profileRes.uuid,
+        p_notes: notes || null,
+        p_attributed_by: session?.user?.id || null,
+      });
+
+      if (rpcError) {
+        throw new Error(`DATABASE_ERROR: ${rpcError.message}`);
+      }
+
+      matchmaker.profilesReferredCount = rpcData?.totalReferrals ?? (matchmaker.profilesReferredCount + 1);
+      return {
+        success: true,
+        matchmaker,
+        attribution: rpcData ? {
+          id: rpcData.id,
+          matchmakerId: rpcData.matchmakerId,
+          profileId: rpcData.profileId,
+          referralSource: rpcData.referralSource,
+          attributedBy: rpcData.attributedBy,
+          notes: rpcData.notes,
+          createdAt: rpcData.createdAt,
+        } : undefined,
+      };
     }
 
-    matchmaker.profilesReferredCount += 1;
-    return { success: true, matchmaker };
+    // Demo Mode (P1-34)
+    const existingAttr = demoReferralAttributionsStore.find(
+      (a) => a.matchmakerId === matchmaker.id && a.profileId === profileId
+    );
+
+    let attribution: ReferralAttribution;
+    if (existingAttr) {
+      if (notes) existingAttr.notes = notes;
+      attribution = existingAttr;
+    } else {
+      attribution = {
+        id: generateCryptoUUID(),
+        matchmakerId: matchmaker.id,
+        profileId,
+        referralSource: 'external_partner',
+        attributedBy: session?.user?.id || 'usr-nadeem',
+        notes,
+        createdAt: new Date().toISOString(),
+      };
+      demoReferralAttributionsStore.push(attribution);
+      matchmaker.profilesReferredCount += 1;
+    }
+
+    return { success: true, matchmaker, attribution };
+  }
+
+  async getReferralAttributions(
+    matchmakerId: string,
+    session: AuthSession | null
+  ): Promise<ReferralAttribution[]> {
+    if (!canAccessRole(session, 'nadeem') && !canAccessRole(session, 'admin')) {
+      throw new Error('UNAUTHORIZED: Only bureau staff can view referral attributions.');
+    }
+
+    const mm = await this.findById(matchmakerId, session);
+    const targetUuid = mm ? mm.id : matchmakerId;
+
+    const config = getClientConfig();
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+
+      const { data, error } = await client
+        .from('referral_attributions')
+        .select('*')
+        .eq('matchmaker_id', targetUuid)
+        .order('created_at', { ascending: false });
+
+      if (error || !data) return [];
+      return data.map((d: any) => ({
+        id: d.id,
+        matchmakerId: d.matchmaker_id,
+        profileId: d.profile_id,
+        referralSource: d.referral_source,
+        attributedBy: d.attributed_by || undefined,
+        notes: d.notes || undefined,
+        createdAt: d.created_at,
+      }));
+    }
+
+    return demoReferralAttributionsStore.filter((a) => a.matchmakerId === targetUuid);
   }
 }
 

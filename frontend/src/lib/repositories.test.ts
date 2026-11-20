@@ -228,6 +228,18 @@ test('FinanceRepository: enforces role security, records transactions, reversals
   assert.equal(found.id, firstTx.id);
 
   // Staff can append transaction
+  const paidTx = await financeRepository.record(
+    {
+      matchmakerId: 'mm-rep-test',
+      matchmakerName: 'Rawalpindi Associates',
+      type: 'paid',
+      amount: 25000,
+      description: 'Settled partner invoice',
+    },
+    staffSession
+  );
+  assert.equal(paidTx.status, 'settled', 'Paid transaction must default to settled (P1-37)');
+
   const newTx = await financeRepository.record(
     {
       matchmakerId: 'mm-rep-test',
@@ -240,6 +252,7 @@ test('FinanceRepository: enforces role security, records transactions, reversals
   );
   assert.ok(newTx.id);
   assert.equal(newTx.amount, 45000);
+  assert.equal(newTx.status, 'pending', 'Receivable transaction must default to pending (P1-37)');
 
   // getPartnerSummary computes OPEN-010 formula (Receivable - Payable)
   const summaryBefore = await financeRepository.getPartnerSummary('mm-rep-test', staffSession);
@@ -251,13 +264,22 @@ test('FinanceRepository: enforces role security, records transactions, reversals
   const reversal = await financeRepository.reverse(newTx.id, 'Duplicate entry correction', staffSession);
   assert.equal(reversal.type, 'reversal');
   assert.equal(reversal.reversalOf, newTx.id);
+  assert.equal(reversal.status, 'settled', 'Reversal must have status settled');
 
-  // Reversing again fails with ALREADY_REVERSED
+  // Reversing again fails with ALREADY_REVERSED (P1-36)
   await assert.rejects(
     async () => {
       await financeRepository.reverse(newTx.id, 'Duplicate reversal attempt', staffSession);
     },
     /ALREADY_REVERSED/
+  );
+
+  // Attempting to reverse a reversal transaction must fail (P1-36)
+  await assert.rejects(
+    async () => {
+      await financeRepository.reverse(reversal.id, 'Cannot reverse a reversal', staffSession);
+    },
+    /CANNOT_REVERSE_REVERSAL/
   );
 
   // getPartnerSummary after reversal reconciles to 0
@@ -356,7 +378,32 @@ test('MatchmakerRepository: enforces role security, manages partner lifecycle, v
   assert.ok(byCode);
   assert.equal(byCode.id, 'mm-101');
 
-  // 3. Register a new flat-fee agreement (supersedes active percentage agreement)
+  // 3. Register a new tiered agreement (P1-33)
+  const tieredAgreement = await matchmakerRepository.createAgreement(
+    'mm-101',
+    {
+      feeType: 'tiered',
+      tieredRulesJson: {
+        tiers: [
+          { minMatches: 1, maxMatches: 5, ratePercent: 15 },
+          { minMatches: 6, maxMatches: null, ratePercent: 20 },
+        ],
+      },
+      termsText: 'Progressive tiers: 15% for first 5 matches, 20% thereafter.',
+      isActive: true,
+    },
+    staffSession
+  );
+  assert.equal(tieredAgreement.feeType, 'tiered');
+  assert.deepEqual(tieredAgreement.tieredRulesJson, {
+    tiers: [
+      { minMatches: 1, maxMatches: 5, ratePercent: 15 },
+      { minMatches: 6, maxMatches: null, ratePercent: 20 },
+    ],
+  });
+  assert.equal(tieredAgreement.isActive, true);
+
+  // Register a new flat-fee agreement (supersedes active tiered agreement)
   const newAgreement = await matchmakerRepository.createAgreement(
     'mm-101',
     {
@@ -371,14 +418,16 @@ test('MatchmakerRepository: enforces role security, manages partner lifecycle, v
   assert.equal(newAgreement.flatFeePKR, 60000);
   assert.equal(newAgreement.isActive, true);
 
-  // Verify superseded agreement is deactivated
+  // Verify superseded agreements are deactivated and tiered rules preserved in history
   const agreements = await matchmakerRepository.getAgreements('mm-101', staffSession);
-  assert.ok(agreements.length >= 2);
+  assert.ok(agreements.length >= 3);
   const activeCount = agreements.filter((a) => a.isActive).length;
   assert.equal(activeCount, 1, 'Exactly one active agreement per partner');
   assert.equal(agreements[0].feeType, 'flat_fee');
+  const pastTiered = agreements.find((a) => a.feeType === 'tiered');
+  assert.ok(pastTiered?.tieredRulesJson, 'Tiered rules must be preserved in agreement history');
 
-  // 4. Attribution: attribute profile referral
+  // 4. Attribution: attribute profile referral with candidate link, notes & persistence (P1-34)
   const initialReferrals = quran.profilesReferredCount;
   const attrRes = await matchmakerRepository.attributeReferral(
     'mm-101',
@@ -388,6 +437,25 @@ test('MatchmakerRepository: enforces role security, manages partner lifecycle, v
   );
   assert.equal(attrRes.success, true);
   assert.equal(attrRes.matchmaker.profilesReferredCount, initialReferrals + 1);
+  assert.ok(attrRes.attribution, 'Must return durable referral attribution');
+  assert.equal(attrRes.attribution?.matchmakerId, 'mm-101');
+  assert.equal(attrRes.attribution?.profileId, 'GLS-205');
+  assert.equal(attrRes.attribution?.notes, 'Client referred by Multan bureau.');
+
+  // Idempotent duplicate attribution test
+  const duplicateAttr = await matchmakerRepository.attributeReferral(
+    'mm-101',
+    'GLS-205',
+    staffSession,
+    'Updated attribution notes'
+  );
+  assert.equal(duplicateAttr.success, true);
+  assert.equal(duplicateAttr.matchmaker.profilesReferredCount, initialReferrals + 1, 'Duplicate attribution must not inflate count');
+
+  // getReferralAttributions verification
+  const attributions = await matchmakerRepository.getReferralAttributions('mm-101', staffSession);
+  assert.equal(attributions.length, 1);
+  assert.equal(attributions[0].profileId, 'GLS-205');
 
   // 5. Status update: suspend partner
   const suspended = await matchmakerRepository.updateStatus('mm-101', 'suspended', staffSession);

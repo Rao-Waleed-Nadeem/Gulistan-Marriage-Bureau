@@ -467,3 +467,137 @@ test('reconcileLedger detects imbalances, broken reversal integrity, and non-PKR
   assert.equal(currRecon.reconciled, false);
   assert.ok(currRecon.discrepancies.some((d) => d.includes('invalid currency')));
 });
+
+test('Accounting & Ledger Integrity: duplicate reversal prevention, reversal-of-reversal block, and status defaults (P1-35, P1-36, P1-37, P1-38)', () => {
+  // 1. Transaction status defaults (P1-37)
+  const paidTx = recordTransaction(
+    {
+      matchmakerId: 'mm-101',
+      matchmakerName: 'Haji Aslam Qureshi',
+      type: 'paid',
+      amount: 20000,
+      description: 'Settlement disbursement',
+      date: '2026-11-20',
+    },
+    staffSession
+  );
+  assert.equal(paidTx.success, true);
+  assert.equal(paidTx.transaction?.status, 'settled', 'Paid transactions must default to settled');
+
+  const receivedTx = recordTransaction(
+    {
+      matchmakerId: 'mm-101',
+      matchmakerName: 'Haji Aslam Qureshi',
+      type: 'received',
+      amount: 15000,
+      description: 'Inbound client fee',
+      date: '2026-11-20',
+    },
+    staffSession
+  );
+  assert.equal(receivedTx.success, true);
+  assert.equal(receivedTx.transaction?.status, 'settled', 'Received transactions must default to settled');
+
+  const payableTx = recordTransaction(
+    {
+      matchmakerId: 'mm-101',
+      matchmakerName: 'Haji Aslam Qureshi',
+      type: 'payable',
+      amount: 30000,
+      description: 'Partner commission fee',
+      date: '2026-11-20',
+    },
+    staffSession
+  );
+  assert.equal(payableTx.success, true);
+  assert.equal(payableTx.transaction?.status, 'pending', 'Payable transactions must default to pending');
+
+  // 2. Successful Reversal & Atomic Anti-Duplicate Check (P1-36)
+  const origId = payableTx.transaction!.id;
+  const firstRev = reverseTransaction(origId, 'Duplicate commission entry entered in error', staffSession);
+  assert.equal(firstRev.success, true);
+  assert.equal(firstRev.reversalTransaction?.type, 'reversal');
+  assert.equal(firstRev.reversalTransaction?.status, 'settled');
+  assert.equal(firstRev.reversalTransaction?.reversalOf, origId);
+
+  // Attempting second reversal must fail atomically
+  const secondRev = reverseTransaction(origId, 'Attempting duplicate reversal', staffSession);
+  assert.equal(secondRev.success, false);
+  assert.equal(secondRev.error?.code, 'ALREADY_REVERSED', 'Must block duplicate reversal of same transaction');
+
+  // Attempting to reverse a reversal transaction must fail
+  const revOfRev = reverseTransaction(firstRev.reversalTransaction!.id, 'Trying to reverse a reversal', staffSession);
+  assert.equal(revOfRev.success, false);
+  assert.equal(revOfRev.error?.code, 'CANNOT_REVERSE_REVERSAL', 'Must block reversing a reversal');
+
+  // 3. Reconcile ledger handles UUID & reference code lookups and detects duplicate reversals (P1-35, P1-36, P1-38)
+  const canonicalUuid = 'c8f10200-0000-4000-8000-000000000001';
+  const humanRef = 'TXN-9999';
+  const sampleTransactions: LedgerTransaction[] = [
+    {
+      id: canonicalUuid,
+      referenceCode: humanRef,
+      matchmakerId: 'mm-101',
+      matchmakerName: 'Haji Aslam',
+      type: 'receivable',
+      amount: 50000,
+      status: 'reversed',
+      currency: 'PKR',
+      date: '2026-11-01',
+      description: 'Registration fee',
+      createdAt: '2026-11-01T10:00:00Z',
+    },
+    {
+      id: 'rev-uuid-001',
+      referenceCode: 'REV-0001',
+      matchmakerId: 'mm-101',
+      matchmakerName: 'Haji Aslam',
+      type: 'reversal',
+      amount: 50000,
+      status: 'settled',
+      currency: 'PKR',
+      date: '2026-11-02',
+      description: 'Reversal by UUID',
+      reversalOf: canonicalUuid, // Refers by canonical UUID
+      createdAt: '2026-11-02T10:00:00Z',
+    },
+  ];
+
+  const reconByUuid = reconcileLedger(sampleTransactions);
+  assert.equal(reconByUuid.reconciled, true, 'Reconciliation must succeed when reversal targets canonical UUID');
+  assert.equal(reconByUuid.reversedTransactionsCount, 2);
+
+  // Reversal refers by human reference code
+  const sampleTransactionsByRef: LedgerTransaction[] = [
+    sampleTransactions[0],
+    {
+      ...sampleTransactions[1],
+      reversalOf: humanRef, // Refers by reference code
+    },
+  ];
+  const reconByRef = reconcileLedger(sampleTransactionsByRef);
+  assert.equal(reconByRef.reconciled, true, 'Reconciliation must succeed when reversal targets human reference code');
+
+  // Duplicate reversal detection
+  const duplicateReversalList: LedgerTransaction[] = [
+    sampleTransactions[0],
+    sampleTransactions[1],
+    {
+      id: 'rev-uuid-002',
+      referenceCode: 'REV-0002',
+      matchmakerId: 'mm-101',
+      matchmakerName: 'Haji Aslam',
+      type: 'reversal',
+      amount: 50000,
+      status: 'settled',
+      currency: 'PKR',
+      date: '2026-11-02',
+      description: 'Duplicate reversal',
+      reversalOf: canonicalUuid,
+      createdAt: '2026-11-02T10:05:00Z',
+    },
+  ];
+  const reconDup = reconcileLedger(duplicateReversalList);
+  assert.equal(reconDup.reconciled, false, 'Must fail reconciliation on duplicate reversals');
+  assert.ok(reconDup.discrepancies.some((d) => d.includes('Duplicate reversals detected')));
+});

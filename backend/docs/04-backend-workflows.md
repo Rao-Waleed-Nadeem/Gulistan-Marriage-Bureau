@@ -99,16 +99,24 @@ Do not build a public URL that simply embeds a profile ID and fetches all fields
 
 ## 4.7 Financial workflows (T-012 — Auditable Financial Ledger)
 
-Implemented in `frontend/src/lib/finance.ts`, backed by database migration `00002_financial_ledger.sql`, wired into `frontend/src/App.tsx`, and tested via `src/lib/finance.test.ts` and `backend/tests/financial_ledger.test.js`:
+Implemented in `frontend/src/lib/finance.ts`, backed by database migrations `00002_financial_ledger.sql` and `00010_matchmaker_and_finance_enhancements.sql`, wired into `frontend/src/App.tsx`, and verified via `src/lib/finance.test.ts` and `backend/tests/migration_00010.test.js`:
+- **Partner Clearinghouse Sub-Ledger Accounting Model (P1-38):**
+  - Tracks clearinghouse obligations (`payable`, `receivable`), settlements (`paid`, `received`), and corrections (`reversal`) between Gulistan Marriage Bureau and external partners.
+  - Distinct from a general journal with debit/credit double-entry postings; preserves approved partner clearinghouse model with rigorous integrity constraints.
 - **Explicit Currency & Precision:** Currency is strictly PKR (`ISO-4217: PKR`) with positive integer precision (`amount_pkr > 0`, `currency = 'PKR'`). Floating-point or fractional amounts are disallowed.
 - **Sign Convention & Balance Formula (OPEN-010):**
-  - `'payable'`: Bureau owes partner agency (liability).
-  - `'receivable'`: Partner agency owes Bureau (asset).
-  - `'paid'`: Settlement disbursement reducing liability.
-  - `'received'`: Settlement collection reducing receivable.
-  - `Net Balance = Total Pending Payable - Total Pending Receivable` (positive = Bureau owes partner; negative = partner owes Bureau).
-- **Append-Only Database Ledger & Traceable Reversals:** Historical entries cannot be silently overwritten or deleted. Migration `00002_financial_ledger.sql` defines Row-Level Security policies with strictly NO UPDATE or DELETE grants. Errors are corrected exclusively by appending inverse reversal records referencing `reversal_of` with documented business reasons.
-- **Deterministic Reconciliation:** `reconcileLedger` and `calculatePartnerLedger` reconcile total pending liabilities, settled volume, and net balances across all partner agencies.
+  - `'payable'`: Bureau owes partner agency (liability). Defaults to 'pending' status.
+  - `'receivable'`: Partner agency owes Bureau (asset). Defaults to 'pending' status.
+  - `'paid'`: Settlement disbursement reducing liability. Defaults to 'settled' status.
+  - `'received'`: Settlement collection reducing receivable. Defaults to 'settled' status.
+  - `'reversal'`: Correction counteracting prior entry. Always 'settled' status.
+  - `Net Balance = Total Pending Receivable - Total Pending Payable` (positive = partner owes Bureau / asset; negative = Bureau owes partner / liability; zero = settled).
+- **Append-Only Database Ledger & Atomic Reversals (P1-35, P1-36, P1-37):**
+  - Historical entries cannot be silently overwritten or deleted (no update/delete RLS).
+  - Database-level partial unique index `uq_financial_transactions_reversal` on `financial_transactions(reversal_of)` ensures a transaction can be reversed at most once.
+  - Check constraint `chk_financial_tx_reversal_status` guarantees reversals are always 'settled' and reference non-null `reversal_of`.
+  - Atomic server RPC `record_financial_reversal(p_original_id, p_reason, p_recorded_by)` locks original transaction `FOR UPDATE`, checks for double-reversals, sets original `status = 'reversed'`, and appends reversal entry with canonical UUID linkage.
+- **Deterministic Reconciliation:** `reconcileLedger` and `calculatePartnerLedger` reconcile total pending liabilities, settled volume, and net balances across all partner agencies. Resolves reversals referencing either canonical database UUID or human reference code.
 - **Role-Based Access & Minimal Audit:** Ledger access is restricted to Lead Matchmaker (Nadeem Ahmed) and Admin (`canAccessFinance`). Every ledger write logs an audit event omitting customer PII (Section 3.7).
 
 
@@ -124,6 +132,15 @@ Implemented in `frontend/src/lib/followUps.ts`, integrated into `frontend/src/Ap
 - **Input & Date Validation:** Validates profile references, contact names, valid phone numbers, ISO due dates, priorities (`high`, `medium`, `low`), and task types (`initial_consult`, `proposal_decision`, `meeting_arrangement`, `photo_request`, `payment_reminder`).
 - **Dynamic Overdue Calculation:** `computeFollowUpStatus` automatically evaluates calendar date boundaries to mark past-due pending tasks as `overdue`. Completed tasks permanently remain `completed`.
 - **Completion Tracking & Idempotency:** `completeFollowUp` records `completedAt` timestamp, `completedBy` email/actor ID, and completion notes. Calling completion on an already completed follow-up is safely idempotent.
+- **Partner UUID Preservation vs Human Code (P1-32):** Database UUIDs are preserved as primary record identifiers (`id`), while human-readable codes (`MM-MUL-01`, etc.) are maintained in `code`. Foreign-key relations use database UUIDs.
+- **Tiered Partner Agreements Schema (P1-33):**
+  - Migration `00010_matchmaker_and_finance_enhancements.sql` adds `tiered_rules JSONB NULL` to `public.matchmaker_agreements`.
+  - Supports percentage, flat-fee, and progressive tiered agreements (e.g. `[{"minMatches": 1, "maxMatches": 5, "ratePercent": 15}, {"minMatches": 6, "maxMatches": null, "ratePercent": 20}]`).
+  - Active agreements supersede prior agreements automatically while preserving full historical terms.
+- **Durable Referral Attributions Table & Atomic Server RPC (P1-34):**
+  - Migration `00010` provisions `public.referral_attributions` with foreign keys to `external_matchmakers(id)` and `profiles(id)`.
+  - Unique constraint `uq_referral_partner_profile` prevents duplicate attributions and provides idempotency.
+  - Server RPC `attribute_profile_referral(p_matchmaker_id, p_profile_id, p_notes, p_attributed_by)` verifies staff authorization, validates active partner status, records attribution, deterministically updates partner `referral_count`, and emits minimal audit trail.
 - **External Matchmaker Referral Attribution:** `attributeProfileToMatchmaker` verifies that partner agency is active, increments `profilesReferredCount`, and attributes candidate source to `external_matchmaker` in alignment with database check constraint `chk_profiles_source`. Inactive agencies are rejected (`MATCHMAKER_INACTIVE`).
 - **Consequential Audit Trail (Section 3.7):** Actions `follow_up_created`, `follow_up_completed`, and `matchmaker_attributed` log structured metadata (`actor_id`, `actor_role`, `target_type`, `target_id`, `details`) omitting raw phone numbers, full notes, or sensitive PII.
 

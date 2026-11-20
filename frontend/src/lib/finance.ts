@@ -1,25 +1,30 @@
 /**
  * Auditable Financial Ledger & Partner Account Engine — Gulistan Marriage Bureau
  * 
- * ARCHITECTURAL SPECIFICATION & POLICY (OPEN-010 & Section 4.7):
- * 1. Explicit Currency & Precision: All monetary transactions are explicitly PKR (Pakistani Rupee)
+ * ARCHITECTURAL SPECIFICATION & POLICY (OPEN-010, FIN-01..FIN-05, P1-35..P1-38):
+ * 1. Clearinghouse Sub-Ledger Accounting Model:
+ *    The financial ledger operates as a partner clearinghouse sub-ledger tracking obligations,
+ *    settlements, and reversals between Gulistan Marriage Bureau and external matchmaker partners.
+ *    It is not a general ledger journal with double-entry debit/credit postings.
+ * 2. Explicit Currency & Precision: All monetary transactions are explicitly PKR (Pakistani Rupee)
  *    and represented as positive integers (> 0). Fractional or floating-point values are prohibited.
- * 2. Sign Convention (Double-Entry Bureau Standard per approved OPEN-010):
- *    - 'payable': Liability incurred (Bureau owes partner matchmaker or referral agent).
- *    - 'receivable': Asset expected (Partner matchmaker or client owes Bureau).
- *    - 'paid': Disbursement settlement reducing a payable liability.
- *    - 'received': Inbound settlement reducing a receivable asset.
- *    - 'reversal': Traceable adjustment counteracting an erroneous prior entry.
- *    - Formula: Net Balance = Total Pending Receivable - Total Pending Payable.
+ * 3. Clearinghouse Transaction Types & Status Semantics:
+ *    - 'payable': Liability incurred (Bureau owes partner matchmaker). Defaults to 'pending'.
+ *    - 'receivable': Asset expected (Partner matchmaker owes Bureau). Defaults to 'pending'.
+ *    - 'paid': Disbursement settlement reducing a payable liability. Defaults to 'settled'.
+ *    - 'received': Inbound settlement reducing a receivable asset. Defaults to 'settled'.
+ *    - 'reversal': Traceable adjustment counteracting an erroneous prior entry. Always 'settled'.
+ *    - Formula: Net Balance = Total Pending Receivable (Agent owes Bureau) - Total Pending Payable (Bureau owes Agent).
  *      * Positive (> 0): Partner agent owes Bureau (Asset position).
  *      * Negative (< 0): Bureau owes partner agent (Liability position).
  *      * Zero (=== 0): Account fully reconciled and settled.
- * 3. Append-Only Ledger & Traceable Corrections: Historical entries cannot be silently
+ * 4. Append-Only Ledger & Traceable Reversals: Historical entries cannot be silently
  *    overwritten or deleted. Errors are corrected exclusively by appending inverse reversal
- *    transactions referencing the original entry (reversalOf).
- * 4. Reconciliation: Totals across partner accounts and the global bureau ledger
- *    must reconcile deterministically. Mismatches or broken reversal chains fail reconciliation.
- * 5. Role-Based Access & Minimal Audit: Ledger access is restricted to staff (Nadeem / Admin).
+ *    transactions referencing the canonical UUID of the original entry (reversalOf).
+ *    A transaction can be reversed at most once. Reversals cannot themselves be reversed.
+ * 5. Reconciliation & Proof: Totals across partner accounts and the global bureau clearinghouse
+ *    reconcile deterministically. Mismatches, broken reversal chains, or duplicate reversals fail reconciliation.
+ * 6. Role-Based Access & Minimal Audit: Ledger access is restricted to staff (Nadeem / Admin).
  *    Every write operation generates an audit event omitting customer PII (Section 3.7).
  */
 
@@ -40,6 +45,7 @@ export interface LedgerTransaction extends FinancialTransaction {
 }
 
 export interface TransactionInput {
+  referenceCode?: string;
   matchmakerId: string;
   matchmakerName: string;
   profileId?: string;
@@ -232,8 +238,12 @@ export function reconcileLedger(transactions: LedgerTransaction[]): BureauReconc
 
   for (const t of transactions) {
     txMap.set(t.id, t);
+    if (t.referenceCode) {
+      txMap.set(t.referenceCode, t);
+    }
     if (t.status === 'reversed') {
       reversedIds.add(t.id);
+      if (t.referenceCode) reversedIds.add(t.referenceCode);
     }
     if (t.type === 'reversal') {
       if (t.reversalOf) {
@@ -263,6 +273,11 @@ export function reconcileLedger(transactions: LedgerTransaction[]): BureauReconc
     if (!target) {
       discrepancies.push(`Reversal refers to non-existent transaction '${revTargetId}'.`);
     } else {
+      if (revList.length > 1) {
+        discrepancies.push(
+          `Duplicate reversals detected for transaction '${revTargetId}' (${revList.length} reversals found).`
+        );
+      }
       const totalReversedAmount = revList.reduce((sum, r) => sum + r.amount, 0);
       if (totalReversedAmount !== target.amount) {
         discrepancies.push(
@@ -273,16 +288,21 @@ export function reconcileLedger(transactions: LedgerTransaction[]): BureauReconc
   }
 
   // Check if any transaction is marked status === 'reversed' without a reversal record
-  for (const [id, t] of txMap.entries()) {
+  const checkedOriginals = new Set<string>();
+  for (const t of transactions) {
+    if (checkedOriginals.has(t.id)) continue;
+    checkedOriginals.add(t.id);
     if (t.status === 'reversed' && t.type !== 'reversal') {
-      if (!reversalsByTarget.has(id)) {
-        discrepancies.push(`Transaction '${id}' is marked reversed but has no corresponding reversal transaction.`);
+      const hasRev = reversalsByTarget.has(t.id) || (t.referenceCode && reversalsByTarget.has(t.referenceCode));
+      if (!hasRev) {
+        discrepancies.push(`Transaction '${t.id}' is marked reversed but has no corresponding reversal transaction.`);
       }
     }
   }
 
   for (const t of transactions) {
-    if (t.type === 'reversal' || t.status === 'reversed' || reversedIds.has(t.id)) {
+    const isReversed = t.type === 'reversal' || t.status === 'reversed' || reversedIds.has(t.id) || (t.referenceCode && reversedIds.has(t.referenceCode));
+    if (isReversed) {
       reversedCount++;
       continue;
     }
@@ -393,9 +413,11 @@ export function recordTransaction(
 
   const id = `tx-${Date.now()}-${generateCryptoUUID().slice(0, 8)}`;
   const now = new Date().toISOString();
+  const defaultStatus = (input.type === 'paid' || input.type === 'received' || input.type === 'reversal') ? 'settled' : 'pending';
 
   const newTx: LedgerTransaction = {
     id,
+    referenceCode: input.referenceCode,
     matchmakerId: input.matchmakerId.trim(),
     matchmakerName: input.matchmakerName.trim(),
     profileId: input.profileId?.trim(),
@@ -404,7 +426,7 @@ export function recordTransaction(
     currency: 'PKR',
     description: input.description.trim(),
     date: input.date,
-    status: input.status || (input.type === 'paid' || input.type === 'received' ? 'settled' : 'pending'),
+    status: input.status || defaultStatus,
     createdBy: session?.user?.id || 'usr-nadeem',
     createdAt: now,
   };
@@ -469,7 +491,7 @@ export function reverseTransaction(
     };
   }
 
-  const originalIndex = ledgerStore.findIndex((t) => t.id === originalId);
+  const originalIndex = ledgerStore.findIndex((t) => t.id === originalId || t.referenceCode === originalId);
   if (originalIndex === -1) {
     return {
       success: false,
@@ -482,7 +504,18 @@ export function reverseTransaction(
   }
 
   const original = ledgerStore[originalIndex];
-  if (original.status === 'reversed') {
+  if (original.type === 'reversal' || original.reversalOf) {
+    return {
+      success: false,
+      error: {
+        code: 'CANNOT_REVERSE_REVERSAL',
+        messageEn: `Transaction '${originalId}' is already a reversal transaction.`,
+        messageUrdu: `منسوخی کی ٹرانزیکشن کو دوبارہ منسوخ نہیں کیا جا سکتا۔`,
+      },
+    };
+  }
+
+  if (original.status === 'reversed' || ledgerStore.some((t) => t.reversalOf === original.id)) {
     return {
       success: false,
       error: {

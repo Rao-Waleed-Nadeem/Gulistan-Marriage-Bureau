@@ -256,6 +256,42 @@ Before applying pending migrations, the runner verifies that every already-appli
   COMMIT;
   ```
 
+### `00010_matchmaker_and_finance_enhancements.sql`
+* **Status:** Implemented under Task `T-037`.
+* **Scope:**
+  * Remediates independent audit findings P1-32, P1-33, P1-34, P1-35, P1-36, P1-37, and P1-38.
+  * Partner Agreements Tiered Model Schema:
+    - Adds `tiered_rules JSONB NULL` to `public.matchmaker_agreements` for progressive commission agreements.
+  * Referral Attributions Durable Schema:
+    - Creates table `public.referral_attributions` with foreign keys to `external_matchmakers(id)` and `profiles(id)`.
+    - Unique constraint `uq_referral_partner_profile` on `(matchmaker_id, profile_id)` enforcing attribution idempotency and preventing duplicate referral attribution.
+    - Enables RLS with staff policies: `referral_attributions_staff_select` and `referral_attributions_staff_insert`.
+  * Atomic Referral Attribution Server RPC `public.attribute_profile_referral(p_matchmaker_id UUID, p_profile_id UUID, p_notes TEXT, p_attributed_by UUID)`:
+    - Validates caller staff status, active partner status, and candidate profile existence.
+    - Atomically records attribution in `referral_attributions` and deterministically recalculates `external_matchmakers.referral_count` without concurrency race conditions.
+    - Appends minimal audit event `profile_referral_attributed`.
+  * Financial Reversal Partial Unique Index:
+    - `uq_financial_transactions_reversal` on `public.financial_transactions (reversal_of) WHERE reversal_of IS NOT NULL` enforcing single reversal at the database level.
+  * Transaction Type & Status Integrity:
+    - Check constraint `chk_financial_tx_reversal_status` ensuring reversals must have `status = 'settled'` and non-null `reversal_of`.
+  * Atomic Financial Reversal Server RPC `public.record_financial_reversal(p_original_id UUID, p_reason TEXT, p_recorded_by UUID)`:
+    - Acquires row lock `FOR UPDATE` on target transaction.
+    - Validates original existence, verifies transaction is not a reversal, and ensures it has not already been reversed.
+    - Updates original transaction `status = 'reversed'` and inserts new reversal transaction row with `status = 'settled'`.
+    - Appends minimal audit event `financial_transaction_reversed`.
+* **Rollback Procedure:**
+  ```sql
+  BEGIN;
+  DROP FUNCTION IF EXISTS public.record_financial_reversal(UUID, TEXT, UUID);
+  ALTER TABLE public.financial_transactions DROP CONSTRAINT IF EXISTS chk_financial_tx_reversal_status;
+  DROP INDEX IF EXISTS public.uq_financial_transactions_reversal;
+  DROP FUNCTION IF EXISTS public.attribute_profile_referral(UUID, UUID, TEXT, UUID);
+  DROP TABLE IF EXISTS public.referral_attributions CASCADE;
+  ALTER TABLE public.matchmaker_agreements DROP COLUMN IF EXISTS tiered_rules;
+  COMMIT;
+  ```
+
+
 
 
 
