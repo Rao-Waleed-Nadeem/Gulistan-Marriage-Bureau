@@ -45,7 +45,7 @@ export const ProfileDetailModal: React.FC<ProfileDetailModalProps> = ({
 
   const t = translations[language];
   const isRTL = language === 'ur';
-  const landConversion = convertMarlaToKanal(profile.property.areaMarlas);
+  const landConversion = profile.property ? convertMarlaToKanal(profile.property.areaMarlas) : null;
 
   const statusConfig = {
     pending_review: {
@@ -327,34 +327,40 @@ export const ProfileDetailModal: React.FC<ProfileDetailModalProps> = ({
               <Home className="w-5 h-5 text-[#B69A62]" />
               <span>{isRTL ? 'جائیداد اور رہائش' : 'Property & Housing Estate'}</span>
             </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs">
-              <div>
-                <span className="text-[#68716D] block">{t.propertyType}</span>
-                <span className="font-semibold capitalize text-[#182848]">{profile.property.propertyType}</span>
+            {profile.property && landConversion ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs">
+                <div>
+                  <span className="text-[#68716D] block">{t.propertyType}</span>
+                  <span className="font-semibold capitalize text-[#182848]">{profile.property.propertyType}</span>
+                </div>
+                <div>
+                  <span className="text-[#68716D] block">{t.propertyOwnership}</span>
+                  <span className="font-semibold capitalize text-[#182848]">{profile.property.ownership}</span>
+                </div>
+                <div>
+                  <span className="text-[#68716D] block">{t.landAreaMarla}</span>
+                  <span className="font-semibold text-[#182848]">
+                    {isRTL ? landConversion.formattedUrdu : landConversion.formattedEn}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[#68716D] block">{t.approxValue}</span>
+                  <span className="font-semibold text-[#182848]">
+                    {profile.property.approxValuePKR ? formatPKR(profile.property.approxValuePKR) : 'Undisclosed'}
+                  </span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-[#68716D] block">{t.householdType}</span>
+                  <span className="font-semibold capitalize text-[#182848]">
+                    {profile.property.householdArrangement.replace('_', ' ')} Family System
+                  </span>
+                </div>
               </div>
-              <div>
-                <span className="text-[#68716D] block">{t.propertyOwnership}</span>
-                <span className="font-semibold capitalize text-[#182848]">{profile.property.ownership}</span>
-              </div>
-              <div>
-                <span className="text-[#68716D] block">{t.landAreaMarla}</span>
-                <span className="font-semibold text-[#182848]">
-                  {isRTL ? landConversion.formattedUrdu : landConversion.formattedEn}
-                </span>
-              </div>
-              <div>
-                <span className="text-[#68716D] block">{t.approxValue}</span>
-                <span className="font-semibold text-[#182848]">
-                  {profile.property.approxValuePKR ? formatPKR(profile.property.approxValuePKR) : 'Undisclosed'}
-                </span>
-              </div>
-              <div className="col-span-2">
-                <span className="text-[#68716D] block">{t.householdType}</span>
-                <span className="font-semibold capitalize text-[#182848]">
-                  {profile.property.householdArrangement.replace('_', ' ')} Family System
-                </span>
-              </div>
-            </div>
+            ) : (
+              <p className="text-xs text-[#68716D] italic">
+                {isRTL ? 'کوئی جائیداد درج نہیں' : 'No real estate property holdings disclosed.'}
+              </p>
+            )}
           </div>
 
           {/* Section 6: Marriage Partner Preferences */}

@@ -33,7 +33,7 @@ export interface CandidateProfileData {
   caste: string;
   sect: string;
   familySummary: string;
-  propertySummary: string;
+  propertySummary?: string;
   contactNumber: string;
 }
 
@@ -59,7 +59,7 @@ export function generateWhatsAppMessage(
     if (options.includeCaste) lines.push(`*قوم / برادری:* ${candidate.caste}`);
     if (options.includeSect) lines.push(`*مسلک / عقیدہ:* ${candidate.sect}`);
     if (options.includeFamilySummary) lines.push(`*خاندانی کوائف:* ${candidate.familySummary}`);
-    if (options.includePropertySummary) lines.push(`*جائیداد / رہائش:* ${candidate.propertySummary}`);
+    if (options.includePropertySummary && candidate.propertySummary) lines.push(`*جائیداد / رہائش:* ${candidate.propertySummary}`);
     if (options.includeContactNumber) lines.push(`*رابطہ نمبر:* ${candidate.contactNumber}`);
 
     if (options.customNote) {
@@ -91,7 +91,7 @@ export function generateWhatsAppMessage(
   if (options.includeCaste) lines.push(`*Caste / Biradari:* ${candidate.caste}`);
   if (options.includeSect) lines.push(`*Sect / Aqeedah:* ${candidate.sect}`);
   if (options.includeFamilySummary) lines.push(`*Family Background:* ${candidate.familySummary}`);
-  if (options.includePropertySummary) lines.push(`*Property:* ${candidate.propertySummary}`);
+  if (options.includePropertySummary && candidate.propertySummary) lines.push(`*Property:* ${candidate.propertySummary}`);
   if (options.includeContactNumber) lines.push(`*Contact:* ${candidate.contactNumber}`);
 
   if (options.customNote) {

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ProfileRecord, SiblingRecord, Language, MaritalStatus, Gender } from '../../types';
 import { translations } from '../../i18n/translations';
 import { convertMarlaToKanal } from '../../utils/units';
+import { generateReferenceCode } from '../../lib/profiles';
 import { 
   User, 
   Briefcase, 
@@ -34,14 +35,14 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
   const [currentStep, setCurrentStep] = useState(1);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  // Form State (Blank/Unknown defaults per PROF-02: never fabricate facts or consent)
+  // Form State (Blank/Unknown defaults per PROF-02 & P1-08: never fabricate facts or consent)
   const [formData, setFormData] = useState<Partial<ProfileRecord>>({
     fullName: '',
     displayName: '',
-    gender: 'female',
-    age: 24,
-    height: "5'4\"",
-    maritalStatus: 'never_married',
+    gender: undefined,
+    age: undefined,
+    height: '',
+    maritalStatus: undefined,
     religion: '',
     aqeedah: '',
     caste: '',
@@ -63,20 +64,12 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
     motherOccupation: '',
     siblings: [],
     familyBackgroundNotes: '',
-    property: {
-      ownership: 'owned',
-      propertyType: 'house',
-      areaMarlas: 0,
-      city: '',
-      locality: '',
-      householdArrangement: 'independent',
-      homeSizeDescription: '',
-    },
+    property: undefined,
     preferences: {
-      ageMin: 20,
-      ageMax: 35,
+      ageMin: 0,
+      ageMax: 0,
       heightMin: '',
-      maritalStatus: ['never_married'],
+      maritalStatus: [],
       religion: '',
       aqeedah: '',
       caste: '',
@@ -87,11 +80,7 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
       familyArrangement: 'any',
       relocationPreference: 'willing_to_relocate',
       workAfterMarriagePreference: 'optional',
-      criteriaClassifications: {
-        religion: 'mandatory',
-        aqeedah: 'mandatory',
-        maritalStatus: 'mandatory',
-      },
+      criteriaClassifications: {},
     },
     contactPerson: '',
     contactPhone: '',
@@ -104,16 +93,18 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
   const marlaInput = formData.property?.areaMarlas || 0;
   const landCalc = convertMarlaToKanal(marlaInput);
 
-  // Sibling management
+  // Sibling management (P1-08: no fabricated sibling defaults)
   const handleAddSibling = () => {
     const newSib: SiblingRecord = {
       id: `sib-${Date.now()}`,
       relation: 'brother',
       name: '',
-      age: 24,
+      age: undefined,
       maritalStatus: 'never_married',
       occupation: '',
+      education: '',
       marriageDetails: '',
+      childrenCount: 0,
     };
     setFormData({
       ...formData,
@@ -159,8 +150,16 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
         setValidationError(language === 'ur' ? 'براہ کرم امیدوار کا پورا نام درج فرمائیں۔' : 'Please provide full name.');
         return false;
       }
-      if (!formData.age || formData.age < 18 || formData.age > 75) {
-        setValidationError(language === 'ur' ? 'براہ کرم موزوں عمر درج فرمائیں (۱۸ سے ۷۵ سال)۔' : 'Please provide a valid age between 18 and 75.');
+      if (!formData.gender) {
+        setValidationError(language === 'ur' ? 'براہ کرم جنس کا انتخاب فرمائیں۔' : 'Please select gender.');
+        return false;
+      }
+      if (!formData.age || isNaN(formData.age) || formData.age < 18 || formData.age > 100) {
+        setValidationError(language === 'ur' ? 'براہ کرم موزوں عمر درج فرمائیں (۱۸ سے ۱۰۰ سال)۔' : 'Please provide a valid age between 18 and 100.');
+        return false;
+      }
+      if (!formData.maritalStatus) {
+        setValidationError(language === 'ur' ? 'براہ کرم ازدواجی حیثیت منتخب فرمائیں۔' : 'Please select marital status.');
         return false;
       }
     } else if (step === 2) {
@@ -195,15 +194,15 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
       return;
     }
 
-    const newProfileId = `GLS-${Math.floor(410 + Math.random() * 90)}`;
+    const newProfileId = generateReferenceCode();
     const finalProfile: ProfileRecord = {
       id: newProfileId,
       fullName: formData.fullName?.trim() || '',
       displayName: formData.displayName?.trim() || formData.fullName?.trim() || '',
-      gender: (formData.gender as Gender) || 'female',
-      age: formData.age || 24,
-      height: formData.height || "5'4\"",
-      maritalStatus: (formData.maritalStatus as MaritalStatus) || 'never_married',
+      gender: formData.gender as Gender,
+      age: formData.age!,
+      height: formData.height || "5'6\"",
+      maritalStatus: formData.maritalStatus as MaritalStatus,
       religion: formData.religion?.trim() || '',
       aqeedah: formData.aqeedah?.trim() || '',
       caste: formData.caste?.trim() || '',
@@ -226,14 +225,16 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
       motherOccupation: formData.motherOccupation?.trim() || undefined,
       siblings: formData.siblings || [],
       familyBackgroundNotes: formData.familyBackgroundNotes?.trim() || undefined,
-      property: formData.property || {
-        ownership: 'other',
-        propertyType: 'house',
-        areaMarlas: 0,
-        city: formData.currentCity || '',
-        locality: formData.residenceArea || '',
-        householdArrangement: 'independent',
-      },
+      property: formData.property ? {
+        ownership: formData.property.ownership || 'owned',
+        propertyType: formData.property.propertyType || 'house',
+        areaMarlas: formData.property.areaMarlas || 0,
+        approxValuePKR: formData.property.approxValuePKR,
+        city: formData.property.city || formData.currentCity || '',
+        locality: formData.property.locality || formData.residenceArea || '',
+        householdArrangement: formData.property.householdArrangement || 'independent',
+        homeSizeDescription: formData.property.homeSizeDescription,
+      } : undefined,
       preferences: formData.preferences || ({} as any),
       status: 'pending_review',
       source: formData.source || 'walk_in',
@@ -387,10 +388,11 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
               <div>
                 <label className="block font-semibold text-[#182848] mb-1">{t.gender} *</label>
                 <select
-                  value={formData.gender}
+                  value={formData.gender || ''}
                   onChange={(e) => setFormData({ ...formData, gender: e.target.value as Gender })}
                   className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#182848] focus:outline-none bg-white"
                 >
+                  <option value="">{language === 'ur' ? '-- جنس منتخب کریں --' : '-- Select Gender --'}</option>
                   <option value="female">{language === 'ur' ? 'خاتون (دلہن)' : 'Female (Bride)'}</option>
                   <option value="male">{language === 'ur' ? 'مرد (دولہا)' : 'Male (Groom)'}</option>
                 </select>
@@ -400,8 +402,9 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
                 <label className="block font-semibold text-[#182848] mb-1">{t.age} *</label>
                 <input
                   type="number"
-                  value={formData.age}
-                  onChange={(e) => setFormData({ ...formData, age: Number(e.target.value) })}
+                  value={formData.age !== undefined ? formData.age : ''}
+                  onChange={(e) => setFormData({ ...formData, age: e.target.value ? Number(e.target.value) : undefined })}
+                  placeholder="e.g. 24"
                   className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#182848] focus:outline-none"
                 />
               </div>
@@ -410,7 +413,7 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
                 <label className="block font-semibold text-[#182848] mb-1">{t.height} *</label>
                 <input
                   type="text"
-                  value={formData.height}
+                  value={formData.height || ''}
                   onChange={(e) => setFormData({ ...formData, height: e.target.value })}
                   placeholder="e.g. 5'4&quot;"
                   className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#182848] focus:outline-none"
@@ -420,10 +423,11 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
               <div>
                 <label className="block font-semibold text-[#182848] mb-1">{t.maritalStatus} *</label>
                 <select
-                  value={formData.maritalStatus}
+                  value={formData.maritalStatus || ''}
                   onChange={(e) => setFormData({ ...formData, maritalStatus: e.target.value as MaritalStatus })}
                   className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#182848] focus:outline-none bg-white"
                 >
+                  <option value="">{language === 'ur' ? '-- ازدواجی حیثیت منتخب کریں --' : '-- Select Marital Status --'}</option>
                   <option value="never_married">{language === 'ur' ? 'غیر شادی شدہ' : 'Never Married'}</option>
                   <option value="divorced">{language === 'ur' ? 'مطلقہ' : 'Divorced'}</option>
                   <option value="widowed">{language === 'ur' ? 'بیوہ / رنڈوا' : 'Widowed'}</option>
@@ -711,118 +715,164 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
           </div>
         )}
 
-        {/* STEP 4: Property and Household */}
+        {/* STEP 4: Property and Household (Optional per P1-08/P1-09) */}
         {currentStep === 4 && (
           <div className="space-y-5 animate-fadeIn">
             <h3 className="font-serif text-xl font-bold text-[#182848] border-b border-[#E7E2D8] pb-2">
               {t.stepProperty}
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-sm">
+            <div className="bg-white/60 border border-[#E7E2D8] rounded-2xl p-4 flex items-center justify-between">
               <div>
-                <label className="block font-semibold text-[#182848] mb-1">{t.propertyOwnership}</label>
-                <select
-                  value={formData.property?.ownership}
-                  onChange={(e) =>
+                <p className="font-semibold text-sm text-[#182848]">
+                  {language === 'ur' ? 'جائیداد اور رہائش کی تفصیلات شامل کریں' : 'Record Real Estate Holdings'}
+                </p>
+                <p className="text-xs text-[#68716D]">
+                  {language === 'ur'
+                    ? 'اختیاری: اگر امیدوار کے پاس جائیداد کی تفصیلات دستیاب ہیں تو فعال کریں، ورنہ خالی چھوڑ دیں۔'
+                    : 'Optional: Check to record property details if provided; leave unchecked if not disclosed.'}
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={!!formData.property}
+                onChange={(e) => {
+                  if (e.target.checked) {
                     setFormData({
                       ...formData,
-                      property: { ...(formData.property as any), ownership: e.target.value },
-                    })
-                  }
-                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm bg-white"
-                >
-                  <option value="owned">Owned</option>
-                  <option value="family_owned">Family Owned Estate</option>
-                  <option value="rented">Rented</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-[#182848] mb-1">{t.propertyType}</label>
-                <select
-                  value={formData.property?.propertyType}
-                  onChange={(e) =>
+                      property: {
+                        ownership: 'owned',
+                        propertyType: 'house',
+                        areaMarlas: 0,
+                        city: formData.currentCity || '',
+                        locality: formData.residenceArea || '',
+                        householdArrangement: 'independent',
+                      },
+                    });
+                  } else {
                     setFormData({
                       ...formData,
-                      property: { ...(formData.property as any), propertyType: e.target.value },
-                    })
+                      property: undefined,
+                    });
                   }
-                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm bg-white"
-                >
-                  <option value="house">House / Villa</option>
-                  <option value="apartment">Apartment</option>
-                  <option value="plot">Plot / Farmhouse</option>
-                  <option value="agricultural">Agricultural Land</option>
-                </select>
-              </div>
+                }}
+                className="w-5 h-5 rounded border-gray-300 text-[#182848] focus:ring-[#182848] cursor-pointer"
+              />
+            </div>
 
-              {/* Dynamic Marla <-> Kanal Conversion Live Preview */}
-              <div className="sm:col-span-2 bg-[#182848]/5 border border-[#182848]/20 rounded-2xl p-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block font-semibold text-[#182848] mb-1">
-                      {t.landAreaMarla} (e.g. 25 Marla)
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.property?.areaMarlas || 0}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          property: { ...(formData.property as any), areaMarlas: Number(e.target.value) },
-                        })
-                      }
-                      className="w-full rounded-xl border border-[#E7E2D8] p-2.5 text-sm bg-white focus:border-[#182848] focus:outline-none"
-                    />
-                  </div>
+            {formData.property ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-sm animate-fadeIn">
+                <div>
+                  <label className="block font-semibold text-[#182848] mb-1">{t.propertyOwnership}</label>
+                  <select
+                    value={formData.property.ownership}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        property: { ...(formData.property as any), ownership: e.target.value },
+                      })
+                    }
+                    className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm bg-white"
+                  >
+                    <option value="owned">Owned</option>
+                    <option value="family_owned">Family Owned Estate</option>
+                    <option value="rented">Rented</option>
+                  </select>
+                </div>
 
-                  <div>
-                    <label className="block font-semibold text-[#B69A62] mb-1">
-                      {t.landAreaKanalEquiv} (Automatic Conversion)
-                    </label>
-                    <div className="rounded-xl border border-[#B69A62]/30 bg-white p-2.5 text-sm font-semibold text-[#182848]">
-                      {language === 'ur' ? landCalc.formattedUrdu : landCalc.formattedEn}
-                      <span className="block text-[10px] text-[#68716D] font-normal">
-                        Convention: 20 Marla = 1 Kanal ({landCalc.sqFtEquivalent.toLocaleString()} sq ft)
-                      </span>
+                <div>
+                  <label className="block font-semibold text-[#182848] mb-1">{t.propertyType}</label>
+                  <select
+                    value={formData.property.propertyType}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        property: { ...(formData.property as any), propertyType: e.target.value },
+                      })
+                    }
+                    className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm bg-white"
+                  >
+                    <option value="house">House / Villa</option>
+                    <option value="apartment">Apartment</option>
+                    <option value="plot">Plot / Farmhouse</option>
+                    <option value="agricultural">Agricultural Land</option>
+                  </select>
+                </div>
+
+                {/* Dynamic Marla <-> Kanal Conversion Live Preview */}
+                <div className="sm:col-span-2 bg-[#182848]/5 border border-[#182848]/20 rounded-2xl p-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-semibold text-[#182848] mb-1">
+                        {t.landAreaMarla} (e.g. 25 Marla)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.property.areaMarlas || 0}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            property: { ...(formData.property as any), areaMarlas: Number(e.target.value) },
+                          })
+                        }
+                        className="w-full rounded-xl border border-[#E7E2D8] p-2.5 text-sm bg-white focus:border-[#182848] focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-[#B69A62] mb-1">
+                        {t.landAreaKanalEquiv} (Automatic Conversion)
+                      </label>
+                      <div className="rounded-xl border border-[#B69A62]/30 bg-white p-2.5 text-sm font-semibold text-[#182848]">
+                        {language === 'ur' ? landCalc.formattedUrdu : landCalc.formattedEn}
+                        <span className="block text-[10px] text-[#68716D] font-normal">
+                          Convention: 20 Marla = 1 Kanal ({landCalc.sqFtEquivalent.toLocaleString()} sq ft)
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div>
-                <label className="block font-semibold text-[#182848] mb-1">{t.approxValue} (PKR)</label>
-                <input
-                  type="number"
-                  value={formData.property?.approxValuePKR || ''}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      property: { ...(formData.property as any), approxValuePKR: Number(e.target.value) },
-                    })
-                  }
-                  placeholder="e.g. 85000000"
-                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#182848] focus:outline-none"
-                />
-              </div>
+                <div>
+                  <label className="block font-semibold text-[#182848] mb-1">{t.approxValue} (PKR)</label>
+                  <input
+                    type="number"
+                    value={formData.property.approxValuePKR || ''}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        property: { ...(formData.property as any), approxValuePKR: Number(e.target.value) },
+                      })
+                    }
+                    placeholder="e.g. 85000000"
+                    className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm focus:border-[#182848] focus:outline-none"
+                  />
+                </div>
 
-              <div>
-                <label className="block font-semibold text-[#182848] mb-1">{t.householdType}</label>
-                <select
-                  value={formData.property?.householdArrangement}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      property: { ...(formData.property as any), householdArrangement: e.target.value },
-                    })
-                  }
-                  className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm bg-white"
-                >
-                  <option value="independent">Independent Family Residence</option>
-                  <option value="joint_family">Joint Family System</option>
-                </select>
+                <div>
+                  <label className="block font-semibold text-[#182848] mb-1">{t.householdType}</label>
+                  <select
+                    value={formData.property.householdArrangement}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        property: { ...(formData.property as any), householdArrangement: e.target.value },
+                      })
+                    }
+                    className="w-full rounded-xl border border-[#E7E2D8] p-3 text-sm bg-white"
+                  >
+                    <option value="independent">Independent Family Residence</option>
+                    <option value="joint_family">Joint Family System</option>
+                  </select>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-[#E7E2D8] p-8 text-center text-[#68716D] text-xs">
+                {language === 'ur'
+                  ? 'کوئی جائیداد درج نہیں کی گئی (اختیاری)۔ جائیداد شامل کرنے کے لیے اوپر دیا گیا باکس منتخب کریں۔'
+                  : 'No real estate holdings recorded for this profile. Check the box above to add details.'}
+              </div>
+            )}
           </div>
         )}
 

@@ -306,7 +306,7 @@ export function authorizeDisclosure(
     disclosedData.familySummary = profile.familyBackgroundNotes;
   }
 
-  if (requested.includePropertySummary) {
+  if (requested.includePropertySummary && profile.property) {
     authorizedFields.push('property_summary');
     const p = profile.property;
     disclosedData.propertySummary = `${p.areaMarlas} Marla (${p.propertyType}) in ${p.locality}, ${p.city}`;

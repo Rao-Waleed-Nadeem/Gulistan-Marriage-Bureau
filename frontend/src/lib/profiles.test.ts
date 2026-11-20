@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   parseHeightToInches,
   formatInchesToHeight,
+  generateReferenceCode,
   validateProfileInput,
   validateSiblingRecord,
   validatePropertyDetails,
@@ -11,11 +12,20 @@ import {
   sanitizeProfileForRole,
   profileDTOToRow,
   profileRowToDTO,
+  profilePreferencesRowToDTO,
+  profilePreferencesDTOToRow,
+  profileSiblingRowToDTO,
+  profileSiblingDTOToRow,
+  profilePropertyRowToDTO,
+  profilePropertyDTOToRow,
   fetchProfiles,
   createProfile,
   updateProfileStatus,
   resetDemoProfilesForTesting,
   ProfileRow,
+  ProfilePreferencesRow,
+  ProfileSiblingRow,
+  ProfilePropertyRow,
 } from './profiles';
 import { ProfileRecord } from '../types';
 import { AuthSession } from './auth';
@@ -303,6 +313,7 @@ test('sanitizeProfileForRole scrubs sibling real names and exact property values
   // Staff sees everything
   const staffView = sanitizeProfileForRole(fullProfile, 'nadeem');
   assert.equal(staffView.siblings[0].name, 'Bilal Tariq');
+  assert.ok(staffView.property);
   assert.equal(staffView.property.approxValuePKR, 45000000);
   assert.equal(staffView.property.locality, 'Johar Town Block G');
 
@@ -311,6 +322,176 @@ test('sanitizeProfileForRole scrubs sibling real names and exact property values
   assert.equal(publicView.siblings[0].name, undefined); // Real sibling name scrubbed
   assert.equal(publicView.siblings[0].marriageDetails, undefined); // In-law details scrubbed
   assert.equal(publicView.siblings[0].relation, 'brother'); // Relation preserved
+  assert.ok(publicView.property);
   assert.equal(publicView.property.approxValuePKR, undefined); // Exact net worth scrubbed
   assert.equal(publicView.property.locality, '[Disclosed upon introduction]');
 });
+
+test('generateReferenceCode produces collision-resistant identifiers (P1-14)', () => {
+  const codes = new Set<string>();
+  for (let i = 0; i < 500; i++) {
+    const code = generateReferenceCode();
+    assert.match(code, /^GLS-[0-9A-Z]{6}$/, 'Must match GLS- prefix with 6 alphanumeric chars');
+    assert.equal(codes.has(code), false, `Collision detected on iteration ${i}: ${code}`);
+    codes.add(code);
+  }
+  assert.equal(codes.size, 500);
+});
+
+test('Bidirectional child table DTO converters translate between snake_case and camelCase (P1-10, P1-11, P1-12)', () => {
+  // 1. Preferences conversion
+  const prefRow: ProfilePreferencesRow = {
+    id: 'pref-001',
+    profile_id: 'prof-001',
+    age_min: 22,
+    age_max: 28,
+    height_min_inches: 64,
+    height_max_inches: null,
+    marital_status: 'never_married',
+    religion: 'Islam',
+    aqeedah: 'Sunni / Hanafi',
+    caste: 'Rajput',
+    education: 'Masters',
+    occupations: ['Software Engineer', 'Data Scientist'],
+    cities: ['Lahore', 'Islamabad'],
+    property_expectation: 'Owned Home',
+    family_arrangement: 'independent',
+    lifestyle_notes: 'Values family gatherings and career development.',
+    criteria_classifications: { religion: 'mandatory', caste: 'preferred' },
+  };
+
+  const prefDTO = profilePreferencesRowToDTO(prefRow);
+  assert.equal(prefDTO.ageMin, 22);
+  assert.equal(prefDTO.ageMax, 28);
+  assert.equal(prefDTO.heightMin, '5\'4"');
+  assert.deepEqual(prefDTO.maritalStatus, ['never_married']);
+  assert.deepEqual(prefDTO.preferredOccupations, ['Software Engineer', 'Data Scientist']);
+  assert.deepEqual(prefDTO.cityPreferences, ['Lahore', 'Islamabad']);
+  assert.equal(prefDTO.familyArrangement, 'independent');
+  assert.equal(prefDTO.lifestyleNotes, 'Values family gatherings and career development.');
+
+  const reRowPref = profilePreferencesDTOToRow(prefDTO, 'prof-001');
+  assert.equal(reRowPref.age_min, 22);
+  assert.equal(reRowPref.age_max, 28);
+  assert.equal(reRowPref.height_min_inches, 64);
+  assert.equal(reRowPref.marital_status, 'never_married');
+  assert.deepEqual(reRowPref.occupations, ['Software Engineer', 'Data Scientist']);
+  assert.deepEqual(reRowPref.cities, ['Lahore', 'Islamabad']);
+
+  // 2. Sibling conversion
+  const sibRow: ProfileSiblingRow = {
+    id: 'sib-001',
+    profile_id: 'prof-001',
+    relation: 'sister',
+    name: 'Ayesha Tariq',
+    gender: 'female',
+    age: 26,
+    marital_status: 'married',
+    occupation: 'Dentist',
+    education: 'BDS',
+    marriage_details: 'Married into civil service family in Islamabad',
+    spouse_family_details: 'Father-in-law retired federal secretary',
+    children_count: 1,
+  };
+
+  const sibDTO = profileSiblingRowToDTO(sibRow);
+  assert.equal(sibDTO.relation, 'sister');
+  assert.equal(sibDTO.name, 'Ayesha Tariq');
+  assert.equal(sibDTO.age, 26);
+  assert.equal(sibDTO.maritalStatus, 'married');
+  assert.equal(sibDTO.education, 'BDS');
+  assert.equal(sibDTO.marriageDetails, 'Married into civil service family in Islamabad');
+  assert.equal(sibDTO.spouseFamilyDetails, 'Father-in-law retired federal secretary');
+  assert.equal(sibDTO.childrenCount, 1);
+
+  const reRowSib = profileSiblingDTOToRow(sibDTO, 'prof-001');
+  assert.equal(reRowSib.relation, 'sister');
+  assert.equal(reRowSib.gender, 'female');
+  assert.equal(reRowSib.age, 26);
+  assert.equal(reRowSib.education, 'BDS');
+  assert.equal(reRowSib.children_count, 1);
+
+  // 3. Property conversion
+  const propRow: ProfilePropertyRow = {
+    id: 'prop-001',
+    profile_id: 'prof-001',
+    ownership: 'family_owned',
+    property_type: 'house',
+    area_marlas: 25,
+    area_kanal_display: '1 Kanal 5 Marla',
+    approx_value_pkr: 75000000,
+    city: 'Rawalpindi',
+    locality: 'Bahria Town Phase 4',
+    household_arrangement: 'joint_family',
+  };
+
+  const propDTO = profilePropertyRowToDTO(propRow);
+  assert.equal(propDTO.ownership, 'family_owned');
+  assert.equal(propDTO.propertyType, 'house');
+  assert.equal(propDTO.areaMarlas, 25);
+  assert.equal(propDTO.approxValuePKR, 75000000);
+  assert.equal(propDTO.householdArrangement, 'joint_family');
+
+  const reRowProp = profilePropertyDTOToRow(propDTO, 'prof-001');
+  assert.equal(reRowProp.ownership, 'family_owned');
+  assert.equal(reRowProp.area_marlas, 25);
+  assert.equal(reRowProp.approx_value_pkr, 75000000);
+  assert.equal(reRowProp.household_arrangement, 'joint_family');
+});
+
+test('profileRowToDTO: strictly preserves absent property as undefined without fabrication (P1-09)', () => {
+  const bareRow: ProfileRow = {
+    id: '11111111-2222-3333-4444-555555555555',
+    reference_code: 'GLS-999',
+    account_id: 'usr-customer-123',
+    created_by: 'usr-customer-123',
+    full_name: 'Zainab Bibi',
+    display_name: 'Zainab B.',
+    gender: 'female',
+    age: 23,
+    dob: null,
+    height_inches: 63,
+    height_display: "5'3\"",
+    marital_status: 'never_married',
+    religion: 'Islam',
+    aqeedah: 'Sunni',
+    caste: 'Arain',
+    sub_caste: null,
+    education_level: 'Bachelors',
+    education_field: 'Computer Science',
+    occupation: 'Software Engineer',
+    job_title: 'Frontend Engineer',
+    company_or_sector: 'Tech Corp',
+    monthly_income_pkr: 150000,
+    hometown: 'Faisalabad',
+    current_city: 'Lahore',
+    residence_area: 'Model Town',
+    status: 'pending_review',
+    source: 'direct_web',
+    assigned_matchmaker_id: null,
+    contact_person: 'Self',
+    contact_phone: '+92 300 1122334',
+    contact_email: 'zainab@example.com',
+    preferred_contact_method: 'whatsapp',
+    photo_permission_granted: false,
+    representative_consent_certified: true,
+    internal_notes: null,
+    created_at: '2026-11-20T00:00:00Z',
+    updated_at: '2026-11-20T00:00:00Z',
+  };
+
+  // Convert without nested property details
+  const dtoWithoutProperty = profileRowToDTO(bareRow, {
+    preferences: undefined,
+    property: undefined,
+    siblings: [],
+  });
+
+  // Verify P1-09 invariant: property must NOT be fabricated into house/0-marla/independent
+  assert.equal(dtoWithoutProperty.property, undefined, 'Absent property must remain undefined');
+  assert.equal(dtoWithoutProperty.databaseId, '11111111-2222-3333-4444-555555555555');
+  assert.equal(dtoWithoutProperty.referenceCode, 'GLS-999');
+  assert.equal(dtoWithoutProperty.accountId, 'usr-customer-123');
+  assert.equal(dtoWithoutProperty.createdBy, 'usr-customer-123');
+});
+

@@ -40,7 +40,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const t = translations[language];
 
-  const landConversion = convertMarlaToKanal(profile.property.areaMarlas);
+  const landConversion = profile.property ? convertMarlaToKanal(profile.property.areaMarlas) : null;
 
   const statusConfig = {
     pending_review: {
@@ -159,13 +159,20 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                 <MapPin className="w-4 h-4 text-[#486878] shrink-0" />
                 <span className="truncate">{profile.currentCity} ({profile.residenceArea})</span>
               </div>
-              <div className="flex items-center gap-2 truncate">
-                <Home className="w-4 h-4 text-[#486878] shrink-0" />
-                <span>
-                  {language === 'ur' ? landConversion.formattedUrdu : landConversion.formattedEn}
-                  <span className="text-[#68716D] text-xs"> ({profile.property.propertyType})</span>
-                </span>
-              </div>
+              {profile.property && landConversion ? (
+                <div className="flex items-center gap-2 truncate">
+                  <Home className="w-4 h-4 text-[#486878] shrink-0" />
+                  <span>
+                    {language === 'ur' ? landConversion.formattedUrdu : landConversion.formattedEn}
+                    <span className="text-[#68716D] text-xs"> ({profile.property.propertyType})</span>
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 truncate text-[#68716D]">
+                  <Home className="w-4 h-4 text-[#486878] shrink-0" />
+                  <span>{language === 'ur' ? 'جائیداد غیر معینہ' : 'Property Not Specified'}</span>
+                </div>
+              )}
             </div>
 
             {/* Sibling Overview Line */}
@@ -228,22 +235,24 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
             </div>
 
             {/* Property Breakdown */}
-            <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/15 p-3.5 text-[11px] grid grid-cols-2 gap-2">
-              <div>
-                <span className="text-[#68716D] block">Property Ownership:</span>
-                <span className="font-semibold text-[#182848] capitalize">{profile.property.ownership}</span>
+            {profile.property && (
+              <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/15 p-3.5 text-[11px] grid grid-cols-2 gap-2">
+                <div>
+                  <span className="text-[#68716D] block">Property Ownership:</span>
+                  <span className="font-semibold text-[#182848] capitalize">{profile.property.ownership}</span>
+                </div>
+                <div>
+                  <span className="text-[#68716D] block">Estimated Valuation:</span>
+                  <span className="font-semibold text-[#182848]">
+                    {profile.property.approxValuePKR ? formatPKR(profile.property.approxValuePKR) : 'Undisclosed'}
+                  </span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-[#68716D] block">Household Type:</span>
+                  <span className="capitalize">{profile.property.householdArrangement.replace('_', ' ')} family system</span>
+                </div>
               </div>
-              <div>
-                <span className="text-[#68716D] block">Estimated Valuation:</span>
-                <span className="font-semibold text-[#182848]">
-                  {profile.property.approxValuePKR ? formatPKR(profile.property.approxValuePKR) : 'Undisclosed'}
-                </span>
-              </div>
-              <div className="col-span-2">
-                <span className="text-[#68716D] block">Household Type:</span>
-                <span className="capitalize">{profile.property.householdArrangement.replace('_', ' ')} family system</span>
-              </div>
-            </div>
+            )}
 
             {/* Internal Notes if authorized */}
             {showInternalNotes && profile.internalNotes && (

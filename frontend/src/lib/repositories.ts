@@ -29,8 +29,16 @@ import { MatchEvaluation, EvaluatedCriterion } from './matching';
 import { generateCryptoUUID } from './crypto';
 import {
   ProfileRow,
+  ProfilePreferencesRow,
+  ProfileSiblingRow,
+  ProfilePropertyRow,
   profileRowToDTO,
   profileDTOToRow,
+  profilePreferencesDTOToRow,
+  profileSiblingDTOToRow,
+  profilePropertyDTOToRow,
+  enrichPropertyDetails,
+  generateReferenceCode,
   sanitizeProfileForRole,
   validateProfileInput,
   canTransitionStatus,
@@ -319,7 +327,8 @@ class ProfileRepositoryImpl implements IProfileRepository {
       const client = getSupabaseClient();
       if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
 
-      const { data, error } = await client
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      const query = client
         .from('profiles')
         .select(`
           *,
@@ -327,11 +336,15 @@ class ProfileRepositoryImpl implements IProfileRepository {
           profile_siblings (*),
           profile_property_details (*),
           profile_photos (*)
-        `)
-        .eq('reference_code', id)
-        .single();
+        `);
 
-      if (error || !data) return null;
+      const { data, error } = await (isUUID ? query.eq('id', id) : query.eq('reference_code', id)).single();
+
+      if (error) {
+        if (error.code === 'PGRST116') return null; // zero rows found
+        throw new Error(`DATABASE_ERROR: ${error.message}`);
+      }
+      if (!data) return null;
 
       const row = data as unknown as ProfileRow;
       const nested = {
@@ -342,16 +355,30 @@ class ProfileRepositoryImpl implements IProfileRepository {
       };
 
       const dto = profileRowToDTO(row, nested);
-      const isOwner = session?.user?.id === dto.id || session?.user?.email === dto.contactEmail;
-      return sanitizeProfileForRole(dto, viewerRole, isOwner);
+      const isOwner = session?.user?.id && (
+        session.user.id === dto.accountId ||
+        session.user.id === dto.createdBy ||
+        session.user.id === dto.databaseId ||
+        session.user.id === dto.id ||
+        (dto.contactEmail && session.user.email?.toLowerCase() === dto.contactEmail.toLowerCase())
+      );
+      return sanitizeProfileForRole(dto, viewerRole, !!isOwner);
     }
 
-    // Demo Mode
-    const found = demoProfilesStore.find((p) => p.id === id);
+    // Demo Mode: resolve by reference code or UUID
+    const found = demoProfilesStore.find(
+      (p) => p.id === id || (p.referenceCode && p.referenceCode === id) || (p.databaseId && p.databaseId === id)
+    );
     if (!found) return null;
 
-    const isOwner = session?.user?.id === found.id || session?.user?.email === found.contactEmail;
-    return sanitizeProfileForRole(found, viewerRole, isOwner);
+    const isOwner = session?.user?.id && (
+      session.user.id === found.accountId ||
+      session.user.id === found.createdBy ||
+      session.user.id === found.databaseId ||
+      session.user.id === found.id ||
+      (found.contactEmail && session.user.email?.toLowerCase() === found.contactEmail.toLowerCase())
+    );
+    return sanitizeProfileForRole(found, viewerRole, !!isOwner);
   }
 
   async findAll(session: AuthSession | null, filters?: ProfileFilters): Promise<ProfileRecord[]> {
@@ -383,7 +410,8 @@ class ProfileRepositoryImpl implements IProfileRepository {
       }
 
       const { data, error } = await query;
-      if (error || !data) return [];
+      if (error) throw new Error(`DATABASE_ERROR: ${error.message}`);
+      if (!data) return [];
 
       return data.map((d: any) => {
         const row = d as ProfileRow;
@@ -394,8 +422,14 @@ class ProfileRepositoryImpl implements IProfileRepository {
           photoUrl: d.profile_photos?.[0]?.storage_path || '',
         };
         const dto = profileRowToDTO(row, nested);
-        const isOwner = session?.user?.id === dto.id || session?.user?.email === dto.contactEmail;
-        return sanitizeProfileForRole(dto, viewerRole, isOwner);
+        const isOwner = session?.user?.id && (
+          session.user.id === dto.accountId ||
+          session.user.id === dto.createdBy ||
+          session.user.id === dto.databaseId ||
+          session.user.id === dto.id ||
+          (dto.contactEmail && session.user.email?.toLowerCase() === dto.contactEmail.toLowerCase())
+        );
+        return sanitizeProfileForRole(dto, viewerRole, !!isOwner);
       });
     }
 
@@ -412,8 +446,14 @@ class ProfileRepositoryImpl implements IProfileRepository {
     }
 
     return list.map((p) => {
-      const isOwner = session?.user?.id === p.id || session?.user?.email === p.contactEmail;
-      return sanitizeProfileForRole(p, viewerRole, isOwner);
+      const isOwner = session?.user?.id && (
+        session.user.id === p.accountId ||
+        session.user.id === p.createdBy ||
+        session.user.id === p.databaseId ||
+        session.user.id === p.id ||
+        (p.contactEmail && session.user.email?.toLowerCase() === p.contactEmail.toLowerCase())
+      );
+      return sanitizeProfileForRole(p, viewerRole, !!isOwner);
     });
   }
 
@@ -425,10 +465,14 @@ class ProfileRepositoryImpl implements IProfileRepository {
       throw new Error('UNAUTHORIZED: Must be signed in as staff or verified customer to register candidate profiles.');
     }
 
-    // Force self-service constraints for customer registration (PROF-03)
+    // Force self-service constraints for customer registration (P0-03, P0-15)
     if (!isStaff && isCustomer) {
       profileData.status = 'pending_review';
       profileData.source = 'direct_web';
+      profileData.accountId = session?.user?.id;
+      profileData.createdBy = session?.user?.id;
+    } else if (isStaff) {
+      profileData.createdBy = session?.user?.id;
     }
 
     const validation = validateProfileInput(profileData);
@@ -442,50 +486,65 @@ class ProfileRepositoryImpl implements IProfileRepository {
       const client = getSupabaseClient();
       if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
 
-      const row = profileDTOToRow(profileData, session?.user?.id);
-      const { data, error } = await client.from('profiles').insert(row).select().single();
-      if (error || !data) throw new Error(`DATABASE_ERROR: ${error?.message}`);
+      const parentRow = profileDTOToRow(profileData, session?.user?.id);
+      const prefRow = profileData.preferences ? profilePreferencesDTOToRow(profileData.preferences) : null;
+      const propRow = profileData.property ? profilePropertyDTOToRow(profileData.property) : null;
+      const sibRows = profileData.siblings && profileData.siblings.length > 0
+        ? profileData.siblings.map((s) => profileSiblingDTOToRow(s))
+        : null;
 
-      // If preferences, property, or siblings were provided, insert into normalized tables
-      if (profileData.preferences) {
-        await client.from('profile_preferences').insert({
-          profile_id: data.id,
-          age_min: profileData.preferences.ageMin,
-          age_max: profileData.preferences.ageMax,
-          religion: profileData.preferences.religion,
-          aqeedah: profileData.preferences.aqeedah,
-          caste: profileData.preferences.caste,
-          criteria_classifications: profileData.preferences.criteriaClassifications || {},
+      // 1. Try single atomic transactional RPC (P1-13)
+      try {
+        const { data: bundleData, error: rpcError } = await client.rpc('create_profile_bundle', {
+          p_profile: parentRow,
+          p_preferences: prefRow,
+          p_property: propRow,
+          p_siblings: sibRows,
         });
+
+        if (!rpcError && bundleData && bundleData.profile) {
+          return profileRowToDTO(bundleData.profile as ProfileRow, {
+            preferences: bundleData.preferences || undefined,
+            property: bundleData.property || undefined,
+            siblings: bundleData.siblings || [],
+            photoUrl: profileData.photoUrl,
+          });
+        }
+      } catch {
+        // Fall back to direct write with transactional rollback
       }
 
-      if (profileData.property) {
-        await client.from('profile_property_details').insert({
-          profile_id: data.id,
-          ownership: profileData.property.ownership,
-          property_type: profileData.property.propertyType,
-          area_marlas: profileData.property.areaMarlas,
-          city: profileData.property.city,
-          locality: profileData.property.locality,
-          household_arrangement: profileData.property.householdArrangement,
-        });
+      // 2. Direct write with rollback on child failure (P1-13)
+      const { data: parentData, error: parentError } = await client.from('profiles').insert(parentRow).select().single();
+      if (parentError || !parentData) throw new Error(`DATABASE_ERROR: ${parentError?.message}`);
+
+      try {
+        if (prefRow) {
+          const { error: prefErr } = await client
+            .from('profile_preferences')
+            .insert({ ...prefRow, profile_id: parentData.id });
+          if (prefErr) throw prefErr;
+        }
+
+        if (propRow) {
+          const { error: propErr } = await client
+            .from('profile_property_details')
+            .insert({ ...propRow, profile_id: parentData.id });
+          if (propErr) throw propErr;
+        }
+
+        if (sibRows && sibRows.length > 0) {
+          const siblingsPayload = sibRows.map((s) => ({ ...s, profile_id: parentData.id }));
+          const { error: sibErr } = await client.from('profile_siblings').insert(siblingsPayload);
+          if (sibErr) throw sibErr;
+        }
+      } catch (childErr: any) {
+        // Atomic compensation: delete created parent profile on child insert failure
+        await client.from('profiles').delete().eq('id', parentData.id);
+        throw new Error(`TRANSACTION_FAILED: Child write failed, parent rolled back: ${childErr?.message || childErr}`);
       }
 
-      if (profileData.siblings && profileData.siblings.length > 0) {
-        const siblingsRows = profileData.siblings.map((s) => ({
-          profile_id: data.id,
-          relation: s.relation,
-          name: s.name,
-          gender: s.relation === 'brother' ? 'male' : 'female',
-          age: s.age,
-          marital_status: s.maritalStatus,
-          occupation: s.occupation,
-          children_count: s.childrenCount || 0,
-        }));
-        await client.from('profile_siblings').insert(siblingsRows);
-      }
-
-      return profileRowToDTO(data as ProfileRow, {
+      return profileRowToDTO(parentData as ProfileRow, {
         preferences: profileData.preferences,
         property: profileData.property,
         siblings: profileData.siblings,
@@ -494,13 +553,18 @@ class ProfileRepositoryImpl implements IProfileRepository {
     }
 
     // Demo Mode
-    const newRefCode = `GLS-${100 + demoProfilesStore.length + 1}`;
+    const newRefCode = generateReferenceCode();
+    const demoUUID = `00000000-0000-4000-8000-${Math.random().toString(16).substring(2, 14).padStart(12, '0')}`;
     const now = new Date().toISOString().split('T')[0];
 
     const newProfile: ProfileRecord = {
       id: newRefCode,
+      databaseId: demoUUID,
+      referenceCode: newRefCode,
+      accountId: isStaff ? (profileData.accountId || undefined) : session?.user?.id,
+      createdBy: session?.user?.id,
       fullName: profileData.fullName!.trim(),
-      displayName: profileData.displayName!.trim(),
+      displayName: profileData.displayName?.trim() || profileData.fullName!.trim(),
       gender: profileData.gender!,
       age: profileData.age!,
       dob: profileData.dob,
@@ -525,14 +589,7 @@ class ProfileRepositoryImpl implements IProfileRepository {
       motherStatus: profileData.motherStatus,
       siblings: profileData.siblings || [],
       familyBackgroundNotes: profileData.familyBackgroundNotes || '',
-      property: profileData.property || {
-        ownership: 'owned',
-        propertyType: 'house',
-        areaMarlas: 0,
-        city: profileData.currentCity!.trim(),
-        locality: profileData.residenceArea!.trim(),
-        householdArrangement: 'independent',
-      },
+      property: profileData.property ? enrichPropertyDetails(profileData.property) : undefined,
       preferences: profileData.preferences || ({} as any),
       status: 'pending_review',
       source: isStaff ? (profileData.source || 'walk_in') : 'direct_web',

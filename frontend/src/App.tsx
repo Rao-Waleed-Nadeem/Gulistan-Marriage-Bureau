@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Role, 
   Language, 
@@ -106,6 +106,22 @@ export default function App() {
   const [recommendations] = useState<MatchRecommendation[]>(() =>
     isDemo ? INITIAL_RECOMMENDATIONS : []
   );
+
+  // Resolve explicit customer profile ownership per P0-15 and P1-15
+  const customerProfile = useMemo(() => {
+    if (!profiles || profiles.length === 0) return null;
+    if (session?.user?.id) {
+      const owned = profiles.find(
+        (p) =>
+          (p.accountId && p.accountId === session.user?.id) ||
+          (p.createdBy && p.createdBy === session.user?.id) ||
+          (p.databaseId && p.databaseId === session.user?.id) ||
+          (p.contactEmail && session.user?.email && p.contactEmail.toLowerCase() === session.user.email.toLowerCase())
+      );
+      if (owned) return owned;
+    }
+    return profiles[0] || null;
+  }, [profiles, session]);
 
   // Validate public backend configuration boundary and initialize auth lifecycle at startup
   useEffect(() => {
@@ -466,7 +482,7 @@ export default function App() {
               />
             ) : (
               <CustomerPortal
-                currentProfile={profiles[0] || null} // Dr. Fatima Tariq in demo, or customer's own profile
+                currentProfile={customerProfile}
                 recommendations={recommendations}
                 candidateProfiles={profiles}
                 language={language}

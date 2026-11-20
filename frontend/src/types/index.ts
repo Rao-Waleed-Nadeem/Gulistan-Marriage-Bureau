@@ -19,8 +19,11 @@ export interface SiblingRecord {
   age?: number;
   maritalStatus: MaritalStatus | 'married';
   occupation?: string;
+  education?: string;
   marriageDetails?: string;
+  spouseFamilyDetails?: string;
   childrenCount?: number;
+  orderIndex?: number;
 }
 
 export interface PropertyDetails {
@@ -56,7 +59,11 @@ export interface PartnerPreference {
 }
 
 export interface ProfileRecord {
-  id: string; // e.g. GLS-101
+  id: string; // reference_code (e.g. GLS-101) or UUID
+  databaseId?: string; // PostgreSQL UUID primary key
+  referenceCode?: string; // Human-readable reference code
+  accountId?: string; // Customer owner user account UUID
+  createdBy?: string; // Creator user account UUID
   fullName: string;
   displayName: string;
   gender: Gender;
@@ -91,8 +98,8 @@ export interface ProfileRecord {
   siblings: SiblingRecord[];
   familyBackgroundNotes?: string;
 
-  // Property
-  property: PropertyDetails;
+  // Property (Optional: absent property is undefined, not fabricated per P1-09)
+  property?: PropertyDetails;
 
   // Preferences
   preferences: PartnerPreference;

@@ -56,8 +56,65 @@ export interface ProfileRow {
   representative_consent_certified: boolean;
   internal_notes: string | null;
   created_by: string | null;
+  account_id?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/**
+ * Raw database row models for child tables in PostgreSQL.
+ */
+export interface ProfilePreferencesRow {
+  id?: string;
+  profile_id?: string;
+  age_min: number | null;
+  age_max: number | null;
+  height_min_inches: number | null;
+  height_max_inches: number | null;
+  marital_status: string | null;
+  religion: string | null;
+  aqeedah: string | null;
+  caste: string | null;
+  education: string | null;
+  occupations: string[] | null;
+  cities: string[] | null;
+  property_expectation: string | null;
+  family_arrangement: string | null;
+  lifestyle_notes: string | null;
+  criteria_classifications: Record<string, any>;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ProfileSiblingRow {
+  id?: string;
+  profile_id?: string;
+  relation: string;
+  name: string | null;
+  gender?: string;
+  age: number | null;
+  marital_status: string | null;
+  occupation: string | null;
+  education: string | null;
+  marriage_details: string | null;
+  spouse_family_details: string | null;
+  children_count: number;
+  created_at?: string;
+}
+
+export interface ProfilePropertyRow {
+  id?: string;
+  profile_id?: string;
+  ownership: string;
+  property_type: string;
+  area_marlas: number;
+  area_kanal_display: string | null;
+  approx_value_pkr: number | null;
+  city: string;
+  locality: string;
+  household_arrangement: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 /**
@@ -129,22 +186,223 @@ export function formatInchesToHeight(inches: number): string {
 }
 
 /**
+ * Collision-resistant candidate reference code generator (P1-14).
+ * Generates a unique reference code e.g. "GLS-7K9M2P" with 36^6 entropy.
+ */
+export function generateReferenceCode(prefix = 'GLS-'): string {
+  const chars = '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  let token = '';
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const bytes = new Uint8Array(6);
+    crypto.getRandomValues(bytes);
+    for (let i = 0; i < 6; i++) {
+      token += chars[bytes[i] % chars.length];
+    }
+  } else {
+    for (let i = 0; i < 6; i++) {
+      token += chars[Math.floor(Math.random() * chars.length)];
+    }
+  }
+  return `${prefix}${token}`;
+}
+
+/**
+ * Converts a database snake_case row to the domain camelCase PartnerPreference DTO (P1-10, P1-11).
+ */
+export function profilePreferencesRowToDTO(row: Partial<ProfilePreferencesRow>): PartnerPreference {
+  const maritalStatusArr: MaritalStatus[] = [];
+  if (row.marital_status) {
+    maritalStatusArr.push(row.marital_status as MaritalStatus);
+  }
+
+  return {
+    ageMin: row.age_min ?? 0,
+    ageMax: row.age_max ?? 0,
+    heightMin: row.height_min_inches ? formatInchesToHeight(row.height_min_inches) : '',
+    maritalStatus: maritalStatusArr,
+    religion: row.religion || '',
+    aqeedah: row.aqeedah || '',
+    caste: row.caste || '',
+    educationMin: row.education || '',
+    preferredOccupations: row.occupations || [],
+    cityPreferences: row.cities || [],
+    propertyExpectation: row.property_expectation || '',
+    familyArrangement: (row.family_arrangement as any) || 'any',
+    lifestyleNotes: row.lifestyle_notes || undefined,
+    criteriaClassifications: row.criteria_classifications || {},
+  };
+}
+
+/**
+ * Converts a domain PartnerPreference DTO to a database snake_case row (P1-10, P1-11).
+ */
+export function profilePreferencesDTOToRow(
+  dto: Partial<PartnerPreference>,
+  profileId?: string
+): Partial<ProfilePreferencesRow> {
+  return {
+    profile_id: profileId,
+    age_min: dto.ageMin !== undefined ? dto.ageMin : null,
+    age_max: dto.ageMax !== undefined ? dto.ageMax : null,
+    height_min_inches: dto.heightMin ? parseHeightToInches(dto.heightMin) : null,
+    height_max_inches: null,
+    marital_status: dto.maritalStatus && dto.maritalStatus.length > 0 ? dto.maritalStatus[0] : null,
+    religion: dto.religion?.trim() || null,
+    aqeedah: dto.aqeedah?.trim() || null,
+    caste: dto.caste?.trim() || null,
+    education: dto.educationMin?.trim() || null,
+    occupations: dto.preferredOccupations && dto.preferredOccupations.length > 0 ? dto.preferredOccupations : null,
+    cities: dto.cityPreferences && dto.cityPreferences.length > 0 ? dto.cityPreferences : null,
+    property_expectation: dto.propertyExpectation?.trim() || null,
+    family_arrangement: dto.familyArrangement || null,
+    lifestyle_notes: dto.lifestyleNotes?.trim() || null,
+    criteria_classifications: dto.criteriaClassifications || {},
+  };
+}
+
+/**
+ * Converts a database snake_case row to the domain SiblingRecord DTO (P1-10, P1-12).
+ */
+export function profileSiblingRowToDTO(row: Partial<ProfileSiblingRow>): SiblingRecord {
+  return {
+    id: row.id || `sib-${Math.random().toString(36).substring(2, 9)}`,
+    relation: (row.relation as ('brother' | 'sister')) || 'brother',
+    name: row.name || undefined,
+    age: row.age ?? undefined,
+    maritalStatus: (row.marital_status as any) || 'never_married',
+    occupation: row.occupation || undefined,
+    education: row.education || undefined,
+    marriageDetails: row.marriage_details || undefined,
+    spouseFamilyDetails: row.spouse_family_details || undefined,
+    childrenCount: row.children_count ?? 0,
+  };
+}
+
+/**
+ * Converts a domain SiblingRecord DTO to a database snake_case row (P1-10, P1-12).
+ */
+export function profileSiblingDTOToRow(
+  dto: Partial<SiblingRecord>,
+  profileId?: string
+): Partial<ProfileSiblingRow> {
+  return {
+    profile_id: profileId,
+    relation: dto.relation || 'brother',
+    name: dto.name?.trim() || null,
+    gender: dto.relation === 'brother' ? 'male' : 'female',
+    age: dto.age !== undefined ? dto.age : null,
+    marital_status: dto.maritalStatus || 'never_married',
+    occupation: dto.occupation?.trim() || null,
+    education: dto.education?.trim() || null,
+    marriage_details: dto.marriageDetails?.trim() || null,
+    spouse_family_details: dto.spouseFamilyDetails?.trim() || null,
+    children_count: dto.childrenCount ?? 0,
+  };
+}
+
+/**
+ * Converts a database snake_case row to the domain PropertyDetails DTO (P1-09, P1-10, P1-12).
+ */
+export function profilePropertyRowToDTO(row: Partial<ProfilePropertyRow>): PropertyDetails {
+  return {
+    ownership: (row.ownership as any) || 'owned',
+    propertyType: (row.property_type as any) || 'house',
+    areaMarlas: Number(row.area_marlas ?? 0),
+    areaKanalDisplay: row.area_kanal_display || undefined,
+    approxValuePKR: row.approx_value_pkr != null ? Number(row.approx_value_pkr) : undefined,
+    city: row.city || '',
+    locality: row.locality || '',
+    householdArrangement: (row.household_arrangement as any) || 'independent',
+  };
+}
+
+/**
+ * Converts a domain PropertyDetails DTO to a database snake_case row (P1-09, P1-10, P1-12).
+ */
+export function profilePropertyDTOToRow(
+  dto: Partial<PropertyDetails>,
+  profileId?: string
+): Partial<ProfilePropertyRow> {
+  return {
+    profile_id: profileId,
+    ownership: dto.ownership || 'owned',
+    property_type: dto.propertyType || 'house',
+    area_marlas: dto.areaMarlas ?? 0,
+    area_kanal_display: dto.areaKanalDisplay || null,
+    approx_value_pkr: dto.approxValuePKR !== undefined ? dto.approxValuePKR : null,
+    city: dto.city?.trim() || '',
+    locality: dto.locality?.trim() || '',
+    household_arrangement: dto.householdArrangement || 'independent',
+  };
+}
+
+/**
  * Converts a database row to the rich application domain DTO.
+ * Supports raw database rows or pre-mapped DTOs in nested fields.
+ * If property details are absent, `property` remains undefined (P1-09).
  */
 export function profileRowToDTO(
   row: ProfileRow,
   nested?: {
-    siblings?: SiblingRecord[];
-    property?: PropertyDetails;
-    preferences?: PartnerPreference;
+    siblings?: (SiblingRecord | ProfileSiblingRow)[];
+    property?: PropertyDetails | ProfilePropertyRow;
+    preferences?: PartnerPreference | ProfilePreferencesRow;
     photoUrl?: string;
     fatherStatus?: 'alive' | 'deceased';
     motherStatus?: 'alive' | 'deceased';
     familyBackgroundNotes?: string;
   }
 ): ProfileRecord {
+  // Map preferences losslessly from row or pass DTO
+  let mappedPreferences: PartnerPreference;
+  if (nested?.preferences) {
+    if ('age_min' in nested.preferences || 'criteria_classifications' in nested.preferences) {
+      mappedPreferences = profilePreferencesRowToDTO(nested.preferences as ProfilePreferencesRow);
+    } else {
+      mappedPreferences = nested.preferences as PartnerPreference;
+    }
+  } else {
+    mappedPreferences = {
+      ageMin: 0,
+      ageMax: 0,
+      heightMin: '',
+      maritalStatus: [],
+      religion: '',
+      aqeedah: '',
+      caste: '',
+      educationMin: '',
+      preferredOccupations: [],
+      cityPreferences: [],
+      propertyExpectation: '',
+      familyArrangement: 'any',
+      criteriaClassifications: {},
+    };
+  }
+
+  // Map property: absent property details are strictly undefined (P1-09)
+  let mappedProperty: PropertyDetails | undefined = undefined;
+  if (nested?.property) {
+    if ('property_type' in nested.property || 'area_marlas' in (nested.property as any)) {
+      mappedProperty = profilePropertyRowToDTO(nested.property as ProfilePropertyRow);
+    } else {
+      mappedProperty = nested.property as PropertyDetails;
+    }
+  }
+
+  // Map siblings losslessly
+  const mappedSiblings: SiblingRecord[] = (nested?.siblings || []).map((s) => {
+    if ('marital_status' in s || 'children_count' in s || 'marriage_details' in s) {
+      return profileSiblingRowToDTO(s as ProfileSiblingRow);
+    }
+    return s as SiblingRecord;
+  });
+
   return {
-    id: row.reference_code,
+    id: row.reference_code || row.id,
+    databaseId: row.id,
+    referenceCode: row.reference_code,
+    accountId: row.account_id || undefined,
+    createdBy: row.created_by || undefined,
     fullName: row.full_name,
     displayName: row.display_name,
     gender: row.gender as Gender,
@@ -170,31 +428,10 @@ export function profileRowToDTO(
     representativeConsentCertified: row.representative_consent_certified ?? false,
     fatherStatus: nested?.fatherStatus,
     motherStatus: nested?.motherStatus,
-    siblings: nested?.siblings || [],
+    siblings: mappedSiblings,
     familyBackgroundNotes: nested?.familyBackgroundNotes,
-    property: nested?.property || {
-      ownership: 'other',
-      propertyType: 'house',
-      areaMarlas: 0,
-      city: row.current_city || '',
-      locality: row.residence_area || '',
-      householdArrangement: 'independent',
-    },
-    preferences: nested?.preferences || {
-      ageMin: 0,
-      ageMax: 0,
-      heightMin: '',
-      maritalStatus: [],
-      religion: '',
-      aqeedah: '',
-      caste: '',
-      educationMin: '',
-      preferredOccupations: [],
-      cityPreferences: [],
-      propertyExpectation: '',
-      familyArrangement: 'any',
-      criteriaClassifications: {},
-    },
+    property: mappedProperty,
+    preferences: mappedPreferences,
     status: row.status as ProfileStatus,
     source: row.source as any,
     assignedMatchmakerId: row.assigned_matchmaker_id || undefined,
@@ -218,7 +455,7 @@ export function profileDTOToRow(
   const heightInches = dto.height ? parseHeightToInches(dto.height) : 66;
 
   return {
-    reference_code: dto.id || `GLS-${Date.now().toString().slice(-4)}`,
+    reference_code: dto.referenceCode || dto.id || generateReferenceCode(),
     full_name: dto.fullName?.trim(),
     display_name: dto.displayName?.trim() || dto.fullName?.trim(),
     gender: dto.gender,
@@ -250,7 +487,8 @@ export function profileDTOToRow(
     photo_permission_granted: dto.photoPermissionGranted ?? false,
     representative_consent_certified: dto.representativeConsentCertified ?? false,
     internal_notes: dto.internalNotes?.trim() || null,
-    created_by: createdById || null,
+    created_by: createdById || dto.createdBy || null,
+    account_id: dto.accountId || null,
   };
 }
 

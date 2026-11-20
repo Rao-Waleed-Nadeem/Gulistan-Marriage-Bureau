@@ -133,6 +133,19 @@ test('ProfileRepository: create enforces validation and role authorization', asy
   assert.equal(customerCreated.status, 'pending_review', 'Customer intake MUST force status to pending_review');
   assert.equal(customerCreated.source, 'direct_web', 'Customer intake MUST force source to direct_web');
   assert.equal(customerCreated.fullName, 'Fatima Zahra');
+  assert.equal(customerCreated.accountId, customerSession.user!.id, 'Customer intake MUST link accountId to authenticated user');
+  assert.equal(customerCreated.createdBy, customerSession.user!.id, 'Customer intake MUST link createdBy to authenticated user');
+  assert.equal(customerCreated.property, undefined, 'Absent property details must remain undefined (P1-09)');
+
+  // Verify findById works via both UUID and human reference code (P0-06, P1-14)
+  assert.ok(customerCreated.databaseId, 'Must assign databaseId UUID');
+  const foundByUUID = await profileRepository.findById(customerCreated.databaseId!, customerSession);
+  assert.ok(foundByUUID, 'Must retrieve profile by databaseId UUID');
+  assert.equal(foundByUUID.id, customerCreated.id);
+
+  const foundByCode = await profileRepository.findById(customerCreated.referenceCode!, customerSession);
+  assert.ok(foundByCode, 'Must retrieve profile by reference code');
+  assert.equal(foundByCode.fullName, 'Fatima Zahra');
 
   // 3. Staff can create profile with assisted intake
   const created = await profileRepository.create(
@@ -548,6 +561,7 @@ test('Lossless DTO/Row mapping: preserves nested siblings, property, and prefere
 
   assert.equal(dto.siblings.length, 1);
   assert.equal(dto.siblings[0].name, 'Usman Khan');
+  assert.ok(dto.property);
   assert.equal(dto.property.areaMarlas, 20);
   assert.equal(dto.property.approxValuePKR, 45000000);
   assert.equal(dto.preferences.caste, 'Pathan');
@@ -555,6 +569,138 @@ test('Lossless DTO/Row mapping: preserves nested siblings, property, and prefere
   assert.equal(dto.fatherStatus, 'alive');
   assert.equal(dto.familyBackgroundNotes, 'Respected military background.');
   assert.equal(dto.photoUrl, 'https://storage.gulistan.pk/candidate-photos/imran.jpg');
+});
+
+test('Lossless DTO/Row mapping: maps raw Supabase snake_case child table rows to camelCase domain DTOs (P1-10)', () => {
+  const rawDbRow: ProfileRow = {
+    id: 'a0000000-0000-0000-0000-000000000001',
+    reference_code: 'GLS-205',
+    account_id: 'cust-uuid-456',
+    created_by: 'staff-uuid-123',
+    full_name: 'Maryam Bibi',
+    display_name: 'Maryam B.',
+    gender: 'female',
+    age: 27,
+    dob: '1999-04-12',
+    height_inches: 65,
+    height_display: "5'5\"",
+    marital_status: 'never_married',
+    religion: 'Islam',
+    aqeedah: 'Sunni',
+    caste: 'Malik',
+    sub_caste: 'Awan',
+    education_level: 'MPhil',
+    education_field: 'Biotechnology',
+    occupation: 'Lecturer',
+    job_title: 'University Lecturer',
+    company_or_sector: 'Govt College',
+    monthly_income_pkr: 180000,
+    hometown: 'Rawalpindi',
+    current_city: 'Islamabad',
+    residence_area: 'G-11/3',
+    status: 'approved',
+    source: 'direct_web',
+    assigned_matchmaker_id: null,
+    contact_person: 'Mother',
+    contact_phone: '+92 312 9988776',
+    contact_email: 'maryam.family@example.com',
+    preferred_contact_method: 'whatsapp',
+    photo_permission_granted: true,
+    representative_consent_certified: true,
+    internal_notes: null,
+    created_at: '2026-11-18T10:00:00Z',
+    updated_at: '2026-11-18T10:00:00Z',
+  };
+
+  // Raw database rows as returned by Supabase PostgREST (snake_case column names)
+  const rawPreferencesRow = {
+    id: 'pref-raw-1',
+    profile_id: 'a0000000-0000-0000-0000-000000000001',
+    age_min: 27,
+    age_max: 33,
+    height_min_inches: 68,
+    height_max_inches: null,
+    marital_status: 'never_married',
+    religion: 'Islam',
+    aqeedah: 'Sunni',
+    caste: 'Malik',
+    education: 'Masters',
+    occupations: ['Civil Officer', 'Professor'],
+    cities: ['Islamabad', 'Rawalpindi'],
+    property_expectation: 'Independent House',
+    family_arrangement: 'independent',
+    lifestyle_notes: 'Modest and family oriented',
+    criteria_classifications: { religion: 'mandatory', education: 'preferred' },
+    created_at: '2026-11-18T10:00:00Z',
+    updated_at: '2026-11-18T10:00:00Z',
+  };
+
+  const rawPropertyRow = {
+    id: 'prop-raw-1',
+    profile_id: 'a0000000-0000-0000-0000-000000000001',
+    ownership: 'owned',
+    property_type: 'house',
+    area_marlas: 10,
+    area_kanal_display: '10 Marla',
+    approx_value_pkr: 38000000,
+    city: 'Islamabad',
+    locality: 'G-11/3',
+    household_arrangement: 'independent',
+    created_at: '2026-11-18T10:00:00Z',
+    updated_at: '2026-11-18T10:00:00Z',
+  };
+
+  const rawSiblingRows = [
+    {
+      id: 'sib-raw-1',
+      profile_id: 'a0000000-0000-0000-0000-000000000001',
+      relation: 'brother',
+      name: 'Ahmed Malik',
+      gender: 'male',
+      age: 24,
+      marital_status: 'never_married',
+      occupation: 'Chartered Accountant',
+      education: 'ACCA',
+      marriage_details: null,
+      spouse_family_details: null,
+      children_count: 0,
+      created_at: '2026-11-18T10:00:00Z',
+    },
+  ];
+
+  const dto = profileRowToDTO(rawDbRow, {
+    preferences: rawPreferencesRow as any,
+    property: rawPropertyRow as any,
+    siblings: rawSiblingRows as any,
+  });
+
+  // Verify that raw database snake_case columns are faithfully translated to camelCase DTOs
+  assert.equal(dto.databaseId, 'a0000000-0000-0000-0000-000000000001');
+  assert.equal(dto.referenceCode, 'GLS-205');
+  assert.equal(dto.accountId, 'cust-uuid-456');
+  assert.equal(dto.createdBy, 'staff-uuid-123');
+
+  // Preferences camelCase mapping
+  assert.equal(dto.preferences.ageMin, 27, 'age_min must map to ageMin');
+  assert.equal(dto.preferences.ageMax, 33, 'age_max must map to ageMax');
+  assert.equal(dto.preferences.heightMin, '5\'8"', 'height_min_inches must format to heightMin');
+  assert.deepEqual(dto.preferences.preferredOccupations, ['Civil Officer', 'Professor']);
+  assert.deepEqual(dto.preferences.cityPreferences, ['Islamabad', 'Rawalpindi']);
+  assert.equal(dto.preferences.familyArrangement, 'independent');
+
+  // Property camelCase mapping
+  assert.ok(dto.property);
+  assert.equal(dto.property.propertyType, 'house', 'property_type must map to propertyType');
+  assert.equal(dto.property.areaMarlas, 10, 'area_marlas must map to areaMarlas');
+  assert.equal(dto.property.approxValuePKR, 38000000, 'approx_value_pkr must map to approxValuePKR');
+  assert.equal(dto.property.householdArrangement, 'independent', 'household_arrangement must map to householdArrangement');
+
+  // Sibling camelCase mapping
+  assert.equal(dto.siblings.length, 1);
+  assert.equal(dto.siblings[0].name, 'Ahmed Malik');
+  assert.equal(dto.siblings[0].maritalStatus, 'never_married', 'marital_status must map to maritalStatus');
+  assert.equal(dto.siblings[0].childrenCount, 0, 'children_count must map to childrenCount');
+  assert.equal(dto.siblings[0].education, 'ACCA');
 });
 
 test('SettingsRepository: enforces admin role security and manages regional land conventions', async () => {

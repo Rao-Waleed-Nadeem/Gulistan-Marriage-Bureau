@@ -137,3 +137,28 @@ Before applying pending migrations, the runner verifies that every already-appli
   ALTER TABLE public.profiles DROP COLUMN IF EXISTS account_id;
   COMMIT;
   ```
+
+### `00006_profile_intake_and_ownership_enhancements.sql`
+* **Status:** Implemented under Task `T-033`.
+* **Scope:**
+  * Remediates independent audit findings P0-03, P0-15, P1-10, P1-11, P1-12, P1-13, and P1-14.
+  * Adds customer child table RLS policies on `profile_preferences`, `profile_siblings`, and `profile_property_details` permitting `SELECT`, `INSERT`, and `UPDATE` for authenticated owners (`account_id = auth.uid()` or `created_by = auth.uid()`) while in `pending_review` and active account status.
+  * Defines atomic transactional intake PL/pgSQL function `create_profile_bundle` (`SECURITY DEFINER`) ensuring parent profile, preferences, property, and repeating siblings commit or roll back together atomically.
+  * Enforces customer self-service constraints inside RPC: active account verification, forced `status = 'pending_review'`, `source = 'direct_web'`, `account_id = auth.uid()`, and validation of candidate demographics.
+  * Fully preserves child entities (preferences with all bounds, sibling education/marital details, property details without default fabrication).
+* **Rollback Procedure:**
+  ```sql
+  BEGIN;
+  DROP FUNCTION IF EXISTS public.create_profile_bundle(JSONB);
+  DROP POLICY IF EXISTS property_customer_own_update ON public.profile_property_details;
+  DROP POLICY IF EXISTS property_customer_own_insert ON public.profile_property_details;
+  DROP POLICY IF EXISTS property_customer_own_select ON public.profile_property_details;
+  DROP POLICY IF EXISTS siblings_customer_own_update ON public.profile_siblings;
+  DROP POLICY IF EXISTS siblings_customer_own_insert ON public.profile_siblings;
+  DROP POLICY IF EXISTS siblings_customer_own_select ON public.profile_siblings;
+  DROP POLICY IF EXISTS prefs_customer_own_update ON public.profile_preferences;
+  DROP POLICY IF EXISTS prefs_customer_own_insert ON public.profile_preferences;
+  DROP POLICY IF EXISTS prefs_customer_own_select ON public.profile_preferences;
+  COMMIT;
+  ```
+

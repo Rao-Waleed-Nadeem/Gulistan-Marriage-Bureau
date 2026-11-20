@@ -624,10 +624,47 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 **Completion record:** Completed on 2026-11-19. Created additive database migration `00005_auth_lifecycle_ownership_and_audit.sql`. Updated `auth.ts` with account status enforcement and synchronous event callback. Updated `config.ts` with strict staging mode, HTTPS enforcement, and invalid environment rejection. Added 8 backend tests in `backend/tests/migration_00005.test.js`, 3 auth tests in `frontend/src/lib/auth.test.ts`, and 4 config tests in `frontend/src/lib/config.test.ts`. Verified with 103 backend tests and 156 frontend tests (259 total passing), `tsc --noEmit` (0 errors), and `vite build` (1.23s). Verified commit `96fec7e` on `main`.
 
 ### T-033 — Profile repository UUID mapping, complete nested DTO mapping, transactional create/update, customer self-service and assisted ownership
-**Status:** READY  
+**Status:** DONE  
 **Priority:** P0  
 **Dependencies:** T-032  
 **Scope:** Remediation of Findings P0-03, P1-07 through P1-15. Replace reference codes with UUID foreign keys, complete lossless DTO mapping, transactional profile create/update RPC, customer intake vs staff intake separation, removal of fabricated form presets.
+
+**Detailed steps**
+1. Created additive database migration `backend/migrations/00006_profile_intake_and_ownership_enhancements.sql`:
+   - Customer child table RLS policies on `profile_preferences`, `profile_siblings`, and `profile_property_details` permitting `SELECT`, `INSERT`, and `UPDATE` for authenticated owners (`account_id = auth.uid()` or `created_by = auth.uid()`) while in `pending_review` status and active account status (P0-03, P0-15).
+   - Atomic transactional PL/pgSQL intake function `create_profile_bundle(JSONB)` (`SECURITY DEFINER`) with active account verification, enforced `pending_review` status, `direct_web` source, `account_id = auth.uid()`, and transactional creation of parent and child records (P1-13).
+2. Refactored domain types and mappers:
+   - `frontend/src/types/index.ts`: added `databaseId`, `referenceCode`, `accountId`, `createdBy` to `ProfileRecord`; made `property?: PropertyDetails;` optional so absent property details are strictly `undefined` rather than a fabricated house with 0 Marla (P1-09); added `education`, `spouseFamilyDetails`, and `orderIndex` to `SiblingRecord` (P1-10, P1-12).
+   - `frontend/src/lib/profiles.ts`: implemented bidirectional converters for `profile_preferences`, `profile_siblings`, and `profile_property_details` translating between PostgreSQL snake_case rows and TypeScript camelCase DTOs (P1-10, P1-11, P1-12); replaced Date timestamp slice with collision-resistant `generateReferenceCode()` with cryptographic entropy (P1-14); preserved absent property as `undefined` (P1-09).
+3. Refactored `ProfileRepositoryImpl` (`frontend/src/lib/repositories.ts`):
+   - Lookups by UUID (`id`) and human reference code (`reference_code`) with PGRST116 handling vs surfacing `DATABASE_ERROR` (P1-18).
+   - Customer self-service intake enforces `accountId = session.user.id`, `source = 'direct_web'`, `status = 'pending_review'`.
+   - Attempts atomic transactional RPC `create_profile_bundle` with fallback direct write and compensating rollback on failure (P1-13).
+   - Demo mode assigns collision-resistant reference codes and preserves absent property details.
+4. Refactored frontend components and intake forms:
+   - `frontend/src/features/matchmaker/ProfileWizard.tsx`: eliminated fabricated default presets (gender, age, marital status, property, preferences all start unset/undefined) (P1-08); added real estate holdings toggle; final submission omits property when absent.
+   - `frontend/src/App.tsx`: resolved customer profile ownership dynamically (`accountId === session.user.id || createdBy === session.user.id || contactEmail === session.user.email`), eliminating arbitrary `profiles[0]` exposure (P1-15).
+   - Updated property consumers to handle optional `profile.property`: `ProfileCard.tsx`, `ProfileDetailModal.tsx`, `ControlledSharingModal.tsx`, `whatsapp.ts`, `disclosure.ts`.
+5. Authored comprehensive test suites:
+   - `backend/tests/migration_00006.test.js`: 4 tests validating transaction wrapping, customer child policies, RPC definition/security constraints, and zero mock seeding.
+   - `frontend/src/lib/profiles.test.ts`: tests for reference code uniqueness (500 iterations), bidirectional child DTO converters, and preservation of absent property without fabrication.
+   - `frontend/src/lib/repositories.test.ts`: tests for snake_case to camelCase child row mapping, customer intake constraints and ownership resolution, and absent property handling.
+6. Documentation & Migration status:
+   - Updated `backend/migrations/README.md`.
+   - Validated migration runner with `npm run migrate:validate` (6 migrations verified).
+
+**Acceptance criteria**
+- [x] PROF-UUID-01: Profile repository and child tables support lookups by both UUID foreign keys and human reference codes (P0-06, P1-14).
+- [x] PROF-DTO-01: Bidirectional converters losslessly map between database snake_case child table rows and TypeScript camelCase domain DTOs (P1-10, P1-11, P1-12).
+- [x] PROF-PROP-01: Absent property details are strictly preserved as `undefined` without fabricating dummy houses or zero Marla values (P1-09).
+- [x] PROF-TX-01: Profile creation is transactional via `create_profile_bundle` RPC with compensating rollback on fallback failure (P1-13).
+- [x] PROF-INTAKE-01: Profile wizard eliminates all pre-populated candidate facts, starting with clean unset values (P1-08).
+- [x] PROF-OWN-01: Customer intake strictly binds `account_id = auth.uid()`, forces `status = 'pending_review'`, and customer portal resolves ownership by user ID rather than `profiles[0]` (P0-03, P0-15, P1-15).
+- [x] MIG-00006-01: Additive migration `00006_profile_intake_and_ownership_enhancements.sql` replays cleanly within transaction block (`BEGIN ... COMMIT`) with zero mock seeding.
+- [x] 107 backend tests + 160 frontend tests verified (267 total passing), `tsc --noEmit` (0 errors), `vite build` (1.46s).
+- [x] Queue updated and commit verified directly on `main`.
+
+**Completion record:** Completed on 2026-11-20. Created additive database migration `00006_profile_intake_and_ownership_enhancements.sql` with customer child policies and `create_profile_bundle` RPC. Added bidirectional snake_case to camelCase child DTO converters, collision-resistant reference code generator, and preserved absent property as undefined. Removed pre-populated candidate facts in wizard, resolved customer ownership in App.tsx, and updated property consumers. Added 4 backend migration tests and comprehensive frontend mapper and repository tests. Verified with 107 backend tests and 160 frontend tests (267 total passing), `tsc --noEmit` (0 errors), and `vite build` (1.46s). Commit recorded on `main`.
 
 ### T-034 — Real private Storage, Storage RLS, consent withdrawal, server-side share issue/redeem/revoke and privacy erasure
 **Status:** READY  
