@@ -1,0 +1,550 @@
+-- ==============================================================================
+-- Gulistan Marriage Bureau — Migration 00007: Storage and Share Grants Enhancements
+-- ==============================================================================
+-- Architectural & Security Invariants:
+--   - Remediation of Independent Audit Findings:
+--       * P0-07: Real private Storage operations for candidate photographs.
+--       * P0-08: Persisted and redeemable controlled disclosure share grants.
+--       * P1-25: Private Storage bucket definition and storage.objects RLS policies.
+--       * P1-26: Secure photo resolution contract (signed URLs, no raw path exposure).
+--       * P1-27: Fixed snapshot & match_case_id binding on share_grants.
+--       * P1-28: Server-side atomic candidate privacy erasure & photo purge.
+--   - Safe, additive migration: wraps all DDL in a transaction block (BEGIN ... COMMIT)
+--   - Compatible with standard PostgreSQL 15/16 and Supabase Storage schemas
+--   - No mock or synthetic candidate data seeding
+-- ==============================================================================
+
+BEGIN;
+
+-- ------------------------------------------------------------------------------
+-- 1. Storage Schema & Private Bucket Baseline (P0-07, P1-25)
+-- ------------------------------------------------------------------------------
+-- Ensure the storage schema, buckets, and objects tables exist for compatibility
+-- with both managed Supabase environments and standalone PostgreSQL installations.
+
+CREATE SCHEMA IF NOT EXISTS storage;
+
+CREATE TABLE IF NOT EXISTS storage.buckets (
+    id VARCHAR(255) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    owner UUID NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    public BOOLEAN NOT NULL DEFAULT FALSE,
+    avif_autodetection BOOLEAN NOT NULL DEFAULT FALSE,
+    file_size_limit BIGINT NULL,
+    allowed_mime_types TEXT[] NULL,
+    owner_id TEXT NULL
+);
+
+CREATE TABLE IF NOT EXISTS storage.objects (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    bucket_id VARCHAR(255) NOT NULL REFERENCES storage.buckets(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    owner UUID NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    last_accessed_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    metadata JSONB NULL,
+    version TEXT NULL,
+    owner_id TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_storage_objects_bucket_name ON storage.objects (bucket_id, name);
+
+-- Insert or enforce private candidate-photos bucket (OPEN-004, OPEN-006, OPEN-008)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+    'candidate-photos',
+    'candidate-photos',
+    FALSE,
+    5242880, -- 5 MB limit
+    ARRAY['image/jpeg', 'image/png', 'image/webp']
+)
+ON CONFLICT (id) DO UPDATE SET
+    public = FALSE,
+    file_size_limit = 5242880,
+    allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp'];
+
+-- Enable Row-Level Security on Storage Tables
+ALTER TABLE storage.buckets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+
+-- Explicitly revoke public and anon access (least privilege)
+REVOKE ALL ON TABLE storage.buckets FROM public, anon;
+REVOKE ALL ON TABLE storage.objects FROM public, anon;
+
+GRANT SELECT ON TABLE storage.buckets TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE storage.objects TO authenticated;
+
+-- Storage Objects Policies on 'candidate-photos'
+-- Staff (Nadeem / Admin) full management
+DROP POLICY IF EXISTS storage_objects_staff_manage ON storage.objects;
+CREATE POLICY storage_objects_staff_manage ON storage.objects
+    FOR ALL TO authenticated
+    USING (
+        bucket_id = 'candidate-photos'
+        AND public.auth_is_staff()
+    )
+    WITH CHECK (
+        bucket_id = 'candidate-photos'
+        AND public.auth_is_staff()
+    );
+
+-- Customer self-service upload: authenticated owner can insert into their profile's folder
+DROP POLICY IF EXISTS storage_objects_customer_own_insert ON storage.objects;
+CREATE POLICY storage_objects_customer_own_insert ON storage.objects
+    FOR INSERT TO authenticated
+    WITH CHECK (
+        bucket_id = 'candidate-photos'
+        AND public.auth_is_account_active(auth.uid())
+        AND EXISTS (
+            SELECT 1 FROM public.profiles p
+            WHERE (p.account_id = auth.uid() OR p.created_by = auth.uid())
+              AND p.status = 'pending_review'
+              AND (
+                  name LIKE (p.id::text || '/%')
+                  OR name LIKE ('private-photos/' || p.id::text || '/%')
+                  OR (p.reference_code IS NOT NULL AND name LIKE (p.reference_code || '/%'))
+                  OR (p.reference_code IS NOT NULL AND name LIKE ('private-photos/' || p.reference_code || '/%'))
+              )
+        )
+    );
+
+-- Customer self-service read: owner can view photo in their own pending profile
+DROP POLICY IF EXISTS storage_objects_customer_own_select ON storage.objects;
+CREATE POLICY storage_objects_customer_own_select ON storage.objects
+    FOR SELECT TO authenticated
+    USING (
+        bucket_id = 'candidate-photos'
+        AND public.auth_is_account_active(auth.uid())
+        AND EXISTS (
+            SELECT 1 FROM public.profiles p
+            WHERE (p.account_id = auth.uid() OR p.created_by = auth.uid())
+              AND (
+                  name LIKE (p.id::text || '/%')
+                  OR name LIKE ('private-photos/' || p.id::text || '/%')
+                  OR (p.reference_code IS NOT NULL AND name LIKE (p.reference_code || '/%'))
+                  OR (p.reference_code IS NOT NULL AND name LIKE ('private-photos/' || p.reference_code || '/%'))
+              )
+        )
+    );
+
+-- Customer self-service delete: owner can delete photo while in pending_review
+DROP POLICY IF EXISTS storage_objects_customer_own_delete ON storage.objects;
+CREATE POLICY storage_objects_customer_own_delete ON storage.objects
+    FOR DELETE TO authenticated
+    USING (
+        bucket_id = 'candidate-photos'
+        AND public.auth_is_account_active(auth.uid())
+        AND EXISTS (
+            SELECT 1 FROM public.profiles p
+            WHERE (p.account_id = auth.uid() OR p.created_by = auth.uid())
+              AND p.status = 'pending_review'
+              AND (
+                  name LIKE (p.id::text || '/%')
+                  OR name LIKE ('private-photos/' || p.id::text || '/%')
+                  OR (p.reference_code IS NOT NULL AND name LIKE (p.reference_code || '/%'))
+                  OR (p.reference_code IS NOT NULL AND name LIKE ('private-photos/' || p.reference_code || '/%'))
+              )
+        )
+    );
+
+-- ------------------------------------------------------------------------------
+-- 2. Enhance Share Grants Schema (P0-08, P1-27)
+-- ------------------------------------------------------------------------------
+-- Store match_case_id and full immutable disclosed snapshot at grant issuance.
+
+ALTER TABLE public.share_grants
+    ADD COLUMN IF NOT EXISTS match_case_id UUID NULL REFERENCES public.match_cases(id) ON DELETE SET NULL;
+
+ALTER TABLE public.share_grants
+    ADD COLUMN IF NOT EXISTS disclosed_snapshot JSONB NULL;
+
+ALTER TABLE public.share_grants
+    ADD COLUMN IF NOT EXISTS version INT NOT NULL DEFAULT 1;
+
+CREATE INDEX IF NOT EXISTS idx_share_grants_match_case ON public.share_grants (match_case_id);
+
+-- Customer can inspect share grants issued for their own profile
+DROP POLICY IF EXISTS share_grants_customer_own_select ON public.share_grants;
+CREATE POLICY share_grants_customer_own_select ON public.share_grants
+    FOR SELECT TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles p
+            WHERE p.id = profile_id
+              AND (p.account_id = auth.uid() OR p.created_by = auth.uid())
+              AND public.auth_is_account_active(auth.uid())
+        )
+    );
+
+-- ------------------------------------------------------------------------------
+-- 3. Atomic Server RPC: Create Share Grant (P0-08, P1-27)
+-- ------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.create_share_grant(
+    p_profile_id UUID,
+    p_match_case_id UUID,
+    p_token_hash VARCHAR(64),
+    p_recipient_type VARCHAR(30),
+    p_recipient_phone VARCHAR(50),
+    p_approved_fields JSONB,
+    p_disclosed_snapshot JSONB,
+    p_expires_at TIMESTAMPTZ
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_grant_id UUID;
+    v_profile_status VARCHAR(40);
+    v_photo_granted BOOLEAN;
+BEGIN
+    -- 1. Authorization: Only active staff can create share grants
+    IF NOT public.auth_is_staff() THEN
+        RAISE EXCEPTION 'UNAUTHORIZED: Only authorized matchmakers can issue share grants.'
+            USING ERRCODE = '42501';
+    END IF;
+
+    -- 2. Verify Profile Exists and is Shareable
+    SELECT status, photo_permission_granted
+    INTO v_profile_status, v_photo_granted
+    FROM public.profiles
+    WHERE id = p_profile_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'PROFILE_NOT_FOUND: Profile does not exist.'
+            USING ERRCODE = 'P0002';
+    END IF;
+
+    IF v_profile_status NOT IN ('active', 'introduction_authorized') THEN
+        RAISE EXCEPTION 'PROFILE_NOT_SHAREABLE: Profile status is %, cannot share proposal.', v_profile_status
+            USING ERRCODE = '22023';
+    END IF;
+
+    -- 3. Validate Token Hash Format (64-char SHA-256)
+    IF p_token_hash IS NULL OR length(p_token_hash) <> 64 THEN
+        RAISE EXCEPTION 'INVALID_TOKEN_HASH: Token hash must be a 64-character hexadecimal SHA-256 string.'
+            USING ERRCODE = '22023';
+    END IF;
+
+    -- 4. Validate Expiry (Cannot be in the past)
+    IF p_expires_at <= timezone('utc'::text, now()) THEN
+        RAISE EXCEPTION 'INVALID_EXPIRY: Share grant expiration must be in the future.'
+            USING ERRCODE = '22023';
+    END IF;
+
+    -- 5. Insert Share Grant
+    INSERT INTO public.share_grants (
+        profile_id,
+        match_case_id,
+        token_hash,
+        recipient_type,
+        recipient_phone,
+        approved_fields,
+        disclosed_snapshot,
+        expires_at,
+        is_revoked,
+        created_by
+    )
+    VALUES (
+        p_profile_id,
+        p_match_case_id,
+        p_token_hash,
+        COALESCE(p_recipient_type, 'customer'),
+        p_recipient_phone,
+        COALESCE(p_approved_fields, '[]'::jsonb),
+        p_disclosed_snapshot,
+        p_expires_at,
+        FALSE,
+        auth.uid()
+    )
+    RETURNING id INTO v_grant_id;
+
+    -- 6. Record Audit Event (Privacy-minimized details)
+    INSERT INTO public.audit_events (
+        actor_id,
+        actor_role,
+        action,
+        target_type,
+        target_id,
+        details
+    )
+    VALUES (
+        auth.uid(),
+        'staff',
+        'share_grant_issued',
+        'profile',
+        p_profile_id::text,
+        jsonb_build_object(
+            'grant_id', v_grant_id,
+            'match_case_id', p_match_case_id,
+            'token_hash', p_token_hash,
+            'expires_at', p_expires_at
+        )
+    );
+
+    RETURN jsonb_build_object(
+        'success', TRUE,
+        'grant_id', v_grant_id,
+        'profile_id', p_profile_id,
+        'expires_at', p_expires_at
+    );
+END;
+$$;
+
+-- ------------------------------------------------------------------------------
+-- 4. Atomic Server RPC: Redeem Share Grant (P0-08)
+-- ------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.redeem_share_grant(
+    p_token_hash VARCHAR(64)
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_grant RECORD;
+    v_profile RECORD;
+BEGIN
+    -- 1. Find Grant by SHA-256 Token Hash
+    SELECT *
+    INTO v_grant
+    FROM public.share_grants
+    WHERE token_hash = p_token_hash;
+
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('valid', FALSE, 'reason', 'missing');
+    END IF;
+
+    -- 2. Check Revocation
+    IF v_grant.is_revoked THEN
+        RETURN jsonb_build_object('valid', FALSE, 'reason', 'revoked');
+    END IF;
+
+    -- 3. Check Expiry
+    IF timezone('utc'::text, now()) > v_grant.expires_at THEN
+        RETURN jsonb_build_object('valid', FALSE, 'reason', 'expired');
+    END IF;
+
+    -- 4. Re-verify Candidate Profile Standing
+    SELECT id, status, photo_permission_granted, reference_code
+    INTO v_profile
+    FROM public.profiles
+    WHERE id = v_grant.profile_id;
+
+    IF NOT FOUND OR v_profile.status IN ('restricted', 'inactive', 'pending_review') THEN
+        RETURN jsonb_build_object('valid', FALSE, 'reason', 'profile_not_shareable');
+    END IF;
+
+    RETURN jsonb_build_object(
+        'valid', TRUE,
+        'grant_id', v_grant.id,
+        'profile_id', v_grant.profile_id,
+        'reference_code', v_profile.reference_code,
+        'match_case_id', v_grant.match_case_id,
+        'snapshot', v_grant.disclosed_snapshot,
+        'approved_fields', v_grant.approved_fields,
+        'expires_at', v_grant.expires_at
+    );
+END;
+$$;
+
+-- ------------------------------------------------------------------------------
+-- 5. Atomic Server RPC: Revoke Share Grant (P0-08)
+-- ------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.revoke_share_grant(
+    p_grant_id UUID DEFAULT NULL,
+    p_token_hash VARCHAR(64) DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_grant RECORD;
+    v_revoked_count INT := 0;
+BEGIN
+    SELECT *
+    INTO v_grant
+    FROM public.share_grants
+    WHERE (id = p_grant_id OR token_hash = p_token_hash);
+
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('success', FALSE, 'error', 'GRANT_NOT_FOUND');
+    END IF;
+
+    -- Authorization: Caller must be staff OR profile owner
+    IF NOT public.auth_is_staff() THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM public.profiles p
+            WHERE p.id = v_grant.profile_id
+              AND (p.account_id = auth.uid() OR p.created_by = auth.uid())
+        ) THEN
+            RAISE EXCEPTION 'UNAUTHORIZED: Cannot revoke this share grant.'
+                USING ERRCODE = '42501';
+        END IF;
+    END IF;
+
+    UPDATE public.share_grants
+    SET is_revoked = TRUE,
+        revoked_at = timezone('utc'::text, now()),
+        revoked_by = auth.uid()
+    WHERE id = v_grant.id
+      AND is_revoked = FALSE;
+
+    GET DIAGNOSTICS v_revoked_count = ROW_COUNT;
+
+    -- Audit log
+    INSERT INTO public.audit_events (
+        actor_id,
+        actor_role,
+        action,
+        target_type,
+        target_id,
+        details
+    )
+    VALUES (
+        auth.uid(),
+        'authorized',
+        'share_grant_revoked',
+        'profile',
+        v_grant.profile_id::text,
+        jsonb_build_object(
+            'grant_id', v_grant.id,
+            'token_hash', v_grant.token_hash
+        )
+    );
+
+    RETURN jsonb_build_object(
+        'success', TRUE,
+        'grant_id', v_grant.id,
+        'revoked', v_revoked_count > 0
+    );
+END;
+$$;
+
+-- ------------------------------------------------------------------------------
+-- 6. Atomic Server RPC: Candidate Privacy Erasure & Photo Purge (P0-07, P1-28)
+-- ------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.execute_candidate_privacy_erasure(
+    p_profile_id UUID,
+    p_erase_profile BOOLEAN DEFAULT FALSE
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_is_authorized BOOLEAN := FALSE;
+    v_photo_paths TEXT[] := '{}';
+    v_photo RECORD;
+    v_grants_revoked INT := 0;
+BEGIN
+    -- 1. Authorization: Staff OR owner of the candidate profile
+    IF public.auth_is_staff() THEN
+        v_is_authorized := TRUE;
+    ELSE
+        SELECT TRUE INTO v_is_authorized
+        FROM public.profiles p
+        WHERE p.id = p_profile_id
+          AND (p.account_id = auth.uid() OR p.created_by = auth.uid())
+          AND public.auth_is_account_active(auth.uid());
+    END IF;
+
+    IF NOT COALESCE(v_is_authorized, FALSE) THEN
+        RAISE EXCEPTION 'UNAUTHORIZED: Caller lacks authority to execute privacy erasure on profile %', p_profile_id
+            USING ERRCODE = '42501';
+    END IF;
+
+    -- 2. Collect Storage Paths for Supabase Storage Purge
+    FOR v_photo IN
+        SELECT storage_path FROM public.profile_photos WHERE profile_id = p_profile_id
+    LOOP
+        v_photo_paths := array_append(v_photo_paths, v_photo.storage_path);
+    END LOOP;
+
+    -- 3. Delete Photo Records in Database
+    DELETE FROM public.profile_photos
+    WHERE profile_id = p_profile_id;
+
+    -- Also clean storage.objects if table is populated
+    DELETE FROM storage.objects
+    WHERE bucket_id = 'candidate-photos'
+      AND (
+          name LIKE (p_profile_id::text || '/%')
+          OR name LIKE ('private-photos/' || p_profile_id::text || '/%')
+      );
+
+    -- 4. Revoke All Active Share Grants
+    UPDATE public.share_grants
+    SET is_revoked = TRUE,
+        revoked_at = timezone('utc'::text, now()),
+        revoked_by = auth.uid()
+    WHERE profile_id = p_profile_id
+      AND is_revoked = FALSE;
+
+    GET DIAGNOSTICS v_grants_revoked = ROW_COUNT;
+
+    -- 5. Mark Consents as Withdrawn (OPEN-008, PRIV-07)
+    UPDATE public.candidate_consents
+    SET status = 'withdrawn',
+        consent_photo_sharing = FALSE,
+        consent_third_party_sharing = FALSE,
+        consent_contact_sharing = FALSE,
+        updated_at = timezone('utc'::text, now())
+    WHERE profile_id = p_profile_id;
+
+    -- 6. Update Profile Status
+    IF p_erase_profile THEN
+        UPDATE public.profiles
+        SET status = 'inactive',
+            photo_permission_granted = FALSE,
+            updated_at = timezone('utc'::text, now())
+        WHERE id = p_profile_id;
+    ELSE
+        UPDATE public.profiles
+        SET photo_permission_granted = FALSE,
+            updated_at = timezone('utc'::text, now())
+        WHERE id = p_profile_id;
+    END IF;
+
+    -- 7. Persist Minimal Audit Event
+    INSERT INTO public.audit_events (
+        actor_id,
+        actor_role,
+        action,
+        target_type,
+        target_id,
+        details
+    )
+    VALUES (
+        auth.uid(),
+        'authorized',
+        'candidate_privacy_erasure',
+        'profile',
+        p_profile_id::text,
+        jsonb_build_object(
+            'profile_id', p_profile_id,
+            'photos_purged_count', array_length(v_photo_paths, 1),
+            'grants_revoked_count', v_grants_revoked,
+            'profile_deactivated', p_erase_profile
+        )
+    );
+
+    RETURN jsonb_build_object(
+        'success', TRUE,
+        'profile_id', p_profile_id,
+        'storage_paths_to_purge', to_jsonb(v_photo_paths),
+        'grants_revoked_count', v_grants_revoked,
+        'profile_deactivated', p_erase_profile
+    );
+END;
+$$;
+
+COMMIT;

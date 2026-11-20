@@ -11,6 +11,11 @@ import {
   DEFAULT_SHARE_GRANT_EXPIRY_MS,
   BUREAU_OFFICE_PHONE,
   DisclosureRequestOptions,
+  persistShareGrantAsync,
+  redeemShareGrantAsync,
+  revokeShareGrantAsync,
+  configureBureauOfficePhone,
+  isBureauPhoneConfigured,
 } from './disclosure';
 import { ProfileRecord } from '../types';
 import { AuthSession } from './auth';
@@ -394,4 +399,66 @@ test('authorizeDisclosure issues SHA-256 tokenHash at rest and validates by toke
   const postRevoke = validateShareGrant(result.snapshot.token);
   assert.equal(postRevoke.valid, false);
   assert.equal(postRevoke.reason, 'revoked');
+});
+
+test('persistShareGrantAsync, redeemShareGrantAsync, and revokeShareGrantAsync handle full lifecycle (P0-08, P1-27)', async () => {
+  resetDisclosureForTesting();
+
+  const profile = createTestProfile({ status: 'active', id: 'GLS-D10' });
+  const result = authorizeDisclosure(
+    profile,
+    {
+      includeRefNumber: true,
+      includeAge: true,
+      includeCity: true,
+      matchCaseId: 'mc-98765',
+    },
+    staffSession
+  );
+
+  assert.equal(result.success, true);
+  assert.ok(result.snapshot);
+  assert.equal(result.snapshot.matchCaseId, 'mc-98765', 'Must preserve bound matchCaseId (P1-27)');
+
+  // Persist grant
+  const persistRes = await persistShareGrantAsync(result.snapshot, staffSession, {
+    recipientType: 'customer',
+    recipientPhone: '+92 300 9988776',
+  });
+  assert.equal(persistRes.success, true);
+  assert.ok(persistRes.grantId);
+
+  // Redeem grant by bearer token
+  const redeemRes = await redeemShareGrantAsync(result.snapshot.token!);
+  assert.equal(redeemRes.valid, true);
+  assert.ok(redeemRes.snapshot);
+  assert.equal(redeemRes.snapshot?.matchCaseId, 'mc-98765');
+  assert.equal(redeemRes.snapshot?.disclosedData.age, 26);
+
+  // Revoke grant
+  const revokeRes = await revokeShareGrantAsync(result.snapshot.token!, staffSession);
+  assert.equal(revokeRes.success, true);
+
+  // Redeeming revoked grant fails closed
+  const postRevokeRedeem = await redeemShareGrantAsync(result.snapshot.token!);
+  assert.equal(postRevokeRedeem.valid, false);
+  assert.equal(postRevokeRedeem.reason, 'revoked');
+});
+
+test('Bureau office phone verification and fail-closed gate (P1-29)', () => {
+  resetDisclosureForTesting();
+
+  // Test configuring custom verified office phone
+  configureBureauOfficePhone('+92 42 35889900', true);
+  assert.equal(isBureauPhoneConfigured(), true);
+
+  const profile = createTestProfile({ status: 'active', id: 'GLS-D11' });
+  const result = authorizeDisclosure(profile, { includeContactNumber: true }, staffSession);
+
+  assert.equal(result.success, true);
+  assert.ok(result.snapshot?.disclosedData.contactNumber?.includes('+92 42 35889900'));
+
+  // Reset to default unconfigured state
+  configureBureauOfficePhone(null, false);
+  assert.equal(isBureauPhoneConfigured(), false);
 });

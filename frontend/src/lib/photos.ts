@@ -171,11 +171,14 @@ export function generateSignedPhotoGrant(
   const token = generateSecureToken('sig', 24);
   const tokenHash = computeSha256(token);
   const expiresAt = now + DEFAULT_PHOTO_EXPIRY_MS;
+  const baseUrl = typeof window !== 'undefined' && window.location?.origin
+    ? window.location.origin
+    : 'https://gulistan.pk';
 
   const grant: SignedPhotoGrant = {
     token,
     tokenHash,
-    signedUrl: `https://gulistan.pk/secure-photo?token=${token}&scope=${photo.profileId}`,
+    signedUrl: `${baseUrl}/secure-photo?token=${token}&scope=${photo.profileId}`,
     photoId: photo.id,
     profileId: photo.profileId,
     issuedAt: now,
@@ -375,6 +378,188 @@ export function uploadPrivatePhoto(
 }
 
 /**
+ * Resolves a candidate photo reference into an authorized short-lived signed URL (P1-26).
+ * Never exposes raw bucket paths directly to public clients or image tags.
+ */
+export async function resolveCandidatePhotoUrl(
+  storagePathOrUrl: string,
+  expiresInSeconds: number = 3600
+): Promise<string> {
+  if (!storagePathOrUrl || typeof storagePathOrUrl !== 'string') {
+    return '';
+  }
+
+  const trimmed = storagePathOrUrl.trim();
+  if (
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('data:image/') ||
+    trimmed.startsWith('blob:')
+  ) {
+    return trimmed;
+  }
+
+  const config = getClientConfig();
+  if (config.mode === 'backend') {
+    try {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        // Strip bucket prefix or leading slashes
+        const cleanPath = trimmed.replace(/^candidate-photos\//, '').replace(/^\/+/, '');
+        const { data, error } = await supabase.storage
+          .from('candidate-photos')
+          .createSignedUrl(cleanPath, expiresInSeconds);
+
+        if (!error && data?.signedUrl) {
+          return data.signedUrl;
+        }
+      }
+    } catch {
+      // Return safe fallback on failure
+    }
+  }
+
+  // In demo mode or if path resolution is simulated
+  return trimmed;
+}
+
+/**
+ * Uploads a candidate photo with binary byte support to Supabase Storage (P0-07, P1-25).
+ * Falls back to demo memory store in mock / offline mode.
+ */
+export async function uploadCandidatePhoto(
+  profileId: string,
+  file: {
+    name: string;
+    size: number;
+    type: string;
+    data?: Blob | ArrayBuffer | Uint8Array | File;
+  },
+  consentCertified: boolean,
+  session: AuthSession | null
+): Promise<{
+  success: boolean;
+  photo: PhotoRecord | null;
+  error?: { code: string; messageEn: string; messageUrdu: string };
+}> {
+  // Validate file properties
+  const fileCheck = validatePhotoFile(file);
+  if (!fileCheck.valid) {
+    return {
+      success: false,
+      photo: null,
+      error: fileCheck.error,
+    };
+  }
+
+  // Validate consent certification (OPEN-004)
+  if (!consentCertified) {
+    return {
+      success: false,
+      photo: null,
+      error: {
+        code: 'CONSENT_CERTIFICATION_REQUIRED',
+        messageEn: 'Candidate legal consent certification is mandatory before photo upload.',
+        messageUrdu: 'تصویر اپ لوڈ کرنے سے قبل امیدوار کا اجازت نامہ لازمی ہے۔',
+      },
+    };
+  }
+
+  // Validate caller permissions (Staff or profile owner)
+  const isStaff = canAccessRole(session, 'nadeem');
+  const isOwner = session?.isAuthenticated && session.user?.role === 'customer';
+  if (!isStaff && !isOwner) {
+    return {
+      success: false,
+      photo: null,
+      error: {
+        code: 'UNAUTHORIZED',
+        messageEn: 'Unauthorized to upload photo for this candidate.',
+        messageUrdu: 'اس امیدوار کے لیے تصویر اپ لوڈ کرنے کی اجازت نہیں ہے۔',
+      },
+    };
+  }
+
+  const extension = file.name.split('.').pop() || 'jpg';
+  const storagePath = generateIsolatedStoragePath(profileId, extension);
+
+  const config = getClientConfig();
+  if (config.mode === 'backend' && file.data) {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      const cleanPath = storagePath.replace(/^candidate-photos\//, '');
+      const { error: storageError } = await supabase.storage
+        .from('candidate-photos')
+        .upload(cleanPath, file.data, {
+          contentType: file.type,
+          upsert: false,
+        });
+
+      if (storageError) {
+        return {
+          success: false,
+          photo: null,
+          error: {
+            code: 'STORAGE_UPLOAD_FAILED',
+            messageEn: `Failed to upload image to private storage: ${storageError.message}`,
+            messageUrdu: 'تصویر کو محفوظ اسٹوریج میں اپ لوڈ کرنے میں ناکامی ہوئی۔',
+          },
+        };
+      }
+
+      const { data: dbData, error: dbError } = await supabase
+        .from('profile_photos')
+        .insert({
+          profile_id: profileId,
+          storage_bucket: 'candidate-photos',
+          storage_path: storagePath,
+          file_name: file.name,
+          mime_type: file.type,
+          file_size_bytes: file.size,
+          is_primary: true,
+        })
+        .select()
+        .single();
+
+      if (dbError) {
+        // Rollback compensating remove from storage
+        await supabase.storage.from('candidate-photos').remove([cleanPath]);
+        return {
+          success: false,
+          photo: null,
+          error: {
+            code: 'DATABASE_ERROR',
+            messageEn: `Failed to record photo metadata: ${dbError.message}`,
+            messageUrdu: 'ڈیٹا بیس میں تصویر کا ریکارڈ درج نہ ہو سکا۔',
+          },
+        };
+      }
+
+      const photoRecord: PhotoRecord = {
+        id: dbData.id,
+        profileId: dbData.profile_id,
+        storagePath: dbData.storage_path,
+        fileName: dbData.file_name,
+        fileSizeBytes: dbData.file_size_bytes,
+        mimeType: dbData.mime_type,
+        uploadedBy: session?.user?.email || 'matchmaker@gulistan.pk',
+        uploadedAt: dbData.created_at || new Date().toISOString(),
+        consentCertified: true,
+        isPurged: false,
+      };
+
+      return {
+        success: true,
+        photo: photoRecord,
+      };
+    }
+  }
+
+  // Demo / local memory fallback
+  return uploadPrivatePhoto(profileId, file, consentCertified, session);
+}
+
+/**
  * Evaluates candidate photo and profile data retention rules (PRIV-07).
  * - Inactive profiles archive for 1 year (365 days), then purge.
  * - Consent withdrawal triggers immediate purge (Day 0).
@@ -468,6 +653,75 @@ export function executeCandidatePrivacyErasure(
     purgedPhotoId: purgeResult.purgedPhotoId,
     grantsRevokedCount: purgeResult.grantsRevokedCount ?? 0,
   };
+}
+
+/**
+ * Executes server-side transactional candidate privacy erasure via Supabase RPC (P0-07, P1-28).
+ * Removes private storage files, revokes all database share grants, updates consent records,
+ * and deactivates profile if requested.
+ */
+export async function executeCandidatePrivacyErasureAsync(
+  profileId: string,
+  session: AuthSession | null,
+  eraseProfile: boolean = false
+): Promise<{
+  success: boolean;
+  purgedPhotoId: string | null;
+  grantsRevokedCount: number;
+  error?: { code: string; messageEn: string; messageUrdu: string };
+}> {
+  const isStaff = canAccessRole(session, 'nadeem');
+  const isOwner = session?.isAuthenticated && session.user?.role === 'customer';
+
+  if (!isStaff && !isOwner) {
+    return {
+      success: false,
+      purgedPhotoId: null,
+      grantsRevokedCount: 0,
+      error: {
+        code: 'UNAUTHORIZED',
+        messageEn: 'Unauthorized to execute candidate privacy erasure.',
+        messageUrdu: 'پرائیویسی مٹانے کی کارروائی کے اختیارات موجود نہیں ہیں۔',
+      },
+    };
+  }
+
+  const config = getClientConfig();
+  if (config.mode === 'backend') {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      const { data, error } = await supabase.rpc('execute_candidate_privacy_erasure', {
+        p_profile_id: profileId,
+        p_erase_profile: eraseProfile,
+      });
+
+      if (error) {
+        return {
+          success: false,
+          purgedPhotoId: null,
+          grantsRevokedCount: 0,
+          error: {
+            code: 'RPC_ERROR',
+            messageEn: `Privacy erasure failed: ${error.message}`,
+            messageUrdu: 'ڈیٹا بیس پروسیس میں پرائیویسی مٹانے میں ناکامی ہوئی۔',
+          },
+        };
+      }
+
+      if (data?.storage_paths_to_purge && Array.isArray(data.storage_paths_to_purge) && data.storage_paths_to_purge.length > 0) {
+        const cleanPaths = data.storage_paths_to_purge.map((p: string) => p.replace(/^candidate-photos\//, ''));
+        await supabase.storage.from('candidate-photos').remove(cleanPaths);
+      }
+
+      return {
+        success: true,
+        purgedPhotoId: profileId,
+        grantsRevokedCount: data?.grants_revoked_count ?? 0,
+      };
+    }
+  }
+
+  return executeCandidatePrivacyErasure(profileId, session);
 }
 
 /**

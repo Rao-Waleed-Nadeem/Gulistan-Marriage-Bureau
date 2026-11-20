@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { ProfileRecord, Language } from '../../types';
 import { translations } from '../../i18n/translations';
-import { DisclosureOptions, generateWhatsAppMessage } from '../../utils/whatsapp';
+import { DisclosureOptions } from '../../utils/whatsapp';
 import { authorizeDisclosure, generateAuthorizedWhatsAppDraft } from '../../lib/disclosure';
 import { getCurrentSession } from '../../lib/auth';
+import { getClientConfig } from '../../lib/config';
+import { shareGrantRepository } from '../../lib/repositories';
 import { X, Share2, Copy, Check, ShieldCheck, AlertCircle } from 'lucide-react';
 
 interface ControlledSharingModalProps {
@@ -46,41 +48,31 @@ export const ControlledSharingModal: React.FC<ControlledSharingModalProps> = ({
   if (!isOpen) return null;
 
   const session = getCurrentSession();
-  const staffSession = (session && session.isAuthenticated && session.role === 'nadeem') ? session : {
-    user: { id: 'usr-nadeem', email: 'nadeem@gulistan.pk', displayName: 'Nadeem Ahmed', role: 'nadeem' as const, preferredLanguage: language },
-    role: 'nadeem' as const,
-    token: 'demo-staff-token',
-    expiresAt: Date.now() + 3600000,
-    isAuthenticated: true,
-  };
+  const config = getClientConfig();
+  const isLiveBackend = config.mode === 'backend';
 
-  const disclosureResult = authorizeDisclosure(candidate, options, staffSession);
+  // In live production/staging mode, strictly require an authenticated staff session (P0-09).
+  // In demo mode, provide the mock matchmaker session for local walkthrough.
+  const staffSession = (session && session.isAuthenticated && (session.role === 'nadeem' || session.role === 'admin'))
+    ? session
+    : (isLiveBackend ? null : {
+        user: { id: 'usr-nadeem', email: 'nadeem@gulistan.pk', displayName: 'Nadeem Ahmed', role: 'nadeem' as const, preferredLanguage: language },
+        role: 'nadeem' as const,
+        token: 'demo-staff-token',
+        expiresAt: Date.now() + 3600000,
+        isAuthenticated: true,
+      });
+
+  const disclosureResult = staffSession ? authorizeDisclosure(candidate, options, staffSession) : { success: false, error: { code: 'UNAUTHORIZED', messageEn: 'Authentication as matchmaker is required.', messageUrdu: 'میچ میکر کی تصدیق شدہ لاگ ان درکار ہے۔' } };
   const draft = disclosureResult.snapshot
     ? generateAuthorizedWhatsAppDraft(disclosureResult.snapshot, messageLang)
     : null;
 
-  const candidateData = {
-    id: candidate.id,
-    name: candidate.fullName,
-    gender: candidate.gender,
-    age: candidate.age,
-    height: candidate.height,
-    education: candidate.education,
-    occupation: candidate.occupation,
-    salary: candidate.monthlyIncomePKR ? `₨ ${candidate.monthlyIncomePKR.toLocaleString()} / month` : undefined,
-    city: `${candidate.currentCity} (${candidate.residenceArea})`,
-    caste: candidate.caste,
-    sect: candidate.aqeedah,
-    familySummary: candidate.familyBackgroundNotes || '',
-    propertySummary: candidate.property
-      ? `${candidate.property.areaMarlas} Marla (${candidate.property.propertyType}) in ${candidate.property.locality}`
-      : undefined,
-    contactNumber: candidate.contactPhone,
-  };
-
-  const previewMessage = draft ? draft.messageText : generateWhatsAppMessage(candidateData, options, messageLang);
+  // Remediating P0-09: Never fall back to unverified candidate fields. The message must come exclusively from the authorized snapshot.
+  const previewMessage = draft ? draft.messageText : '';
 
   const handleCopy = () => {
+    if (!previewMessage) return;
     navigator.clipboard.writeText(previewMessage);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -231,8 +223,26 @@ export const ControlledSharingModal: React.FC<ControlledSharingModalProps> = ({
               className="flex-1 rounded-2xl bg-[#EFEAE2] p-4 text-xs text-[#252E2C] border border-[#E7E2D8] shadow-inner overflow-y-auto max-h-[380px] space-y-2 whitespace-pre-wrap leading-relaxed"
             >
               <div className="rounded-xl bg-[#FFFFFF] p-3.5 shadow-sm border border-[#E0D8CB] relative">
-                {previewMessage}
-                <div className="mt-2 text-end text-[10px] text-gray-400" dir="ltr">10:45 AM ✓✓</div>
+                {previewMessage ? (
+                  <>
+                    {previewMessage}
+                    <div className="mt-2 text-end text-[10px] text-gray-400" dir="ltr">10:45 AM ✓✓</div>
+                  </>
+                ) : (
+                  <div className="text-center py-6 text-gray-500">
+                    <ShieldCheck className="w-8 h-8 mx-auto mb-2 text-amber-600/70" />
+                    <p className="font-medium text-[#182848]">
+                      {language === 'ur'
+                        ? 'شیئرنگ کی اجازت درکار ہے'
+                        : 'Matchmaker Authorization Required'}
+                    </p>
+                    <p className="text-[11px] mt-1 text-[#68716D]">
+                      {language === 'ur'
+                        ? 'رابطے اور کوائف شیئر کرنے کے لیے ندیم صاحب کی تصدیق شدہ لاگ ان درکار ہے۔'
+                        : 'A verified matchmaker session is required to generate and share proposal snapshots.'}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -240,7 +250,8 @@ export const ControlledSharingModal: React.FC<ControlledSharingModalProps> = ({
             <div className="mt-4 flex items-center justify-between gap-3 pt-3 border-t border-[#E7E2D8]">
               <button
                 onClick={handleCopy}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 backdrop-blur-md px-4 py-2 text-xs font-medium text-[#252E2C] hover:border-[#182848] transition-colors"
+                disabled={!previewMessage}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 backdrop-blur-md px-4 py-2 text-xs font-medium text-[#252E2C] hover:border-[#182848] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-[#486878]" />}
                 <span>{copied ? (language === 'ur' ? 'کاپی ہو گیا!' : 'Copied!') : (language === 'ur' ? 'ٹیکسٹ کاپی کریں' : 'Copy Message')}</span>
@@ -248,6 +259,10 @@ export const ControlledSharingModal: React.FC<ControlledSharingModalProps> = ({
 
               <button
                 onClick={() => {
+                  if (!previewMessage) return;
+                  if (disclosureResult.snapshot) {
+                    shareGrantRepository.createGrant(disclosureResult.snapshot, staffSession).catch(() => {});
+                  }
                   if (onConfirmShare) onConfirmShare(options);
                   handleCopy();
                   alert(
@@ -257,7 +272,8 @@ export const ControlledSharingModal: React.FC<ControlledSharingModalProps> = ({
                   );
                   onClose();
                 }}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#182848] px-5 py-2 text-xs font-semibold text-[#F7F3EA] shadow hover:bg-[#283848] transition-all transform active:scale-95"
+                disabled={!previewMessage}
+                className="inline-flex items-center gap-2 rounded-xl bg-[#182848] px-5 py-2 text-xs font-semibold text-[#F7F3EA] shadow hover:bg-[#283848] transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Share2 className="w-4 h-4 text-[#B69A62]" />
                 <span>{language === 'ur' ? 'واٹس ایپ پر شیئر کریں (ڈیمو)' : 'Prepare for WhatsApp'}</span>

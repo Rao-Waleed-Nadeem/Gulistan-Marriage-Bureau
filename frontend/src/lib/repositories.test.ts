@@ -7,6 +7,8 @@ import {
   matchmakerRepository,
   settingsRepository,
   auditRepository,
+  photoRepository,
+  shareGrantRepository,
   resetRepositoriesForTesting,
 } from './repositories';
 import {
@@ -783,4 +785,76 @@ test('AuditRepository: enforces staff role security, records events, and queries
   const updatedLogs = await auditRepository.findAll(staffSession);
   assert.equal(updatedLogs.length, initialCount + 1);
   assert.equal(updatedLogs[0].action, 'TEST_AUDIT_ACTION');
+});
+
+test('PhotoRepository: enforces authorization, uploads candidate photo, and executes privacy erasure (P0-07, P1-25, P1-28)', async () => {
+  resetRepositoriesForTesting();
+
+  // 1. Unauthenticated upload fails
+  const unauthUpload = await photoRepository.upload(
+    'GLS-401',
+    { name: 'pic.jpg', size: 1024 * 1024, type: 'image/jpeg' },
+    true,
+    null
+  );
+  assert.equal(unauthUpload.success, false);
+  assert.ok(unauthUpload.error);
+
+  // 2. Staff upload with consent succeeds
+  const uploadSuccess = await photoRepository.upload(
+    'GLS-401',
+    { name: 'pic.jpg', size: 1024 * 1024, type: 'image/jpeg' },
+    true,
+    staffSession
+  );
+  assert.equal(uploadSuccess.success, true);
+  assert.ok(uploadSuccess.photo);
+
+  // 3. Resolve signed URL
+  const signedUrl = await photoRepository.getSignedUrl(uploadSuccess.photo!.storagePath);
+  assert.ok(signedUrl, 'Must return signed URL for storage path');
+
+  // 4. Privacy erasure purges photo and revokes active grants
+  const erasure = await photoRepository.purgeAndErase('GLS-401', staffSession, false);
+  assert.equal(erasure.success, true);
+});
+
+test('ShareGrantRepository: persists share grant, redeems via token, and revokes cleanly (P0-08, P1-27)', async () => {
+  resetRepositoriesForTesting();
+
+  const mockSnapshot = {
+    candidateId: 'GLS-401',
+    matchCaseId: 'mc-101',
+    profileStatus: 'active' as const,
+    grantId: 'grnt-test-1',
+    token: 'test-token-abcdef1234567890',
+    tokenHash: 'a'.repeat(64),
+    issuedAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
+    expiresAtMs: Date.now() + 48 * 3600 * 1000,
+    isRevoked: false,
+    authorizedFields: ['ref_number' as const, 'age' as const],
+    withheldReasons: [],
+    disclosedData: {
+      age: 25,
+      isLegalNameDisclosed: false,
+      isDirectContactDisclosed: false,
+    },
+  };
+
+  // 1. Create share grant
+  const createRes = await shareGrantRepository.createGrant(mockSnapshot, staffSession);
+  assert.equal(createRes.success, true);
+
+  // 2. Redeem share grant
+  const redeemRes = await shareGrantRepository.redeemGrant(mockSnapshot.token);
+  assert.equal(redeemRes.valid, true);
+
+  // 3. Revoke share grant
+  const revokeRes = await shareGrantRepository.revokeGrant(mockSnapshot.token, staffSession);
+  assert.equal(revokeRes.success, true);
+
+  // 4. Post-revoke redemption fails closed
+  const postRevoke = await shareGrantRepository.redeemGrant(mockSnapshot.token);
+  assert.equal(postRevoke.valid, false);
 });

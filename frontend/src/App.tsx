@@ -25,6 +25,7 @@ import { NadeemDashboard } from './features/matchmaker/NadeemDashboard';
 import { ProfileWizard } from './features/matchmaker/ProfileWizard';
 import { CustomerPortal } from './features/customer/CustomerPortal';
 import { AdminPortal } from './features/admin/AdminPortal';
+import { SecurePhotoViewer } from './features/redemption/SecurePhotoViewer';
 import { ScrollAnimationBackground } from './components/ui/ScrollAnimationBackground';
 import { getClientConfig } from './lib/config';
 import { 
@@ -73,6 +74,18 @@ export default function App() {
   });
   const [activeNav, setActiveNav] = useState<string>(() => initialRoute.candidateNav);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [securePhotoParams, setSecurePhotoParams] = useState<{ token: string; scope?: string } | null>(() => {
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      const isPath = window.location.pathname.includes('/secure-photo');
+      const token = searchParams.get('token');
+      const scope = searchParams.get('scope') || undefined;
+      if (token && (isPath || searchParams.has('scope'))) {
+        return { token, scope };
+      }
+    }
+    return null;
+  });
 
   // Application Data States: Typed service hooks consume repositories (CFG-05)
   const isDemo = getClientConfig().mode === 'demo';
@@ -321,6 +334,22 @@ export default function App() {
       alert(language === 'ur' ? 'اسٹیٹس تبدیل کرنے میں خرابی پیش آئی۔' : `Failed to update status: ${err?.message || 'Unknown error'}`);
     }
   };
+
+  if (securePhotoParams) {
+    return (
+      <SecurePhotoViewer
+        token={securePhotoParams.token}
+        scope={securePhotoParams.scope}
+        language={language}
+        onClose={() => {
+          setSecurePhotoParams(null);
+          if (typeof window !== 'undefined' && window.history) {
+            window.history.replaceState({}, '', window.location.pathname.replace(/\/secure-photo.*/, '/') || '/');
+          }
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col text-[#252E2C] relative selection:bg-[#182848] selection:text-[#F7F3EA]">

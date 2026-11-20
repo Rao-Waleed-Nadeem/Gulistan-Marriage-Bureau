@@ -44,6 +44,18 @@ import {
   canTransitionStatus,
 } from './profiles';
 import {
+  PhotoRecord,
+  resolveCandidatePhotoUrl,
+  uploadCandidatePhoto,
+  executeCandidatePrivacyErasureAsync,
+} from './photos';
+import {
+  AuthorizedDisclosureSnapshot,
+  persistShareGrantAsync,
+  redeemShareGrantAsync,
+  revokeShareGrantAsync,
+} from './disclosure';
+import {
   INITIAL_PROFILES,
   INITIAL_FOLLOW_UPS,
   INITIAL_TRANSACTIONS,
@@ -212,6 +224,39 @@ export interface IAuditRepository {
   ): Promise<AuditLogItem>;
 }
 
+export interface IPhotoRepository {
+  upload(
+    profileId: string,
+    file: { name: string; size: number; type: string; data?: Blob | ArrayBuffer | Uint8Array | File },
+    consentCertified: boolean,
+    session: AuthSession | null
+  ): Promise<{ success: boolean; photo: PhotoRecord | null; error?: string }>;
+  getSignedUrl(storagePath: string, expiresInSeconds?: number): Promise<string>;
+  purgeAndErase(
+    profileId: string,
+    session: AuthSession | null,
+    eraseProfile?: boolean
+  ): Promise<{ success: boolean; purgedPhotoId: string | null; grantsRevokedCount: number; error?: string }>;
+}
+
+export interface IShareGrantRepository {
+  createGrant(
+    snapshot: AuthorizedDisclosureSnapshot,
+    session: AuthSession | null,
+    recipientContext?: { recipientType?: string; recipientPhone?: string }
+  ): Promise<{ success: boolean; grantId: string; error?: string }>;
+  redeemGrant(tokenOrHash: string): Promise<{
+    valid: boolean;
+    reason?: string;
+    snapshot?: AuthorizedDisclosureSnapshot;
+    referenceCode?: string;
+  }>;
+  revokeGrant(
+    tokenOrHashOrGrantId: string,
+    session: AuthSession | null
+  ): Promise<{ success: boolean; error?: string }>;
+}
+
 // =============================================================================
 // In-Memory Demo Storage (Isolated to local development & tests)
 // =============================================================================
@@ -347,11 +392,13 @@ class ProfileRepositoryImpl implements IProfileRepository {
       if (!data) return null;
 
       const row = data as unknown as ProfileRow;
+      const rawPath = data.profile_photos?.[0]?.storage_path || '';
+      const photoUrl = rawPath ? await resolveCandidatePhotoUrl(rawPath) : '';
       const nested = {
         preferences: data.profile_preferences?.[0] || undefined,
         siblings: data.profile_siblings || [],
         property: data.profile_property_details?.[0] || undefined,
-        photoUrl: data.profile_photos?.[0]?.storage_path || '',
+        photoUrl,
       };
 
       const dto = profileRowToDTO(row, nested);
@@ -413,13 +460,15 @@ class ProfileRepositoryImpl implements IProfileRepository {
       if (error) throw new Error(`DATABASE_ERROR: ${error.message}`);
       if (!data) return [];
 
-      return data.map((d: any) => {
+      return Promise.all(data.map(async (d: any) => {
         const row = d as ProfileRow;
+        const rawPath = d.profile_photos?.[0]?.storage_path || '';
+        const photoUrl = rawPath ? await resolveCandidatePhotoUrl(rawPath) : '';
         const nested = {
           preferences: d.profile_preferences?.[0] || undefined,
           siblings: d.profile_siblings || [],
           property: d.profile_property_details?.[0] || undefined,
-          photoUrl: d.profile_photos?.[0]?.storage_path || '',
+          photoUrl,
         };
         const dto = profileRowToDTO(row, nested);
         const isOwner = session?.user?.id && (
@@ -430,7 +479,7 @@ class ProfileRepositoryImpl implements IProfileRepository {
           (dto.contactEmail && session.user.email?.toLowerCase() === dto.contactEmail.toLowerCase())
         );
         return sanitizeProfileForRole(dto, viewerRole, !!isOwner);
-      });
+      }));
     }
 
     // Demo Mode
@@ -2103,4 +2152,97 @@ export function setAuditRepositoryForTesting(repo: IAuditRepository): void {
 
 export function resetAuditRepositoryForTesting(): void {
   auditRepository = new AuditRepositoryImpl();
+}
+
+// =============================================================================
+// Photo Repository Implementation (P0-07, P1-25, P1-26, P1-28)
+// =============================================================================
+
+export class PhotoRepositoryImpl implements IPhotoRepository {
+  async upload(
+    profileId: string,
+    file: { name: string; size: number; type: string; data?: Blob | ArrayBuffer | Uint8Array | File },
+    consentCertified: boolean,
+    session: AuthSession | null
+  ): Promise<{ success: boolean; photo: PhotoRecord | null; error?: string }> {
+    const res = await uploadCandidatePhoto(profileId, file, consentCertified, session);
+    if (!res.success) {
+      return { success: false, photo: null, error: res.error?.messageEn || 'Photo upload failed' };
+    }
+    return { success: true, photo: res.photo };
+  }
+
+  async getSignedUrl(storagePath: string, expiresInSeconds: number = 3600): Promise<string> {
+    return resolveCandidatePhotoUrl(storagePath, expiresInSeconds);
+  }
+
+  async purgeAndErase(
+    profileId: string,
+    session: AuthSession | null,
+    eraseProfile: boolean = false
+  ): Promise<{ success: boolean; purgedPhotoId: string | null; grantsRevokedCount: number; error?: string }> {
+    const res = await executeCandidatePrivacyErasureAsync(profileId, session, eraseProfile);
+    if (!res.success) {
+      return {
+        success: false,
+        purgedPhotoId: null,
+        grantsRevokedCount: 0,
+        error: res.error?.messageEn || 'Privacy erasure failed',
+      };
+    }
+    return {
+      success: true,
+      purgedPhotoId: res.purgedPhotoId,
+      grantsRevokedCount: res.grantsRevokedCount,
+    };
+  }
+}
+
+// =============================================================================
+// Share Grant Repository Implementation (P0-08, P1-27)
+// =============================================================================
+
+export class ShareGrantRepositoryImpl implements IShareGrantRepository {
+  async createGrant(
+    snapshot: AuthorizedDisclosureSnapshot,
+    session: AuthSession | null,
+    recipientContext?: { recipientType?: string; recipientPhone?: string }
+  ): Promise<{ success: boolean; grantId: string; error?: string }> {
+    return persistShareGrantAsync(snapshot, session, recipientContext);
+  }
+
+  async redeemGrant(tokenOrHash: string): Promise<{
+    valid: boolean;
+    reason?: string;
+    snapshot?: AuthorizedDisclosureSnapshot;
+    referenceCode?: string;
+  }> {
+    return redeemShareGrantAsync(tokenOrHash);
+  }
+
+  async revokeGrant(
+    tokenOrHashOrGrantId: string,
+    session: AuthSession | null
+  ): Promise<{ success: boolean; error?: string }> {
+    return revokeShareGrantAsync(tokenOrHashOrGrantId, session);
+  }
+}
+
+export let photoRepository: IPhotoRepository = new PhotoRepositoryImpl();
+export let shareGrantRepository: IShareGrantRepository = new ShareGrantRepositoryImpl();
+
+export function setPhotoRepositoryForTesting(repo: IPhotoRepository): void {
+  photoRepository = repo;
+}
+
+export function resetPhotoRepositoryForTesting(): void {
+  photoRepository = new PhotoRepositoryImpl();
+}
+
+export function setShareGrantRepositoryForTesting(repo: IShareGrantRepository): void {
+  shareGrantRepository = repo;
+}
+
+export function resetShareGrantRepositoryForTesting(): void {
+  shareGrantRepository = new ShareGrantRepositoryImpl();
 }

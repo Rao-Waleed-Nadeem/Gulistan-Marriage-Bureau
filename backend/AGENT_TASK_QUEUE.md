@@ -667,10 +667,47 @@ This queue is a work plan, not proof of implementation. Only mark a task DONE af
 **Completion record:** Completed on 2026-11-20. Created additive database migration `00006_profile_intake_and_ownership_enhancements.sql` with customer child policies and `create_profile_bundle` RPC. Added bidirectional snake_case to camelCase child DTO converters, collision-resistant reference code generator, and preserved absent property as undefined. Removed pre-populated candidate facts in wizard, resolved customer ownership in App.tsx, and updated property consumers. Added 4 backend migration tests and comprehensive frontend mapper and repository tests. Verified with 107 backend tests and 160 frontend tests (267 total passing), `tsc --noEmit` (0 errors), and `vite build` (1.46s). Verified commit `cedddb3` on `main`.
 
 ### T-034 — Real private Storage, Storage RLS, consent withdrawal, server-side share issue/redeem/revoke and privacy erasure
-**Status:** READY  
+**Status:** DONE  
 **Priority:** P0  
 **Dependencies:** T-032, T-033  
 **Scope:** Remediation of Findings P0-07, P0-08, P1-20 through P1-29. Real Supabase Storage bucket operations, storage RLS policies, token-hash share grants in database, server-side redemption endpoint, photo purge on consent withdrawal, transactional privacy erasure.
+
+**Detailed steps**
+1. Created additive database migration `backend/migrations/00007_storage_and_share_grants_enhancements.sql`:
+   - Configured private storage bucket `candidate-photos` (`public = FALSE`, 5MB limit, JPEG/PNG/WebP).
+   - Established `storage.objects` RLS policies: revoked all from public/anon, granted staff full management, granted customer self-service upload, read, and delete on their own pending profile folders (P0-07, P1-25).
+   - Enhanced `public.share_grants` schema with `match_case_id UUID REFERENCES public.match_cases(id) ON DELETE SET NULL`, `disclosed_snapshot JSONB`, and index `idx_share_grants_match_case` (P1-27).
+   - Added `share_grants_customer_own_select` policy on `share_grants`.
+   - Defined atomic server RPCs (`SECURITY DEFINER`): `create_share_grant`, `redeem_share_grant`, `revoke_share_grant`, `execute_candidate_privacy_erasure` (P0-08, P1-28).
+2. Refactored photo and disclosure modules:
+   - `frontend/src/lib/photos.ts`: added `uploadCandidatePhoto` supporting binary file payloads (`Blob`, `File`, `Uint8Array`) to Supabase Storage; added `resolveCandidatePhotoUrl` returning short-lived signed URLs for storage paths (P1-26); added `executeCandidatePrivacyErasureAsync` executing server-side privacy erasure (storage purge + DB grant revocation + consent withdrawal + profile status update) (P0-07, P1-28).
+   - `frontend/src/lib/disclosure.ts`: added `persistShareGrantAsync`, `redeemShareGrantAsync`, `revokeShareGrantAsync`; updated `authorizeDisclosure` with `matchCaseId` support; enforced fail-closed behavior for unconfigured bureau office contact `IS_BUREAU_OFFICE_PHONE_CONFIGURED = false` (P1-29).
+3. Created repositories and UI integration:
+   - `frontend/src/lib/repositories.ts`: implemented `IPhotoRepository` (`PhotoRepositoryImpl`) and `IShareGrantRepository` (`ShareGrantRepositoryImpl`); updated `ProfileRepositoryImpl` (`findById`, `findAll`) to resolve signed URLs instead of leaking raw storage paths (P1-26).
+   - `frontend/src/components/matching/ControlledSharingModal.tsx`: removed synthetic staff session fabrication in live backend mode (P0-09); enforced preview message derivation strictly from authorized disclosure snapshot without raw field fallback; persists created grants into the database repository.
+   - `frontend/src/features/redemption/SecurePhotoViewer.tsx`: created dedicated redemption view for `/secure-photo?token=...&scope=...` validating cryptographic grant, displaying candidate reference code, watermarked photo, remaining 48-hour validity countdown, and culturally appropriate invalid/expired notices (P0-08).
+   - `frontend/src/App.tsx`: wired `/secure-photo` redemption route.
+4. Authored comprehensive test suites:
+   - `backend/tests/migration_00007.test.js`: 5 tests verifying migration transaction wrapping, bucket configuration, storage RLS policies, share grants enhancements, and server RPCs.
+   - Enhanced `frontend/src/lib/photos.test.ts`, `frontend/src/lib/disclosure.test.ts`, and `frontend/src/lib/repositories.test.ts` verifying binary uploads, signed URL resolution, share grant lifecycle, and repository methods.
+5. Documentation & Verification:
+   - Updated `backend/migrations/README.md`.
+   - Verified 112 backend tests and 167 frontend tests (279 total passing), `tsc --noEmit` (0 errors), `vite build` (1.34s).
+
+**Acceptance criteria**
+- [x] STOR-BUCKET-01: Candidate photo storage is strictly private with public/anon access denied and 5MB limit enforced (P0-07, P1-25).
+- [x] STOR-RLS-01: Storage object RLS permits staff management and restricts customer operations to their own pending profile folders (P1-25).
+- [x] STOR-URL-01: Candidate photo display resolves via short-lived authorized signed URLs; never exposes raw bucket storage paths (P1-26).
+- [x] SHARE-GRANT-01: Share grant schema durably binds `match_case_id` and immutable `disclosed_snapshot` with SHA-256 token hashing at rest (P0-08, P1-27).
+- [x] SHARE-RPC-01: Server-side RPCs `create_share_grant`, `redeem_share_grant`, and `revoke_share_grant` enforce caller authorization, candidate consent, and 48-hour expiry (P0-08).
+- [x] PRIV-ERASURE-01: Candidate privacy erasure atomically purges storage objects, revokes active database grants, marks consents withdrawn, and logs audit trail (P0-07, P1-28).
+- [x] SHARE-AUTH-01: Sharing modal eliminates synthetic staff session fabrication and raw field fallbacks in live mode (P0-09).
+- [x] CONT-GATE-01: Bureau office contact fails closed when unconfigured without leaking dummy phone numbers (P1-29).
+- [x] MIG-00007-01: Additive migration `00007_storage_and_share_grants_enhancements.sql` replays cleanly within transaction block (`BEGIN ... COMMIT`) with zero mock seeding.
+- [x] 112 backend tests + 167 frontend tests verified (279 total passing), `tsc --noEmit` (0 errors), `vite build` (1.34s).
+- [x] Queue updated and commit verified directly on `main`.
+
+**Completion record:** Completed on 2026-11-20. Created additive database migration `00007_storage_and_share_grants_enhancements.sql` provisioning private storage bucket `candidate-photos`, storage.objects RLS policies, enhanced share_grants schema, and atomic server RPCs. Implemented binary file uploads and signed URL resolution in photos.ts and repositories.ts. Added share grant database persistence, redemption, and revocation in disclosure.ts and repositories.ts. Remediated synthetic staff session fabrication in ControlledSharingModal.tsx. Added SecurePhotoViewer redemption route in App.tsx. Added 5 backend migration tests and 7 frontend tests across photos, disclosure, and repositories. Verified with 112 backend tests and 167 frontend tests (279 total passing), `tsc --noEmit` (0 errors), and `vite build` (1.34s). Commit recorded on `main`.
 
 ### T-035 — Match UUID mapping, canonical pair uniqueness, persisted current evaluation, Nadeem-only decision and atomic approval/share preconditions
 **Status:** READY  

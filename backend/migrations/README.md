@@ -162,3 +162,38 @@ Before applying pending migrations, the runner verifies that every already-appli
   COMMIT;
   ```
 
+### `00007_storage_and_share_grants_enhancements.sql`
+* **Status:** Implemented under Task `T-034`.
+* **Scope:**
+  * Remediates independent audit findings P0-07, P0-08, P1-25, P1-26, P1-27, P1-28, and P1-29.
+  * Ensures `storage` schema, `storage.buckets`, and `storage.objects` baseline exists for standard PostgreSQL and managed Supabase environments.
+  * Provisions private bucket `candidate-photos` (`public = FALSE`, 5MB limit, JPEG/PNG/WebP).
+  * Establishes Row-Level Security on `storage.objects`: explicitly revokes public/anon access, grants staff full management, and grants authenticated customers self-service upload, read, and delete on their own pending profile folders.
+  * Enhances `public.share_grants` schema with foreign key `match_case_id UUID REFERENCES public.match_cases(id) ON DELETE SET NULL`, `disclosed_snapshot JSONB`, and index `idx_share_grants_match_case`.
+  * Adds customer select policy `share_grants_customer_own_select` on `share_grants`.
+  * Implements atomic transactional server RPCs (`SECURITY DEFINER`):
+    - `public.create_share_grant`: issues token-hashed share grant with candidate status validation and audit trail.
+    - `public.redeem_share_grant`: validates expiration, revocation, and candidate consent before returning disclosed snapshot.
+    - `public.revoke_share_grant`: revokes grant immediately and records audit event.
+    - `public.execute_candidate_privacy_erasure`: atomic server-side erasure deleting photo records/objects, revoking active share grants, marking consents withdrawn, and deactivating profile.
+* **Rollback Procedure:**
+  ```sql
+  BEGIN;
+  DROP FUNCTION IF EXISTS public.execute_candidate_privacy_erasure(UUID, BOOLEAN);
+  DROP FUNCTION IF EXISTS public.revoke_share_grant(UUID, VARCHAR);
+  DROP FUNCTION IF EXISTS public.redeem_share_grant(VARCHAR);
+  DROP FUNCTION IF EXISTS public.create_share_grant(UUID, UUID, VARCHAR, VARCHAR, VARCHAR, JSONB, JSONB, TIMESTAMPTZ);
+  DROP POLICY IF EXISTS share_grants_customer_own_select ON public.share_grants;
+  DROP INDEX IF EXISTS idx_share_grants_match_case;
+  ALTER TABLE public.share_grants DROP COLUMN IF EXISTS version;
+  ALTER TABLE public.share_grants DROP COLUMN IF EXISTS disclosed_snapshot;
+  ALTER TABLE public.share_grants DROP COLUMN IF EXISTS match_case_id;
+  DROP POLICY IF EXISTS storage_objects_customer_own_delete ON storage.objects;
+  DROP POLICY IF EXISTS storage_objects_customer_own_select ON storage.objects;
+  DROP POLICY IF EXISTS storage_objects_customer_own_insert ON storage.objects;
+  DROP POLICY IF EXISTS storage_objects_staff_manage ON storage.objects;
+  DELETE FROM storage.buckets WHERE id = 'candidate-photos';
+  COMMIT;
+  ```
+
+

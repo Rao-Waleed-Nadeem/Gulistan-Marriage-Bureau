@@ -22,6 +22,8 @@
 
 import { ProfileRecord, ProfileStatus } from '../types';
 import { AuthSession, canAccessRole } from './auth';
+import { getClientConfig } from './config';
+import { getSupabaseClient } from './supabaseClient';
 import { computeSha256, generateCryptoUUID, generateSecureToken } from './crypto';
 
 export const DEFAULT_SHARE_GRANT_EXPIRY_MS = 48 * 60 * 60 * 1000; // 48 hours per OPEN-006
@@ -29,6 +31,18 @@ export const BUREAU_OFFICE_PHONE = '+92 300 0000000';
 export const BUREAU_OFFICE_TITLE_EN = 'Gulistan Bureau Concierge';
 export const BUREAU_OFFICE_TITLE_UR = 'گلستان بیورو رابطہ دفتر';
 export const IS_BUREAU_OFFICE_PHONE_CONFIGURED = false; // SHARE-02: Designated unconfigured until owner supplies verified number
+
+let isBureauPhoneConfiguredState = IS_BUREAU_OFFICE_PHONE_CONFIGURED;
+let configuredBureauPhone = BUREAU_OFFICE_PHONE;
+
+export function configureBureauOfficePhone(phone: string | null, isVerified: boolean = false): void {
+  configuredBureauPhone = phone || BUREAU_OFFICE_PHONE;
+  isBureauPhoneConfiguredState = isVerified && Boolean(phone);
+}
+
+export function isBureauPhoneConfigured(): boolean {
+  return isBureauPhoneConfiguredState;
+}
 
 export type DisclosureFieldName =
   | 'ref_number'
@@ -61,6 +75,9 @@ export interface DisclosureRequestOptions {
   includePropertySummary?: boolean;
   includeContactNumber?: boolean;
   includePhotoLink?: boolean;
+  matchCaseId?: string; // P1-27: bound match case
+  recipientType?: 'customer' | 'matchmaker' | 'family';
+  recipientPhone?: string;
   customNote?: string;
 }
 
@@ -93,6 +110,7 @@ export interface AuthorizedDisclosedData {
 
 export interface AuthorizedDisclosureSnapshot {
   candidateId: string;
+  matchCaseId?: string; // P1-27
   profileStatus: ProfileStatus;
   grantId: string;
   token?: string; // High-entropy bearer token for recipient delivery (never logged/stored raw)
@@ -323,15 +341,26 @@ export function authorizeDisclosure(
       disclosedData.contactNumber = profile.contactPhone;
       disclosedData.isDirectContactDisclosed = true;
     } else {
-      authorizedFields.push('contact_number');
-      disclosedData.contactNumber = `${BUREAU_OFFICE_PHONE} (${BUREAU_OFFICE_TITLE_EN})`;
-      disclosedData.isDirectContactDisclosed = false;
-      withheldReasons.push({
-        field: 'contact_number',
-        code: 'DIRECT_CONTACT_LOCKED_PENDING_INTRODUCTION',
-        messageEn: 'Direct candidate contact locked pending mutual consent (OPEN-005). Bureau concierge contact provided.',
-        messageUrdu: 'امیدوار کا براہ راست فون نمبر باہمی رضامندی تک محفوظ ہے۔ بیورو رابطہ نمبر فراہم کیا گیا ہے۔',
-      });
+      const config = getClientConfig();
+      if (!isBureauPhoneConfigured() && config.mode === 'backend') {
+        // In live staging/production mode, fail closed if owner has not configured verified number (P1-29)
+        withheldReasons.push({
+          field: 'contact_number',
+          code: 'BUREAU_OFFICE_CONTACT_UNCONFIGURED',
+          messageEn: 'Direct candidate contact locked pending mutual consent (OPEN-005), and official bureau office concierge is unconfigured (P1-29).',
+          messageUrdu: 'امیدوار کا براہ راست فون نمبر باہمی رضامندی تک محفوظ ہے، اور بیورو کا دفتری رابطہ نمبر تاحال تصدیق شدہ نہیں۔',
+        });
+      } else {
+        authorizedFields.push('contact_number');
+        disclosedData.contactNumber = `${configuredBureauPhone} (${BUREAU_OFFICE_TITLE_EN})`;
+        disclosedData.isDirectContactDisclosed = false;
+        withheldReasons.push({
+          field: 'contact_number',
+          code: 'DIRECT_CONTACT_LOCKED_PENDING_INTRODUCTION',
+          messageEn: 'Direct candidate contact locked pending mutual consent (OPEN-005). Bureau concierge contact provided.',
+          messageUrdu: 'امیدوار کا براہ راست فون نمبر باہمی رضامندی تک محفوظ ہے۔ بیورو رابطہ نمبر فراہم کیا گیا ہے۔',
+        });
+      }
     }
   }
 
@@ -367,6 +396,7 @@ export function authorizeDisclosure(
 
   const snapshot: AuthorizedDisclosureSnapshot = {
     candidateId: profile.id,
+    matchCaseId: (requested as any).matchCaseId,
     profileStatus: profile.status,
     grantId,
     token,
@@ -594,6 +624,137 @@ export function revokeShareGrant(tokenOrHashOrGrantId: string): boolean {
     return true;
   }
   return false;
+}
+
+/**
+ * Persists an authorized share grant to Supabase Database (P0-08, P1-27).
+ * Uses create_share_grant RPC to ensure transactional integrity and audit logging.
+ */
+export async function persistShareGrantAsync(
+  snapshot: AuthorizedDisclosureSnapshot,
+  session: AuthSession | null,
+  recipientContext?: { recipientType?: string; recipientPhone?: string }
+): Promise<{ success: boolean; grantId: string; error?: string }> {
+  const config = getClientConfig();
+  if (config.mode === 'backend') {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      const { data, error } = await supabase.rpc('create_share_grant', {
+        p_profile_id: snapshot.candidateId,
+        p_match_case_id: snapshot.matchCaseId || null,
+        p_token_hash: snapshot.tokenHash,
+        p_recipient_type: recipientContext?.recipientType || 'customer',
+        p_recipient_phone: recipientContext?.recipientPhone || null,
+        p_approved_fields: snapshot.authorizedFields,
+        p_disclosed_snapshot: snapshot.disclosedData,
+        p_expires_at: snapshot.expiresAt,
+      });
+
+      if (error) {
+        return { success: false, grantId: snapshot.grantId, error: error.message };
+      }
+
+      return { success: true, grantId: data?.grant_id || snapshot.grantId };
+    }
+  }
+
+  // Demo / local memory
+  activeShareGrantsByToken.set(snapshot.token || snapshot.tokenHash, snapshot);
+  activeShareGrantsByHash.set(snapshot.tokenHash, snapshot);
+  return { success: true, grantId: snapshot.grantId };
+}
+
+/**
+ * Redeems an issued share grant by raw bearer token or tokenHash via server RPC (P0-08).
+ * Re-validates expiry, revocation, and candidate consent at redemption time.
+ */
+export async function redeemShareGrantAsync(
+  tokenOrHash: string
+): Promise<{
+  valid: boolean;
+  reason?: 'missing' | 'expired' | 'revoked' | 'profile_not_shareable';
+  snapshot?: AuthorizedDisclosureSnapshot;
+  referenceCode?: string;
+}> {
+  const config = getClientConfig();
+  if (config.mode === 'backend') {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      const hash = tokenOrHash.length === 64 ? tokenOrHash : computeSha256(tokenOrHash);
+      const { data, error } = await supabase.rpc('redeem_share_grant', {
+        p_token_hash: hash,
+      });
+
+      if (error || !data || !data.valid) {
+        return {
+          valid: false,
+          reason: data?.reason || 'missing',
+        };
+      }
+
+      return {
+        valid: true,
+        referenceCode: data.reference_code,
+        snapshot: {
+          candidateId: data.profile_id,
+          matchCaseId: data.match_case_id,
+          profileStatus: 'active',
+          grantId: data.grant_id,
+          tokenHash: hash,
+          issuedAt: new Date().toISOString(),
+          expiresAt: data.expires_at,
+          expiresAtMs: new Date(data.expires_at).getTime(),
+          isRevoked: false,
+          authorizedFields: data.approved_fields || [],
+          withheldReasons: [],
+          disclosedData: data.snapshot || {},
+        },
+      };
+    }
+  }
+
+  // Demo mode fallback
+  const result = validateShareGrant(tokenOrHash);
+  return {
+    valid: result.valid,
+    reason: result.reason,
+    snapshot: result.snapshot,
+  };
+}
+
+/**
+ * Revokes an issued share grant via database RPC (P0-08).
+ */
+export async function revokeShareGrantAsync(
+  tokenOrHashOrGrantId: string,
+  session: AuthSession | null
+): Promise<{ success: boolean; error?: string }> {
+  const config = getClientConfig();
+  if (config.mode === 'backend') {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tokenOrHashOrGrantId);
+      const hash = !isUUID
+        ? tokenOrHashOrGrantId.length === 64
+          ? tokenOrHashOrGrantId
+          : computeSha256(tokenOrHashOrGrantId)
+        : null;
+
+      const { data, error } = await supabase.rpc('revoke_share_grant', {
+        p_grant_id: isUUID ? tokenOrHashOrGrantId : null,
+        p_token_hash: hash,
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      return { success: Boolean(data?.success) };
+    }
+  }
+
+  const success = revokeShareGrant(tokenOrHashOrGrantId);
+  return { success };
 }
 
 export function resetDisclosureForTesting(): void {

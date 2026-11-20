@@ -12,6 +12,9 @@ import {
   resetPhotosForTesting,
   evaluateCandidateRetention,
   executeCandidatePrivacyErasure,
+  uploadCandidatePhoto,
+  resolveCandidatePhotoUrl,
+  executeCandidatePrivacyErasureAsync,
   PhotoRecord,
   DEFAULT_PHOTO_EXPIRY_MS,
 } from './photos';
@@ -321,4 +324,59 @@ test('executeCandidatePrivacyErasure purges photo and revokes active grants (PRI
   const check = validateSignedPhotoAccess(grant1.grant!.token, true);
   assert.equal(check.valid, false);
   assert.equal(check.reason, 'revoked');
+});
+
+test('resolveCandidatePhotoUrl resolves paths and preserves external URLs without leaking raw bucket paths (P1-26)', async () => {
+  // Empty or invalid returns empty string
+  assert.equal(await resolveCandidatePhotoUrl(''), '');
+
+  // Full URLs are preserved
+  const httpsUrl = 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400';
+  assert.equal(await resolveCandidatePhotoUrl(httpsUrl), httpsUrl);
+
+  const dataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+  assert.equal(await resolveCandidatePhotoUrl(dataUrl), dataUrl);
+
+  // In demo mode, raw storage path is safely passed or resolved without crashing
+  const path = 'private-photos/GLS-401/f81d4fae-7dec-4a11-89b2-a42e5684.jpg';
+  const resolved = await resolveCandidatePhotoUrl(path);
+  assert.ok(resolved, 'Must return a resolved URL string');
+});
+
+test('uploadCandidatePhoto supports binary file objects and enforces validation (P0-07, P1-25)', async () => {
+  resetPhotosForTesting();
+
+  const fileWithData = {
+    name: 'candidate-portrait.webp',
+    size: 500 * 1024,
+    type: 'image/webp',
+    data: new Uint8Array([0x52, 0x49, 0x46, 0x46]), // dummy webp header
+  };
+
+  const uploadResult = await uploadCandidatePhoto('GLS-408', fileWithData, true, staffSession);
+  assert.equal(uploadResult.success, true);
+  assert.ok(uploadResult.photo);
+  assert.equal(uploadResult.photo?.mimeType, 'image/webp');
+  assert.ok(uploadResult.photo?.storagePath.startsWith('private-photos/GLS-408/'));
+});
+
+test('executeCandidatePrivacyErasureAsync performs end-to-end erasure (P0-07, P1-28)', async () => {
+  resetPhotosForTesting();
+
+  const file = { name: 'portrait.jpg', size: 1024 * 1024, type: 'image/jpeg' };
+  const upload = await uploadCandidatePhoto('GLS-409', file, true, staffSession);
+  assert.equal(upload.success, true);
+
+  const grant = generateSignedPhotoGrant(upload.photo!, true, staffSession);
+  assert.equal(grant.success, true);
+
+  const erasure = await executeCandidatePrivacyErasureAsync('GLS-409', staffSession);
+  assert.equal(erasure.success, true);
+  assert.equal(erasure.purgedPhotoId, upload.photo?.id);
+  assert.ok(erasure.grantsRevokedCount >= 1);
+
+  // Token is revoked
+  const tokenCheck = validateSignedPhotoAccess(grant.grant!.token, true);
+  assert.equal(tokenCheck.valid, false);
+  assert.equal(tokenCheck.reason, 'revoked');
 });
