@@ -17,140 +17,18 @@
 BEGIN;
 
 -- ------------------------------------------------------------------------------
--- 1. Storage Schema & Private Bucket Baseline (P0-07, P1-25)
--- ------------------------------------------------------------------------------
--- Ensure the storage schema, buckets, and objects tables exist for compatibility
--- with both managed Supabase environments and standalone PostgreSQL installations.
+-- 1. Supabase-managed Storage integration (P0-07, P1-25)
+-- Supabase owns the storage schema and its internal tables. Never CREATE,
+-- ALTER, DROP, INSERT into, or change ownership/privileges on storage.buckets
+-- or storage.objects from application migrations.
+--
+-- The candidate-photos bucket is provisioned separately in the Supabase
+-- Dashboard. Keep it PRIVATE and configure its size/MIME limits there.
+-- Storage access policies must be managed through the supported Supabase
+-- Storage policy interface after the exact staff/customer authorization
+-- contract has been verified. This migration deliberately does not mutate
+-- managed Storage objects, so it can run under the project's DB role.
 
-CREATE SCHEMA IF NOT EXISTS storage;
-
-CREATE TABLE IF NOT EXISTS storage.buckets (
-    id VARCHAR(255) PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    owner UUID NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-    public BOOLEAN NOT NULL DEFAULT FALSE,
-    avif_autodetection BOOLEAN NOT NULL DEFAULT FALSE,
-    file_size_limit BIGINT NULL,
-    allowed_mime_types TEXT[] NULL,
-    owner_id TEXT NULL
-);
-
-CREATE TABLE IF NOT EXISTS storage.objects (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    bucket_id VARCHAR(255) NOT NULL REFERENCES storage.buckets(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    owner UUID NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-    last_accessed_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-    metadata JSONB NULL,
-    version TEXT NULL,
-    owner_id TEXT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_storage_objects_bucket_name ON storage.objects (bucket_id, name);
-
--- Insert or enforce private candidate-photos bucket (OPEN-004, OPEN-006, OPEN-008)
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-VALUES (
-    'candidate-photos',
-    'candidate-photos',
-    FALSE,
-    5242880, -- 5 MB limit
-    ARRAY['image/jpeg', 'image/png', 'image/webp']
-)
-ON CONFLICT (id) DO UPDATE SET
-    public = FALSE,
-    file_size_limit = 5242880,
-    allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp'];
-
--- Enable Row-Level Security on Storage Tables
-ALTER TABLE storage.buckets ENABLE ROW LEVEL SECURITY;
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
-
--- Explicitly revoke public and anon access (least privilege)
-REVOKE ALL ON TABLE storage.buckets FROM public, anon;
-REVOKE ALL ON TABLE storage.objects FROM public, anon;
-
-GRANT SELECT ON TABLE storage.buckets TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE storage.objects TO authenticated;
-
--- Storage Objects Policies on 'candidate-photos'
--- Staff (Nadeem / Admin) full management
-DROP POLICY IF EXISTS storage_objects_staff_manage ON storage.objects;
-CREATE POLICY storage_objects_staff_manage ON storage.objects
-    FOR ALL TO authenticated
-    USING (
-        bucket_id = 'candidate-photos'
-        AND public.auth_is_staff()
-    )
-    WITH CHECK (
-        bucket_id = 'candidate-photos'
-        AND public.auth_is_staff()
-    );
-
--- Customer self-service upload: authenticated owner can insert into their profile's folder
-DROP POLICY IF EXISTS storage_objects_customer_own_insert ON storage.objects;
-CREATE POLICY storage_objects_customer_own_insert ON storage.objects
-    FOR INSERT TO authenticated
-    WITH CHECK (
-        bucket_id = 'candidate-photos'
-        AND public.auth_is_account_active(auth.uid())
-        AND EXISTS (
-            SELECT 1 FROM public.profiles p
-            WHERE (p.account_id = auth.uid() OR p.created_by = auth.uid())
-              AND p.status = 'pending_review'
-              AND (
-                  name LIKE (p.id::text || '/%')
-                  OR name LIKE ('private-photos/' || p.id::text || '/%')
-                  OR (p.reference_code IS NOT NULL AND name LIKE (p.reference_code || '/%'))
-                  OR (p.reference_code IS NOT NULL AND name LIKE ('private-photos/' || p.reference_code || '/%'))
-              )
-        )
-    );
-
--- Customer self-service read: owner can view photo in their own pending profile
-DROP POLICY IF EXISTS storage_objects_customer_own_select ON storage.objects;
-CREATE POLICY storage_objects_customer_own_select ON storage.objects
-    FOR SELECT TO authenticated
-    USING (
-        bucket_id = 'candidate-photos'
-        AND public.auth_is_account_active(auth.uid())
-        AND EXISTS (
-            SELECT 1 FROM public.profiles p
-            WHERE (p.account_id = auth.uid() OR p.created_by = auth.uid())
-              AND (
-                  name LIKE (p.id::text || '/%')
-                  OR name LIKE ('private-photos/' || p.id::text || '/%')
-                  OR (p.reference_code IS NOT NULL AND name LIKE (p.reference_code || '/%'))
-                  OR (p.reference_code IS NOT NULL AND name LIKE ('private-photos/' || p.reference_code || '/%'))
-              )
-        )
-    );
-
--- Customer self-service delete: owner can delete photo while in pending_review
-DROP POLICY IF EXISTS storage_objects_customer_own_delete ON storage.objects;
-CREATE POLICY storage_objects_customer_own_delete ON storage.objects
-    FOR DELETE TO authenticated
-    USING (
-        bucket_id = 'candidate-photos'
-        AND public.auth_is_account_active(auth.uid())
-        AND EXISTS (
-            SELECT 1 FROM public.profiles p
-            WHERE (p.account_id = auth.uid() OR p.created_by = auth.uid())
-              AND p.status = 'pending_review'
-              AND (
-                  name LIKE (p.id::text || '/%')
-                  OR name LIKE ('private-photos/' || p.id::text || '/%')
-                  OR (p.reference_code IS NOT NULL AND name LIKE (p.reference_code || '/%'))
-                  OR (p.reference_code IS NOT NULL AND name LIKE ('private-photos/' || p.reference_code || '/%'))
-              )
-        )
-    );
-
--- ------------------------------------------------------------------------------
 -- 2. Enhance Share Grants Schema (P0-08, P1-27)
 -- ------------------------------------------------------------------------------
 -- Store match_case_id and full immutable disclosed snapshot at grant issuance.
@@ -469,17 +347,10 @@ BEGIN
         v_photo_paths := array_append(v_photo_paths, v_photo.storage_path);
     END LOOP;
 
-    -- 3. Delete Photo Records in Database
-    DELETE FROM public.profile_photos
-    WHERE profile_id = p_profile_id;
-
-    -- Also clean storage.objects if table is populated
-    DELETE FROM storage.objects
-    WHERE bucket_id = 'candidate-photos'
-      AND (
-          name LIKE (p_profile_id::text || '/%')
-          OR name LIKE ('private-photos/' || p_profile_id::text || '/%')
-      );
+    -- 3. Do NOT delete from storage.objects here. Supabase Storage objects
+    -- must be removed through the Storage API so the physical object and its
+    -- metadata remain consistent. Keep profile_photos rows until the caller
+    -- has successfully removed the corresponding objects through that API.
 
     -- 4. Revoke All Active Share Grants
     UPDATE public.share_grants
@@ -531,9 +402,10 @@ BEGIN
         p_profile_id::text,
         jsonb_build_object(
             'profile_id', p_profile_id,
-            'photos_purged_count', array_length(v_photo_paths, 1),
+            'photos_queued_for_storage_purge_count', COALESCE(array_length(v_photo_paths, 1), 0),
             'grants_revoked_count', v_grants_revoked,
-            'profile_deactivated', p_erase_profile
+            'profile_deactivated', p_erase_profile,
+            'storage_purge_required', TRUE
         )
     );
 
@@ -541,10 +413,28 @@ BEGIN
         'success', TRUE,
         'profile_id', p_profile_id,
         'storage_paths_to_purge', to_jsonb(v_photo_paths),
+        'storage_purge_required', TRUE,
         'grants_revoked_count', v_grants_revoked,
         'profile_deactivated', p_erase_profile
     );
 END;
 $$;
+
+-- ------------------------------------------------------------------------------ 
+-- 7. Explicit RPC execution grants (SECURITY DEFINER functions)
+-- ------------------------------------------------------------------------------
+
+REVOKE ALL ON FUNCTION public.create_share_grant(UUID, UUID, VARCHAR, VARCHAR, VARCHAR, JSONB, JSONB, TIMESTAMPTZ) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.redeem_share_grant(VARCHAR) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.revoke_share_grant(UUID, VARCHAR) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.execute_candidate_privacy_erasure(UUID, BOOLEAN) FROM PUBLIC, anon;
+
+GRANT EXECUTE ON FUNCTION public.create_share_grant(UUID, UUID, VARCHAR, VARCHAR, VARCHAR, JSONB, JSONB, TIMESTAMPTZ) TO authenticated, service_role;
+-- Redemption is intentionally available without login because the bearer token
+-- is the access credential. Use high-entropy random tokens, store only SHA-256
+-- hashes, enforce short expiry, and rate-limit the public endpoint in the API.
+GRANT EXECUTE ON FUNCTION public.redeem_share_grant(VARCHAR) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.revoke_share_grant(UUID, VARCHAR) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.execute_candidate_privacy_erasure(UUID, BOOLEAN) TO authenticated, service_role;
 
 COMMIT;
