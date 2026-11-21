@@ -90,6 +90,9 @@ DECLARE
     v_contact_phone VARCHAR(50);
     v_gender VARCHAR(10);
     v_age INT;
+    v_height_inches INT;
+    v_height_display VARCHAR(20);
+    v_marital_status VARCHAR(30);
 BEGIN
     -- 1. Verify staff authorization
     IF NOT public.auth_is_staff() THEN
@@ -125,12 +128,670 @@ BEGIN
         -- Extract mandatory candidate invariants (no fabrication allowed)
         v_full_name := COALESCE(v_parsed->>'fullName', v_parsed->>'full_name');
         v_contact_phone := COALESCE(v_parsed->>'contactPhone', v_parsed->>'contact_phone');
-        v_gender := COALESCE(v_parsed->>'gender', 'other');
-        v_age := CASE 
-            WHEN (v_parsed->>'age') IS NOT NULL AND (v_parsed->>'age') ~ '^\d+$' 
-            THEN (v_parsed->>'age')::INT 
-            ELSE 0 
+        v_gender := NULLIF(lower(trim(v_parsed->>'gender')), '');
+        v_age := CASE
+            WHEN COALESCE(v_parsed->>'age', '') ~ '^\d+
+
+        -- Handle true conflict merge (P1-41)
+        IF v_record.resolution_action = 'merge_update' AND v_record.conflict_profile_id IS NOT NULL THEN
+            UPDATE public.profiles
+            SET
+                notes = COALESCE(notes || E'\n', '') || 'Merged from migration batch ' || v_batch.batch_code,
+                updated_at = timezone('utc'::text, now())
+            WHERE id = v_record.conflict_profile_id;
+
+            UPDATE public.migration_staged_records
+            SET
+                status = 'imported',
+                imported_profile_id = v_record.conflict_profile_id
+            WHERE id = v_record.id;
+
+            v_merged_count := v_merged_count + 1;
+            v_imported_count := v_imported_count + 1;
+
+            -- Audit merge
+            INSERT INTO public.audit_logs (actor, role, action, target_id, details)
+            VALUES (
+                p_actor_id::text,
+                'staff',
+                'MIGRATION_PROFILE_MERGED',
+                v_record.conflict_profile_id::text,
+                'Merged candidate details from batch ' || v_batch.batch_code || ' row ' || v_record.row_index
+            );
+
+        -- Handle new profile creation
+        ELSE
+            -- Enforce zero fact fabrication: validate required invariants
+            IF v_full_name IS NULL OR length(trim(v_full_name)) = 0 OR
+               v_contact_phone IS NULL OR length(trim(v_contact_phone)) = 0 OR
+               v_gender NOT IN ('male', 'female') OR
+               v_age IS NULL OR v_age < 18 OR v_age > 100 OR
+               v_height_inches IS NULL OR v_height_inches < 48 OR v_height_inches > 96 OR
+               v_height_display IS NULL OR
+               v_marital_status NOT IN ('never_married', 'divorced', 'widowed', 'khula') OR
+               NULLIF(trim(v_parsed->>'religion'), '') IS NULL OR
+               NULLIF(trim(v_parsed->>'aqeedah'), '') IS NULL OR
+               NULLIF(trim(v_parsed->>'caste'), '') IS NULL OR
+               NULLIF(trim(v_parsed->>'education'), '') IS NULL OR
+               NULLIF(trim(COALESCE(v_parsed->>'educationField', v_parsed->>'education_field')), '') IS NULL OR
+               NULLIF(trim(v_parsed->>'occupation'), '') IS NULL OR
+               NULLIF(trim(COALESCE(v_parsed->>'jobTitle', v_parsed->>'job_title')), '') IS NULL OR
+               NULLIF(trim(COALESCE(v_parsed->>'hometown', v_parsed->>'currentCity')), '') IS NULL OR
+               NULLIF(trim(COALESCE(v_parsed->>'currentCity', v_parsed->>'current_city')), '') IS NULL OR
+               NULLIF(trim(COALESCE(v_parsed->>'residenceArea', v_parsed->>'residence_area')), '') IS NULL OR
+               NULLIF(trim(v_parsed->>'contactPerson'), '') IS NULL THEN
+                -- Quarantine incomplete records; never manufacture demographic or contact facts.
+                UPDATE public.migration_staged_records
+                SET
+                    status = 'quarantined',
+                    quarantine_reason = 'DATA_VALIDATION_ERROR',
+                    conflict_details = 'Missing or invalid required profile fields. Complete and verify the source record before retrying import.'
+                WHERE id = v_record.id;
+                CONTINUE;
+            END IF;
+
+            v_ref_code := 'GLS-MIG-' || upper(substr(md5(random()::text || clock_timestamp()::text), 1, 6));
+
+            INSERT INTO public.profiles (
+                reference_code,
+                full_name,
+                display_name,
+                gender,
+                age,
+                height_inches,
+                height_display,
+                marital_status,
+                religion,
+                aqeedah,
+                caste,
+                education_level,
+                education_field,
+                occupation,
+                job_title,
+                hometown,
+                current_city,
+                residence_area,
+                status,
+                source,
+                contact_phone,
+                contact_person,
+                created_at,
+                updated_at
+            ) VALUES (
+                v_ref_code,
+                v_full_name,
+                v_full_name,
+                v_gender,
+                v_age,
+                v_height_inches,
+                v_height_display,
+                v_marital_status,
+                trim(v_parsed->>'religion'),
+                trim(v_parsed->>'aqeedah'),
+                trim(v_parsed->>'caste'),
+                trim(v_parsed->>'education'),
+                trim(COALESCE(v_parsed->>'educationField', v_parsed->>'education_field')),
+                trim(v_parsed->>'occupation'),
+                trim(COALESCE(v_parsed->>'jobTitle', v_parsed->>'job_title')),
+                trim(COALESCE(v_parsed->>'hometown', v_parsed->>'currentCity')),
+                trim(COALESCE(v_parsed->>'currentCity', v_parsed->>'current_city')),
+                trim(COALESCE(v_parsed->>'residenceArea', v_parsed->>'residence_area')),
+                'pending_review',
+                CASE WHEN v_batch.source_type = 'phone_gallery_archive' THEN 'gallery_migration' ELSE 'whatsapp_migration' END,
+                v_contact_phone,
+                trim(v_parsed->>'contactPerson'),
+                timezone('utc'::text, now()),
+                timezone('utc'::text, now())
+            )
+            RETURNING id INTO v_new_profile_id;
+
+            UPDATE public.migration_staged_records
+            SET
+                status = 'imported',
+                imported_profile_id = v_new_profile_id
+            WHERE id = v_record.id;
+
+            v_imported_count := v_imported_count + 1;
+
+            -- Audit import
+            INSERT INTO public.audit_logs (actor, role, action, target_id, details)
+            VALUES (
+                p_actor_id::text,
+                'staff',
+                'MIGRATION_PROFILE_IMPORTED',
+                v_new_profile_id::text,
+                'Imported candidate profile from batch ' || v_batch.batch_code || ' row ' || v_record.row_index
+            );
+        END IF;
+    END LOOP;
+
+    -- 5. Update batch state and counts
+    UPDATE public.migration_batches
+    SET
+        status = 'imported',
+        imported_records = v_imported_count,
+        updated_at = timezone('utc'::text, now())
+    WHERE id = p_batch_id;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'batch_id', p_batch_id,
+        'imported_count', v_imported_count,
+        'merged_count', v_merged_count,
+        'status', 'imported'
+    );
+END;
+$$;
+
+-- ------------------------------------------------------------------------------
+-- 4. True Rollback RPC (P1-46)
+-- ------------------------------------------------------------------------------
+-- Safely and durably reverses an imported batch by deactivating all created profiles,
+-- transitioning staged records to 'rolled_back', and recording an immutable audit trail.
+
+CREATE OR REPLACE FUNCTION public.rollback_migration_batch(
+    p_batch_id UUID,
+    p_reason TEXT,
+    p_actor_id UUID
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_batch RECORD;
+    v_record RECORD;
+    v_rolled_back_count INT := 0;
+BEGIN
+    -- 1. Verify staff authorization
+    IF NOT public.auth_is_staff() THEN
+        RAISE EXCEPTION 'UNAUTHORIZED: Staff authorization required to rollback migration batch.';
+    END IF;
+
+    -- 2. Lock batch row
+    SELECT * INTO v_batch
+    FROM public.migration_batches
+    WHERE id = p_batch_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'BATCH_NOT_FOUND: Migration batch % does not exist.', p_batch_id;
+    END IF;
+
+    IF v_batch.status NOT IN ('imported', 'reconciled') THEN
+        RAISE EXCEPTION 'INVALID_BATCH_STATUS: Only imported or reconciled batches can be rolled back. Current: %', v_batch.status;
+    END IF;
+
+    -- 3. Deactivate each imported profile and transition staged record
+    FOR v_record IN
+        SELECT *
+        FROM public.migration_staged_records
+        WHERE batch_id = p_batch_id
+          AND status = 'imported'
+        FOR UPDATE
+    LOOP
+        IF v_record.imported_profile_id IS NOT NULL THEN
+            -- Transition profile to restricted status
+            UPDATE public.profiles
+            SET
+                status = 'restricted',
+                notes = COALESCE(notes || E'\n', '') || 'Deactivated via batch rollback: ' || p_reason,
+                updated_at = timezone('utc'::text, now())
+            WHERE id = v_record.imported_profile_id;
+
+            -- Restrict associated photo records if any
+            UPDATE public.profile_photos
+            SET
+                status = 'restricted',
+                updated_at = timezone('utc'::text, now())
+            WHERE profile_id = v_record.imported_profile_id;
+        END IF;
+
+        UPDATE public.migration_staged_records
+        SET status = 'rolled_back'
+        WHERE id = v_record.id;
+
+        v_rolled_back_count := v_rolled_back_count + 1;
+    END LOOP;
+
+    -- 4. Update batch record status
+    UPDATE public.migration_batches
+    SET
+        status = 'rolled_back',
+        rolled_back_at = timezone('utc'::text, now()),
+        rollback_reason = p_reason,
+        updated_at = timezone('utc'::text, now())
+    WHERE id = p_batch_id;
+
+    -- 5. Record audit trail
+    INSERT INTO public.audit_logs (actor, role, action, target_id, details)
+    VALUES (
+        p_actor_id::text,
+        'admin',
+        'MIGRATION_BATCH_ROLLED_BACK',
+        v_batch.batch_code,
+        'Rolled back migration batch ' || v_batch.batch_code || ': ' || v_rolled_back_count || ' profiles deactivated. Reason: ' || p_reason
+    );
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'batch_id', p_batch_id,
+        'rolled_back_count', v_rolled_back_count,
+        'status', 'rolled_back'
+    );
+END;
+$$;
+
+-- ------------------------------------------------------------------------------
+-- 5. Staged Raw Content Minimization & Purge RPC (P1-47)
+-- ------------------------------------------------------------------------------
+-- Securely hashes and nulls raw conversation exports to minimize sensitive PII
+-- while preserving cryptographic audit proof.
+
+CREATE OR REPLACE FUNCTION public.purge_staged_raw_content(
+    p_batch_id UUID,
+    p_actor_id UUID
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_batch RECORD;
+    v_purged_count INT := 0;
+BEGIN
+    -- 1. Verify staff authorization
+    IF NOT public.auth_is_staff() THEN
+        RAISE EXCEPTION 'UNAUTHORIZED: Staff authorization required to purge staged raw content.';
+    END IF;
+
+    -- 2. Lock batch row
+    SELECT * INTO v_batch
+    FROM public.migration_batches
+    WHERE id = p_batch_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'BATCH_NOT_FOUND: Migration batch % does not exist.', p_batch_id;
+    END IF;
+
+    IF v_batch.status NOT IN ('imported', 'reconciled', 'rolled_back') THEN
+        RAISE EXCEPTION 'INVALID_BATCH_STATUS: Raw content can only be purged after batch is imported, reconciled, or rolled back. Current: %', v_batch.status;
+    END IF;
+
+    -- 3. Purge raw content while preserving SHA-256 hash
+    UPDATE public.migration_staged_records
+    SET
+        raw_content_hash = COALESCE(raw_content_hash, encode(sha256(raw_content::bytea), 'hex')),
+        raw_content = NULL,
+        is_raw_purged = TRUE
+    WHERE batch_id = p_batch_id
+      AND is_raw_purged = FALSE;
+
+    GET DIAGNOSTICS v_purged_count = ROW_COUNT;
+
+    -- 4. Record audit trail
+    INSERT INTO public.audit_logs (actor, role, action, target_id, details)
+    VALUES (
+        p_actor_id::text,
+        'staff',
+        'MIGRATION_RAW_CONTENT_PURGED',
+        v_batch.batch_code,
+        'Purged raw conversation content for ' || v_purged_count || ' staged records in batch ' || v_batch.batch_code
+    );
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'batch_id', p_batch_id,
+        'purged_count', v_purged_count
+    );
+END;
+$$;
+
+-- ------------------------------------------------------------------------------
+-- 6. Access Control & Permissions
+-- ------------------------------------------------------------------------------
+
+REVOKE ALL ON FUNCTION public.import_migration_batch(UUID, UUID) FROM public, anon;
+REVOKE ALL ON FUNCTION public.rollback_migration_batch(UUID, TEXT, UUID) FROM public, anon;
+REVOKE ALL ON FUNCTION public.purge_staged_raw_content(UUID, UUID) FROM public, anon;
+
+GRANT EXECUTE ON FUNCTION public.import_migration_batch(UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.rollback_migration_batch(UUID, TEXT, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.purge_staged_raw_content(UUID, UUID) TO authenticated, service_role;
+
+COMMIT;
+
+            THEN (v_parsed->>'age')::INT
+            ELSE NULL
         END;
+        v_height_inches := CASE
+            WHEN COALESCE(v_parsed->>'height_inches', '') ~ '^\d+
+
+        -- Handle true conflict merge (P1-41)
+        IF v_record.resolution_action = 'merge_update' AND v_record.conflict_profile_id IS NOT NULL THEN
+            UPDATE public.profiles
+            SET
+                notes = COALESCE(notes || E'\n', '') || 'Merged from migration batch ' || v_batch.batch_code,
+                updated_at = timezone('utc'::text, now())
+            WHERE id = v_record.conflict_profile_id;
+
+            UPDATE public.migration_staged_records
+            SET
+                status = 'imported',
+                imported_profile_id = v_record.conflict_profile_id
+            WHERE id = v_record.id;
+
+            v_merged_count := v_merged_count + 1;
+            v_imported_count := v_imported_count + 1;
+
+            -- Audit merge
+            INSERT INTO public.audit_logs (actor, role, action, target_id, details)
+            VALUES (
+                p_actor_id::text,
+                'staff',
+                'MIGRATION_PROFILE_MERGED',
+                v_record.conflict_profile_id::text,
+                'Merged candidate details from batch ' || v_batch.batch_code || ' row ' || v_record.row_index
+            );
+
+        -- Handle new profile creation
+        ELSE
+            -- Enforce zero fact fabrication: validate required invariants
+            IF v_full_name IS NULL OR length(trim(v_full_name)) = 0 OR
+               v_contact_phone IS NULL OR length(trim(v_contact_phone)) = 0 OR
+               v_age < 18 THEN
+                -- Quarantine record instead of fabricating facts
+                UPDATE public.migration_staged_records
+                SET
+                    status = 'quarantined',
+                    quarantine_reason = 'DATA_VALIDATION_ERROR',
+                    conflict_details = 'Missing mandatory profile invariants (name, contact phone, or valid age >= 18).'
+                WHERE id = v_record.id;
+                CONTINUE;
+            END IF;
+
+            v_ref_code := 'GLS-MIG-' || upper(substr(md5(random()::text || clock_timestamp()::text), 1, 6));
+
+            INSERT INTO public.profiles (
+                reference_code,
+                full_name,
+                display_name,
+                gender,
+                age,
+                height_inches,
+                height_display,
+                marital_status,
+                religion,
+                aqeedah,
+                caste,
+                education_level,
+                education_field,
+                occupation,
+                job_title,
+                hometown,
+                current_city,
+                residence_area,
+                status,
+                source,
+                contact_phone,
+                contact_person,
+                created_at,
+                updated_at
+            ) VALUES (
+                v_ref_code,
+                v_full_name,
+                split_part(v_full_name, ' ', 1) || ' ' || COALESCE(nullif(substr(split_part(v_full_name, ' ', 2), 1, 1), ''), '') || '.',
+                v_gender,
+                v_age,
+                66, -- standard reference height inches
+                COALESCE(v_parsed->>'height', '5''6"'),
+                COALESCE(v_parsed->>'maritalStatus', v_parsed->>'marital_status', 'never_married'),
+                COALESCE(v_parsed->>'religion', 'Islam'),
+                COALESCE(v_parsed->>'aqeedah', 'Sunni'),
+                COALESCE(v_parsed->>'caste', 'General'),
+                COALESCE(v_parsed->>'education', 'Bachelors'),
+                COALESCE(v_parsed->>'educationField', v_parsed->>'education_field', 'General'),
+                COALESCE(v_parsed->>'occupation', 'Private Sector'),
+                COALESCE(v_parsed->>'jobTitle', v_parsed->>'job_title', 'Professional'),
+                COALESCE(v_parsed->>'hometown', v_parsed->>'currentCity', 'Lahore'),
+                COALESCE(v_parsed->>'currentCity', v_parsed->>'current_city', 'Lahore'),
+                COALESCE(v_parsed->>'residenceArea', v_parsed->>'residence_area', 'Local'),
+                'pending_review',
+                CASE WHEN v_batch.source_type = 'phone_gallery_archive' THEN 'gallery_migration' ELSE 'whatsapp_migration' END,
+                v_contact_phone,
+                COALESCE(v_parsed->>'contactPerson', 'Family Representative'),
+                timezone('utc'::text, now()),
+                timezone('utc'::text, now())
+            )
+            RETURNING id INTO v_new_profile_id;
+
+            UPDATE public.migration_staged_records
+            SET
+                status = 'imported',
+                imported_profile_id = v_new_profile_id
+            WHERE id = v_record.id;
+
+            v_imported_count := v_imported_count + 1;
+
+            -- Audit import
+            INSERT INTO public.audit_logs (actor, role, action, target_id, details)
+            VALUES (
+                p_actor_id::text,
+                'staff',
+                'MIGRATION_PROFILE_IMPORTED',
+                v_new_profile_id::text,
+                'Imported candidate profile from batch ' || v_batch.batch_code || ' row ' || v_record.row_index
+            );
+        END IF;
+    END LOOP;
+
+    -- 5. Update batch state and counts
+    UPDATE public.migration_batches
+    SET
+        status = 'imported',
+        imported_records = v_imported_count,
+        updated_at = timezone('utc'::text, now())
+    WHERE id = p_batch_id;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'batch_id', p_batch_id,
+        'imported_count', v_imported_count,
+        'merged_count', v_merged_count,
+        'status', 'imported'
+    );
+END;
+$$;
+
+-- ------------------------------------------------------------------------------
+-- 4. True Rollback RPC (P1-46)
+-- ------------------------------------------------------------------------------
+-- Safely and durably reverses an imported batch by deactivating all created profiles,
+-- transitioning staged records to 'rolled_back', and recording an immutable audit trail.
+
+CREATE OR REPLACE FUNCTION public.rollback_migration_batch(
+    p_batch_id UUID,
+    p_reason TEXT,
+    p_actor_id UUID
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_batch RECORD;
+    v_record RECORD;
+    v_rolled_back_count INT := 0;
+BEGIN
+    -- 1. Verify staff authorization
+    IF NOT public.auth_is_staff() THEN
+        RAISE EXCEPTION 'UNAUTHORIZED: Staff authorization required to rollback migration batch.';
+    END IF;
+
+    -- 2. Lock batch row
+    SELECT * INTO v_batch
+    FROM public.migration_batches
+    WHERE id = p_batch_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'BATCH_NOT_FOUND: Migration batch % does not exist.', p_batch_id;
+    END IF;
+
+    IF v_batch.status NOT IN ('imported', 'reconciled') THEN
+        RAISE EXCEPTION 'INVALID_BATCH_STATUS: Only imported or reconciled batches can be rolled back. Current: %', v_batch.status;
+    END IF;
+
+    -- 3. Deactivate each imported profile and transition staged record
+    FOR v_record IN
+        SELECT *
+        FROM public.migration_staged_records
+        WHERE batch_id = p_batch_id
+          AND status = 'imported'
+        FOR UPDATE
+    LOOP
+        IF v_record.imported_profile_id IS NOT NULL THEN
+            -- Transition profile to restricted status
+            UPDATE public.profiles
+            SET
+                status = 'restricted',
+                notes = COALESCE(notes || E'\n', '') || 'Deactivated via batch rollback: ' || p_reason,
+                updated_at = timezone('utc'::text, now())
+            WHERE id = v_record.imported_profile_id;
+
+            -- Restrict associated photo records if any
+            UPDATE public.profile_photos
+            SET
+                status = 'restricted',
+                updated_at = timezone('utc'::text, now())
+            WHERE profile_id = v_record.imported_profile_id;
+        END IF;
+
+        UPDATE public.migration_staged_records
+        SET status = 'rolled_back'
+        WHERE id = v_record.id;
+
+        v_rolled_back_count := v_rolled_back_count + 1;
+    END LOOP;
+
+    -- 4. Update batch record status
+    UPDATE public.migration_batches
+    SET
+        status = 'rolled_back',
+        rolled_back_at = timezone('utc'::text, now()),
+        rollback_reason = p_reason,
+        updated_at = timezone('utc'::text, now())
+    WHERE id = p_batch_id;
+
+    -- 5. Record audit trail
+    INSERT INTO public.audit_logs (actor, role, action, target_id, details)
+    VALUES (
+        p_actor_id::text,
+        'admin',
+        'MIGRATION_BATCH_ROLLED_BACK',
+        v_batch.batch_code,
+        'Rolled back migration batch ' || v_batch.batch_code || ': ' || v_rolled_back_count || ' profiles deactivated. Reason: ' || p_reason
+    );
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'batch_id', p_batch_id,
+        'rolled_back_count', v_rolled_back_count,
+        'status', 'rolled_back'
+    );
+END;
+$$;
+
+-- ------------------------------------------------------------------------------
+-- 5. Staged Raw Content Minimization & Purge RPC (P1-47)
+-- ------------------------------------------------------------------------------
+-- Securely hashes and nulls raw conversation exports to minimize sensitive PII
+-- while preserving cryptographic audit proof.
+
+CREATE OR REPLACE FUNCTION public.purge_staged_raw_content(
+    p_batch_id UUID,
+    p_actor_id UUID
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_batch RECORD;
+    v_purged_count INT := 0;
+BEGIN
+    -- 1. Verify staff authorization
+    IF NOT public.auth_is_staff() THEN
+        RAISE EXCEPTION 'UNAUTHORIZED: Staff authorization required to purge staged raw content.';
+    END IF;
+
+    -- 2. Lock batch row
+    SELECT * INTO v_batch
+    FROM public.migration_batches
+    WHERE id = p_batch_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'BATCH_NOT_FOUND: Migration batch % does not exist.', p_batch_id;
+    END IF;
+
+    IF v_batch.status NOT IN ('imported', 'reconciled', 'rolled_back') THEN
+        RAISE EXCEPTION 'INVALID_BATCH_STATUS: Raw content can only be purged after batch is imported, reconciled, or rolled back. Current: %', v_batch.status;
+    END IF;
+
+    -- 3. Purge raw content while preserving SHA-256 hash
+    UPDATE public.migration_staged_records
+    SET
+        raw_content_hash = COALESCE(raw_content_hash, encode(sha256(raw_content::bytea), 'hex')),
+        raw_content = NULL,
+        is_raw_purged = TRUE
+    WHERE batch_id = p_batch_id
+      AND is_raw_purged = FALSE;
+
+    GET DIAGNOSTICS v_purged_count = ROW_COUNT;
+
+    -- 4. Record audit trail
+    INSERT INTO public.audit_logs (actor, role, action, target_id, details)
+    VALUES (
+        p_actor_id::text,
+        'staff',
+        'MIGRATION_RAW_CONTENT_PURGED',
+        v_batch.batch_code,
+        'Purged raw conversation content for ' || v_purged_count || ' staged records in batch ' || v_batch.batch_code
+    );
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'batch_id', p_batch_id,
+        'purged_count', v_purged_count
+    );
+END;
+$$;
+
+-- ------------------------------------------------------------------------------
+-- 6. Access Control & Permissions
+-- ------------------------------------------------------------------------------
+
+REVOKE ALL ON FUNCTION public.import_migration_batch(UUID, UUID) FROM public, anon;
+REVOKE ALL ON FUNCTION public.rollback_migration_batch(UUID, TEXT, UUID) FROM public, anon;
+REVOKE ALL ON FUNCTION public.purge_staged_raw_content(UUID, UUID) FROM public, anon;
+
+GRANT EXECUTE ON FUNCTION public.import_migration_batch(UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.rollback_migration_batch(UUID, TEXT, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.purge_staged_raw_content(UUID, UUID) TO authenticated, service_role;
+
+COMMIT;
+
+            THEN (v_parsed->>'height_inches')::INT
+            ELSE NULL
+        END;
+        v_height_display := NULLIF(trim(v_parsed->>'height'), '');
+        v_marital_status := NULLIF(lower(trim(COALESCE(v_parsed->>'maritalStatus', v_parsed->>'marital_status'))), '');
 
         -- Handle true conflict merge (P1-41)
         IF v_record.resolution_action = 'merge_update' AND v_record.conflict_profile_id IS NOT NULL THEN
