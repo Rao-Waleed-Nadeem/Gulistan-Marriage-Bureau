@@ -130,13 +130,15 @@ test('RLS Integration: profiles table enforces customer ownership and rejects an
 });
 
 test('RLS Integration: candidate_consents enforces profile ownership and active status', () => {
-  assert.ok(
-    /CREATE\s+POLICY\s+[^;]+ON\s+(?:public\.)?candidate_consents/i.test(COMBINED_SQL),
-    'candidate_consents must define explicit RLS policies'
+  assert.match(
+    COMBINED_SQL,
+    /CREATE\s+POLICY\s+consents_customer_own_select\s+ON\s+public\.candidate_consents/i,
+    'candidate_consents must define an owner-scoped customer SELECT policy'
   );
-  assert.ok(
-    /candidate_consents/i.test(COMBINED_SQL) && /owner_id/i.test(COMBINED_SQL),
-    'candidate_consents must tie access to profile ownership'
+  assert.match(
+    COMBINED_SQL,
+    /CREATE\s+POLICY\s+consents_customer_own_select\s+ON\s+public\.candidate_consents[\s\S]*?p\.id\s*=\s*candidate_consents\.profile_id[\s\S]*?p\.account_id\s*=\s*auth\.uid\(\)[\s\S]*?p\.created_by\s*=\s*auth\.uid\(\)[\s\S]*?auth_is_account_active\(auth\.uid\(\)\)/i,
+    'candidate consent access must follow linked profile ownership and active account status'
   );
 });
 

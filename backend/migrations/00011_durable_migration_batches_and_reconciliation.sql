@@ -90,6 +90,9 @@ DECLARE
     v_contact_phone VARCHAR(50);
     v_gender VARCHAR(10);
     v_age INT;
+    v_height_inches INT;
+    v_height_display VARCHAR(20);
+    v_marital_status VARCHAR(30);
 BEGIN
     -- 1. Verify staff authorization
     IF NOT public.auth_is_staff() THEN
@@ -125,12 +128,21 @@ BEGIN
         -- Extract mandatory candidate invariants (no fabrication allowed)
         v_full_name := COALESCE(v_parsed->>'fullName', v_parsed->>'full_name');
         v_contact_phone := COALESCE(v_parsed->>'contactPhone', v_parsed->>'contact_phone');
-        v_gender := COALESCE(v_parsed->>'gender', 'other');
-        v_age := CASE 
-            WHEN (v_parsed->>'age') IS NOT NULL AND (v_parsed->>'age') ~ '^\d+$' 
-            THEN (v_parsed->>'age')::INT 
-            ELSE 0 
+        v_gender := NULLIF(lower(trim(v_parsed->>'gender')), '');
+        v_age := CASE
+            WHEN COALESCE(v_parsed->>'age', '') ~ '^\d+$'
+                 AND length(v_parsed->>'age') <= 3
+            THEN (v_parsed->>'age')::INT
+            ELSE NULL
         END;
+        v_height_inches := CASE
+            WHEN COALESCE(v_parsed->>'height_inches', '') ~ '^\d+$'
+                 AND length(v_parsed->>'height_inches') <= 2
+            THEN (v_parsed->>'height_inches')::INT
+            ELSE NULL
+        END;
+        v_height_display := NULLIF(trim(v_parsed->>'height'), '');
+        v_marital_status := NULLIF(lower(trim(COALESCE(v_parsed->>'maritalStatus', v_parsed->>'marital_status'))), '');
 
         -- Handle true conflict merge (P1-41)
         IF v_record.resolution_action = 'merge_update' AND v_record.conflict_profile_id IS NOT NULL THEN
@@ -164,13 +176,28 @@ BEGIN
             -- Enforce zero fact fabrication: validate required invariants
             IF v_full_name IS NULL OR length(trim(v_full_name)) = 0 OR
                v_contact_phone IS NULL OR length(trim(v_contact_phone)) = 0 OR
-               v_age < 18 THEN
-                -- Quarantine record instead of fabricating facts
+               v_gender IS NULL OR v_gender NOT IN ('male', 'female') OR
+               v_age IS NULL OR v_age < 18 OR v_age > 100 OR
+               v_height_inches IS NULL OR v_height_inches < 48 OR v_height_inches > 96 OR
+               v_height_display IS NULL OR
+               v_marital_status IS NULL OR v_marital_status NOT IN ('never_married', 'divorced', 'widowed', 'khula') OR
+               NULLIF(trim(v_parsed->>'religion'), '') IS NULL OR
+               NULLIF(trim(v_parsed->>'aqeedah'), '') IS NULL OR
+               NULLIF(trim(v_parsed->>'caste'), '') IS NULL OR
+               NULLIF(trim(v_parsed->>'education'), '') IS NULL OR
+               NULLIF(trim(COALESCE(v_parsed->>'educationField', v_parsed->>'education_field')), '') IS NULL OR
+               NULLIF(trim(v_parsed->>'occupation'), '') IS NULL OR
+               NULLIF(trim(COALESCE(v_parsed->>'jobTitle', v_parsed->>'job_title')), '') IS NULL OR
+               NULLIF(trim(COALESCE(v_parsed->>'hometown', v_parsed->>'currentCity')), '') IS NULL OR
+               NULLIF(trim(COALESCE(v_parsed->>'currentCity', v_parsed->>'current_city')), '') IS NULL OR
+               NULLIF(trim(COALESCE(v_parsed->>'residenceArea', v_parsed->>'residence_area')), '') IS NULL OR
+               NULLIF(trim(v_parsed->>'contactPerson'), '') IS NULL THEN
+                -- Quarantine incomplete records; never manufacture demographic or contact facts.
                 UPDATE public.migration_staged_records
                 SET
                     status = 'quarantined',
                     quarantine_reason = 'DATA_VALIDATION_ERROR',
-                    conflict_details = 'Missing mandatory profile invariants (name, contact phone, or valid age >= 18).'
+                    conflict_details = 'Missing or invalid required profile fields. Complete and verify the source record before retrying import.'
                 WHERE id = v_record.id;
                 CONTINUE;
             END IF;
@@ -205,26 +232,26 @@ BEGIN
             ) VALUES (
                 v_ref_code,
                 v_full_name,
-                split_part(v_full_name, ' ', 1) || ' ' || COALESCE(nullif(substr(split_part(v_full_name, ' ', 2), 1, 1), ''), '') || '.',
+                v_full_name,
                 v_gender,
                 v_age,
-                66, -- standard reference height inches
-                COALESCE(v_parsed->>'height', '5''6"'),
-                COALESCE(v_parsed->>'maritalStatus', v_parsed->>'marital_status', 'never_married'),
-                COALESCE(v_parsed->>'religion', 'Islam'),
-                COALESCE(v_parsed->>'aqeedah', 'Sunni'),
-                COALESCE(v_parsed->>'caste', 'General'),
-                COALESCE(v_parsed->>'education', 'Bachelors'),
-                COALESCE(v_parsed->>'educationField', v_parsed->>'education_field', 'General'),
-                COALESCE(v_parsed->>'occupation', 'Private Sector'),
-                COALESCE(v_parsed->>'jobTitle', v_parsed->>'job_title', 'Professional'),
-                COALESCE(v_parsed->>'hometown', v_parsed->>'currentCity', 'Lahore'),
-                COALESCE(v_parsed->>'currentCity', v_parsed->>'current_city', 'Lahore'),
-                COALESCE(v_parsed->>'residenceArea', v_parsed->>'residence_area', 'Local'),
+                v_height_inches,
+                v_height_display,
+                v_marital_status,
+                trim(v_parsed->>'religion'),
+                trim(v_parsed->>'aqeedah'),
+                trim(v_parsed->>'caste'),
+                trim(v_parsed->>'education'),
+                trim(COALESCE(v_parsed->>'educationField', v_parsed->>'education_field')),
+                trim(v_parsed->>'occupation'),
+                trim(COALESCE(v_parsed->>'jobTitle', v_parsed->>'job_title')),
+                trim(COALESCE(v_parsed->>'hometown', v_parsed->>'currentCity')),
+                trim(COALESCE(v_parsed->>'currentCity', v_parsed->>'current_city')),
+                trim(COALESCE(v_parsed->>'residenceArea', v_parsed->>'residence_area')),
                 'pending_review',
                 CASE WHEN v_batch.source_type = 'phone_gallery_archive' THEN 'gallery_migration' ELSE 'whatsapp_migration' END,
                 v_contact_phone,
-                COALESCE(v_parsed->>'contactPerson', 'Family Representative'),
+                trim(v_parsed->>'contactPerson'),
                 timezone('utc'::text, now()),
                 timezone('utc'::text, now())
             )
