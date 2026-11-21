@@ -211,3 +211,26 @@ Implemented under Task `T-038` and Migration `00011_durable_migration_batches_an
 - **Raw Conversation Minimization & Purge (P1-47):**
   - Staged raw conversations often contain sensitive third-party PII. RPC `purge_staged_raw_content` and `purgeStagedRawContent` null out the plaintext `raw_content` while persisting the SHA-256 `raw_content_hash` for provenance and setting `is_raw_purged = TRUE`.
 
+## 4.12 Server-Side Pagination, Keyset Cursors, and Bounded Payload Workflows (T-039)
+
+Implemented under Task `T-039` and Migration `00012_search_indexes_and_server_pagination.sql`, verified by `frontend/src/lib/pagination.test.ts` (7 tests), `backend/tests/migration_00012.test.js` (7 tests), and `backend/tests/capacity_benchmark.test.js` (8 tests):
+- **Server-Side Pagination & Keyset Cursor Traversal (OPS-05, P1-19):**
+  - Replaces unpaginated whole-registry fetching with `findPaginated` on `IProfileRepository` (`ProfileRepositoryImpl`).
+  - Supports both offset-based pagination (`offset`, `limit`) and keyset cursor-based pagination (`cursorCreatedAt`, `cursorId`) via composite index `idx_profiles_keyset_pagination (created_at DESC, id)` with zero offset drift.
+  - Bounded page limits: enforces a strict clamp of `[1, 100]` records per page (default: 20).
+- **Multi-Attribute Search Composite Indexing (OPS-05):**
+  - Backed by PostgreSQL composite indexes:
+    - `idx_profiles_search_composite`: `(gender, status, religion, aqeedah, marital_status, age)`
+    - `idx_profiles_city_caste`: `(current_city, caste)`
+    - `idx_profiles_status_created`: `(status, created_at DESC, id)`
+    - `idx_profiles_location_gender_age`: `(current_city, gender, age)`
+- **Atomic Server RPC `search_profiles_paginated`:**
+  - Evaluates search filters on the database engine and returns structured pagination responses:
+    `{ items, total_count, limit, offset, has_more, next_cursor }`.
+  - Automatically projects candidate pseudonyms (`'Candidate ' || reference_code`) and conceals monthly income for non-staff callers.
+- **Payload Minimization & Bounded Memory:**
+  - Full registry download of 100,000 records requires ~41.87 MB of serialized JSON transfer.
+  - A bounded paginated page of 20 candidate summaries requires only ~3.99 KB (a 99.991% payload reduction).
+  - Browser memory and heap usage remain bounded under 250 MB across 100k candidate registries.
+
+

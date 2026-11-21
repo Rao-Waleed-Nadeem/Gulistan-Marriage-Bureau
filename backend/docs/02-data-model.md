@@ -108,6 +108,19 @@ Likely indexes to validate with query plans:
 - Share token hash and expiry/status.
 - Audit target + timestamp.
 
+### 2.5.1 Search Indexes & Keyset Pagination (Migration 00012 / T-039)
+To support 100,000+ candidates without full table scans or unbounded memory loading (OPS-05, P1-19):
+- `idx_profiles_search_composite`: `(gender, status, religion, aqeedah, marital_status, age)` — composite index for demographic matching and filtered search.
+- `idx_profiles_city_caste`: `(current_city, caste)` — bitmap index scan for localized searches.
+- `idx_profiles_status_created`: `(status, created_at DESC, id)` — directory pagination and status grouping.
+- `idx_profiles_keyset_pagination`: `(created_at DESC, id)` — keyset/cursor pagination with zero offset drift.
+- `idx_profiles_location_gender_age`: `(current_city, gender, age)` — location-based age demographic bounds.
+- Atomic server RPC `search_profiles_paginated`:
+  - Parameterized search filtering with hard page ceiling (`LEAST(p_limit, 100)`).
+  - Emits `{ items, total_count, limit, offset, has_more, next_cursor }`.
+  - Enforces least-privilege role redactions (pseudonyms for non-staff; hidden income).
+
+
 Do not add every possible index without measuring write/storage cost. Test representative queries against at least 100,000 synthetic profiles.
 
 ## 2.6 Seed data and migrations

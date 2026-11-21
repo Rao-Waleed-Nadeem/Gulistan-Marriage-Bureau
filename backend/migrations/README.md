@@ -331,6 +331,37 @@ Before applying pending migrations, the runner verifies that every already-appli
   COMMIT;
   ```
 
+### `00012_search_indexes_and_server_pagination.sql`
+* **Status:** Implemented under Task `T-039`.
+* **Scope:**
+  * Remediates independent audit findings OPS-05 and P1-19.
+  * Composite Search and Keyset Pagination Indexes:
+    - `idx_profiles_search_composite`: `(gender, status, religion, aqeedah, marital_status, age)` supporting multi-attribute demographic search and deterministic matching pre-filtering over 100k rows with sub-5ms index scans.
+    - `idx_profiles_city_caste`: `(current_city, caste)` for localized matrimonial searches.
+    - `idx_profiles_status_created`: `(status, created_at DESC, id)` for reverse chronological directory listings.
+    - `idx_profiles_keyset_pagination`: `(created_at DESC, id)` for cursor-based pagination with zero offset drift.
+    - `idx_profiles_location_gender_age`: `(current_city, gender, age)` for location-bounded candidate queries.
+  * Atomic Server RPC `public.search_profiles_paginated`:
+    - Parameters: `p_status`, `p_gender`, `p_city`, `p_caste`, `p_min_age`, `p_max_age`, `p_marital_status`, `p_limit`, `p_offset`, `p_cursor_created_at`, `p_cursor_id`.
+    - Strict boundary clamp: clamps page size to `[1, 100]` (default 20), eliminating unbounded multi-megabyte registry payload downloads in browser clients.
+    - Keyset cursor pagination: supports high-scale traversal via `(created_at, id)` tuples.
+    - Role-based privacy projection: automatically maps candidate names to pseudonyms and conceals income for non-staff callers.
+    - Permissions: revoked from `public, anon`; granted to `authenticated, service_role`.
+* **Rollback Procedure:**
+  ```sql
+  BEGIN;
+  DROP FUNCTION IF EXISTS public.search_profiles_paginated(
+      VARCHAR, VARCHAR, TEXT, TEXT, INT, INT, VARCHAR, INT, INT, TIMESTAMPTZ, UUID
+  );
+  DROP INDEX IF EXISTS public.idx_profiles_location_gender_age;
+  DROP INDEX IF EXISTS public.idx_profiles_keyset_pagination;
+  DROP INDEX IF EXISTS public.idx_profiles_status_created;
+  DROP INDEX IF EXISTS public.idx_profiles_city_caste;
+  DROP INDEX IF EXISTS public.idx_profiles_search_composite;
+  COMMIT;
+  ```
+
+
 
 
 

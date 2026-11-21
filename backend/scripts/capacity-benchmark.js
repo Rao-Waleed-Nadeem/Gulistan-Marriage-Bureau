@@ -2,18 +2,20 @@
  * @file capacity-benchmark.js
  * @description Benchmark harness for 100,000 synthetic profiles simulating
  * realistic Pakistani demographic distributions, filter indexes, deterministic matching,
- * concurrent client workloads with percentiles (p50/p90/p95/p99), and PostgreSQL query plans.
+ * concurrent client workloads with percentiles (p50/p90/p95/p99), bounded payload analysis,
+ * and PostgreSQL EXPLAIN query plan evaluations (OPS-05, P1-19).
  */
 
 import { performance } from 'node:perf_hooks';
+import pg from 'pg';
 
 // Synthetic demographic distributions
-const CITIES = ['Lahore', 'Karachi', 'Islamabad', 'Rawalpindi', 'Faisalabad', 'Multan', 'Gujranwala', 'Sialkot', 'Peshawar', 'Quetta'];
-const CASTES = ['Rajput', 'Arain', 'Jatt', 'Syed', 'Sheikh', 'Gujjar', 'Mughal', 'Malik', 'Qureshi', 'Ansari'];
-const RELIGIONS = ['islam', 'islam', 'islam', 'islam', 'christianity', 'hinduism'];
-const AQEEDAHS = ['sunni', 'sunni', 'sunni', 'shia', 'ahle_hadith', 'other'];
-const MARITAL_STATUSES = ['never_married', 'never_married', 'never_married', 'divorced', 'widowed'];
-const EDUCATIONS = ['bachelors', 'masters', 'doctorate', 'intermediate', 'matric'];
+export const CITIES = ['Lahore', 'Karachi', 'Islamabad', 'Rawalpindi', 'Faisalabad', 'Multan', 'Gujranwala', 'Sialkot', 'Peshawar', 'Quetta'];
+export const CASTES = ['Rajput', 'Arain', 'Jatt', 'Syed', 'Sheikh', 'Gujjar', 'Mughal', 'Malik', 'Qureshi', 'Ansari'];
+export const RELIGIONS = ['islam', 'islam', 'islam', 'islam', 'christianity', 'hinduism'];
+export const AQEEDAHS = ['sunni', 'sunni', 'sunni', 'shia', 'ahle_hadith', 'other'];
+export const MARITAL_STATUSES = ['never_married', 'never_married', 'never_married', 'divorced', 'widowed'];
+export const EDUCATIONS = ['bachelors', 'masters', 'doctorate', 'intermediate', 'matric'];
 
 /**
  * Generates a synthetic candidate profile with deterministic Pakistani demographics.
@@ -57,7 +59,7 @@ export function generateSyntheticProfile(id) {
 
 /**
  * Simulates indexed query filter on in-memory profiles.
- * Corresponds to composite PostgreSQL index: (gender, religion, aqeedah, status, marital_status)
+ * Corresponds to composite PostgreSQL index: (gender, status, religion, aqeedah, marital_status, age)
  */
 export function benchmarkFilterQuery(profiles, criteria) {
   const start = performance.now();
@@ -192,7 +194,8 @@ export async function benchmarkConcurrency(profiles, concurrency = 50, totalRequ
   const startOverall = performance.now();
 
   const worker = async (workerId) => {
-    for (let req = 0; req < totalRequests / concurrency; req++) {
+    const perWorker = Math.max(1, Math.floor(totalRequests / concurrency));
+    for (let req = 0; req < perWorker; req++) {
       // 1. Concurrent Filter Query
       const filterCriteria = {
         gender: workerId % 2 === 0 ? 'female' : 'male',
@@ -234,16 +237,83 @@ export async function benchmarkConcurrency(profiles, concurrency = 50, totalRequ
 }
 
 /**
- * Evaluates PostgreSQL composite index query execution plans and cost models.
- * @param {'composite_search' | 'location_caste' | 'financial_ledger' | 'share_grant_token'} queryType
+ * Benchmarks payload size reduction: measures byte size difference between
+ * unbounded whole-registry download vs bounded server-side page (P1-19).
+ * @param {object[]} profiles
+ * @param {number} pageSize
+ * @returns {object}
  */
-export function evaluateQueryPlan(queryType) {
-  const plans = {
+export function benchmarkPayloadSizes(profiles, pageSize = 20) {
+  // Estimate unbounded full registry payload (100k candidate profiles)
+  // Sample 100 profiles to compute average serialized byte size per profile
+  const sampleSize = Math.min(100, profiles.length);
+  const sampleSlice = profiles.slice(0, sampleSize);
+  const sampleBytes = Buffer.byteLength(JSON.stringify(sampleSlice), 'utf8');
+  const avgBytesPerProfile = sampleBytes / sampleSize;
+
+  const estimatedUnboundedBytes = Math.round(avgBytesPerProfile * profiles.length);
+  const estimatedUnboundedMB = Number((estimatedUnboundedBytes / (1024 * 1024)).toFixed(2));
+
+  // Bounded single page payload (20 summary records)
+  const pageSlice = profiles.slice(0, pageSize).map((p) => ({
+    id: p.id,
+    gender: p.gender,
+    age: p.age,
+    city: p.city,
+    caste: p.caste,
+    religion: p.religion,
+    aqeedah: p.aqeedah,
+    maritalStatus: p.maritalStatus,
+    education: p.education,
+    status: p.status,
+  }));
+
+  const boundedPageResponse = {
+    items: pageSlice,
+    totalCount: profiles.length,
+    limit: pageSize,
+    offset: 0,
+    hasMore: profiles.length > pageSize,
+    nextCursor: { createdAt: new Date().toISOString(), id: pageSlice[pageSlice.length - 1]?.id || '' },
+  };
+
+  const boundedPageBytes = Buffer.byteLength(JSON.stringify(boundedPageResponse), 'utf8');
+  const boundedPageKB = Number((boundedPageBytes / 1024).toFixed(2));
+
+  const payloadReductionPercent = Number((((estimatedUnboundedBytes - boundedPageBytes) / estimatedUnboundedBytes) * 100).toFixed(3));
+
+  return {
+    totalProfiles: profiles.length,
+    pageSize,
+    avgBytesPerProfile: Math.round(avgBytesPerProfile),
+    estimatedUnboundedBytes,
+    estimatedUnboundedMB,
+    boundedPageBytes,
+    boundedPageKB,
+    payloadReductionPercent,
+    safetyVerdict: boundedPageBytes < 25000 ? 'BOUNDED_SAFE' : 'PAYLOAD_TOO_LARGE',
+  };
+}
+
+/**
+ * Evaluates PostgreSQL composite index query execution plans and cost models.
+ * Supports executing EXPLAIN (ANALYZE, BUFFERS) when live database client is supplied.
+ * @param {'composite_search' | 'location_caste' | 'financial_ledger' | 'share_grant_token' | 'keyset_pagination'} queryType
+ * @param {object} [dbClient] Optional live pg.Client or pg.Pool
+ */
+export async function evaluateQueryPlan(queryType, dbClient = null) {
+  const queryDefinitions = {
     composite_search: {
       targetTable: 'profiles',
-      indexUsed: 'idx_profiles_search_composite (gender, religion, aqeedah, status, marital_status)',
+      indexUsed: 'idx_profiles_search_composite (gender, status, religion, aqeedah, marital_status, age)',
       scanType: 'Index Scan',
       filterStrategy: 'Index Cond + Age Range Recheck',
+      sql: `SELECT id, reference_code, full_name, gender, age, marital_status, religion, aqeedah, caste, current_city, status
+            FROM public.profiles
+            WHERE gender = $1 AND religion = $2 AND aqeedah = $3 AND status = $4 AND marital_status = $5 AND age BETWEEN $6 AND $7
+            ORDER BY created_at DESC, id DESC
+            LIMIT 20;`,
+      params: ['female', 'islam', 'sunni', 'active', 'never_married', 22, 28],
       estimatedCostRange: '0.42 .. 8.45',
       selectivity: 0.082,
       expectedLatencyMs: '< 5.0 ms over 100k rows',
@@ -254,16 +324,45 @@ export function evaluateQueryPlan(queryType) {
       indexUsed: 'idx_profiles_city_caste (current_city, caste)',
       scanType: 'Bitmap Index Scan',
       filterStrategy: 'Bitmap Heap Scan',
+      sql: `SELECT id, reference_code, full_name, current_city, caste, age, status
+            FROM public.profiles
+            WHERE current_city = $1 AND caste = $2
+            ORDER BY created_at DESC, id DESC
+            LIMIT 20;`,
+      params: ['Lahore', 'Rajput'],
       estimatedCostRange: '0.29 .. 4.30',
       selectivity: 0.015,
       expectedLatencyMs: '< 3.0 ms over 100k rows',
       invariantsChecked: ['City match', 'Caste match'],
+    },
+    keyset_pagination: {
+      targetTable: 'profiles',
+      indexUsed: 'idx_profiles_keyset_pagination (created_at DESC, id)',
+      scanType: 'Index Scan Backward',
+      filterStrategy: 'Keyset Tuple Comparison (created_at, id) < (cursor_time, cursor_id)',
+      sql: `SELECT id, reference_code, full_name, gender, age, status, created_at
+            FROM public.profiles
+            WHERE (created_at < $1 OR (created_at = $1 AND id < $2))
+              AND status = $3
+            ORDER BY created_at DESC, id DESC
+            LIMIT 20;`,
+      params: [new Date().toISOString(), '00000000-0000-0000-0000-000000000000', 'active'],
+      estimatedCostRange: '0.12 .. 1.85',
+      selectivity: 0.0002,
+      expectedLatencyMs: '< 1.0 ms over 100k rows',
+      invariantsChecked: ['Zero offset drift', 'Bounded 20 records', 'Deterministic ordering'],
     },
     financial_ledger: {
       targetTable: 'financial_transactions',
       indexUsed: 'idx_fin_tx_created_partner (created_at DESC, matchmaker_id)',
       scanType: 'Backward Index Scan',
       filterStrategy: 'Exact Matchmaker Ledger Chronological Retrieval',
+      sql: `SELECT id, matchmaker_id, amount_pkr, transaction_type, status, created_at
+            FROM public.financial_transactions
+            WHERE matchmaker_id = $1
+            ORDER BY created_at DESC
+            LIMIT 20;`,
+      params: ['00000000-0000-0000-0000-000000000000'],
       estimatedCostRange: '0.15 .. 2.10',
       selectivity: 0.005,
       expectedLatencyMs: '< 1.5 ms',
@@ -271,9 +370,14 @@ export function evaluateQueryPlan(queryType) {
     },
     share_grant_token: {
       targetTable: 'share_grants',
-      indexUsed: 'idx_share_grants_token (token_hash, expires_at)',
+      indexUsed: 'idx_share_grants_token_hash (token_hash)',
       scanType: 'Unique Index Scan',
       filterStrategy: 'Exact SHA-256 Hash Match',
+      sql: `SELECT id, profile_id, token_hash, expires_at, is_revoked
+            FROM public.share_grants
+            WHERE token_hash = $1 AND is_revoked = FALSE AND expires_at > NOW()
+            LIMIT 1;`,
+      params: ['e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'],
       estimatedCostRange: '0.08 .. 1.20',
       selectivity: 0.0001,
       expectedLatencyMs: '< 0.5 ms',
@@ -281,13 +385,46 @@ export function evaluateQueryPlan(queryType) {
     },
   };
 
-  return plans[queryType] || null;
+  const plan = queryDefinitions[queryType];
+  if (!plan) return null;
+
+  // If live database connection is provided, run actual EXPLAIN ANALYZE
+  if (dbClient) {
+    try {
+      const explainQuery = `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${plan.sql}`;
+      const res = await dbClient.query(explainQuery, plan.params);
+      const jsonPlan = res.rows[0]['QUERY PLAN'][0];
+
+      return {
+        ...plan,
+        executionMode: 'live_postgresql',
+        actualTotalTimeMs: jsonPlan['Plan']['Actual Total Time'],
+        actualRows: jsonPlan['Plan']['Actual Rows'],
+        sharedHitBlocks: jsonPlan['Plan']['Shared Hit Blocks'] || 0,
+        sharedReadBlocks: jsonPlan['Plan']['Shared Read Blocks'] || 0,
+        liveExecutionPlan: jsonPlan,
+      };
+    } catch (err) {
+      return {
+        ...plan,
+        executionMode: 'simulation',
+        liveExecutionError: err.message,
+      };
+    }
+  }
+
+  return {
+    ...plan,
+    executionMode: 'simulation',
+  };
 }
 
 /**
  * Runs full 100,000 synthetic profile capacity benchmark.
+ * @param {number} totalProfiles
+ * @param {object} [options]
  */
-export async function runFullCapacityBenchmark(totalProfiles = 100000) {
+export async function runFullCapacityBenchmark(totalProfiles = 100000, options = {}) {
   const initialMem = process.memoryUsage();
   const genStart = performance.now();
 
@@ -325,12 +462,17 @@ export async function runFullCapacityBenchmark(totalProfiles = 100000) {
   // Benchmark 5: Concurrency Simulation (50 concurrent clients, measuring p50, p90, p95, p99)
   const concurrencyBench = await benchmarkConcurrency(profiles, 50, 100);
 
+  // Benchmark 6: Bounded vs Unbounded Payload Size Analysis (P1-19, OPS-05)
+  const payloadBenchmark = benchmarkPayloadSizes(profiles, 20);
+
   // Query Plan Evaluations for Core Workload Queries
+  const dbClient = options.dbClient || null;
   const queryPlans = {
-    compositeSearch: evaluateQueryPlan('composite_search'),
-    locationCaste: evaluateQueryPlan('location_caste'),
-    financialLedger: evaluateQueryPlan('financial_ledger'),
-    shareGrantToken: evaluateQueryPlan('share_grant_token'),
+    compositeSearch: await evaluateQueryPlan('composite_search', dbClient),
+    locationCaste: await evaluateQueryPlan('location_caste', dbClient),
+    keysetPagination: await evaluateQueryPlan('keyset_pagination', dbClient),
+    financialLedger: await evaluateQueryPlan('financial_ledger', dbClient),
+    shareGrantToken: await evaluateQueryPlan('share_grant_token', dbClient),
   };
 
   const finalMem = process.memoryUsage();
@@ -370,6 +512,7 @@ export async function runFullCapacityBenchmark(totalProfiles = 100000) {
       }
     },
     concurrencyBenchmarks: concurrencyBench,
+    payloadBenchmark,
     queryPlans,
     memory: {
       initialHeapUsedMB: Math.round(initialMem.heapUsed / (1024 * 1024)),
@@ -383,12 +526,28 @@ export async function runFullCapacityBenchmark(totalProfiles = 100000) {
 
 // Direct CLI execution
 if (process.argv[1] && process.argv[1].endsWith('capacity-benchmark.js')) {
+  const isLive = process.argv.includes('--live');
+  const databaseUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
+
   console.log('=== Running Gulistan Capacity Benchmark (100,000 Synthetic Profiles) ===');
-  runFullCapacityBenchmark(100000).then(report => {
+  if (isLive) {
+    console.log(`[Mode] Live PostgreSQL benchmark requested against: ${databaseUrl ? 'configured DATABASE_URL' : 'UNCONFIGURED'}`);
+  } else {
+    console.log('[Mode] Offline simulation benchmark (PostgreSQL query plans & local 100k memory synthesis)');
+  }
+
+  let livePool = null;
+  if (isLive && databaseUrl) {
+    livePool = new pg.Pool({ connectionString: databaseUrl });
+  }
+
+  runFullCapacityBenchmark(100000, { dbClient: livePool }).then(report => {
     console.log(JSON.stringify(report, null, 2));
     console.log('=== Benchmark Complete ===');
+    if (livePool) livePool.end();
   }).catch(err => {
     console.error('Benchmark failed:', err);
+    if (livePool) livePool.end();
     process.exit(1);
   });
 }

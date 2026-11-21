@@ -13,6 +13,7 @@ import {
   benchmarkDeterministicMatching,
   calculatePercentiles,
   benchmarkConcurrency,
+  benchmarkPayloadSizes,
   evaluateQueryPlan,
   runFullCapacityBenchmark
 } from '../scripts/capacity-benchmark.js';
@@ -106,20 +107,41 @@ test('Capacity Benchmark: benchmarkConcurrency evaluates 50 concurrent client qu
   assert.ok(concurrencyResult.matchingPercentiles.p95 < 50, `Matching p95 (${concurrencyResult.matchingPercentiles.p95}ms) must be < 50ms`);
 });
 
-test('Capacity Benchmark: evaluateQueryPlan verifies PostgreSQL composite index scan strategies', () => {
-  const searchPlan = evaluateQueryPlan('composite_search');
+test('Capacity Benchmark: evaluateQueryPlan verifies PostgreSQL composite index scan strategies', async () => {
+  const searchPlan = await evaluateQueryPlan('composite_search');
   assert.equal(searchPlan.targetTable, 'profiles');
   assert.equal(searchPlan.scanType, 'Index Scan');
   assert.ok(searchPlan.indexUsed.includes('idx_profiles_search_composite'));
   assert.ok(searchPlan.selectivity < 0.1);
+  assert.ok(searchPlan.sql.includes('ORDER BY created_at DESC, id DESC'));
+  assert.ok(searchPlan.params.length >= 6);
 
-  const finPlan = evaluateQueryPlan('financial_ledger');
+  const keysetPlan = await evaluateQueryPlan('keyset_pagination');
+  assert.equal(keysetPlan.targetTable, 'profiles');
+  assert.ok(keysetPlan.indexUsed.includes('idx_profiles_keyset_pagination'));
+  assert.ok(keysetPlan.sql.includes('created_at < $1 OR (created_at = $1 AND id < $2)'));
+
+  const finPlan = await evaluateQueryPlan('financial_ledger');
   assert.equal(finPlan.targetTable, 'financial_transactions');
   assert.equal(finPlan.scanType, 'Backward Index Scan');
 
-  const sharePlan = evaluateQueryPlan('share_grant_token');
+  const sharePlan = await evaluateQueryPlan('share_grant_token');
   assert.equal(sharePlan.targetTable, 'share_grants');
   assert.equal(sharePlan.scanType, 'Unique Index Scan');
+});
+
+test('Capacity Benchmark: benchmarkPayloadSizes proves >99% network payload reduction with bounded pages (OPS-05, P1-19)', () => {
+  const profiles = [];
+  for (let i = 0; i < 500; i++) {
+    profiles.push(generateSyntheticProfile(i));
+  }
+
+  const payloadAnalysis = benchmarkPayloadSizes(profiles, 20);
+  assert.equal(payloadAnalysis.pageSize, 20);
+  assert.equal(payloadAnalysis.safetyVerdict, 'BOUNDED_SAFE');
+  assert.ok(payloadAnalysis.boundedPageBytes < 25000, 'Page payload must be under 25KB');
+  assert.ok(payloadAnalysis.payloadReductionPercent > 90, 'Must achieve massive payload reduction');
+  assert.ok(payloadAnalysis.estimatedUnboundedBytes > payloadAnalysis.boundedPageBytes);
 });
 
 test('Capacity Benchmark: 100,000 profile capacity benchmark completes with memory bounded under 250MB', async () => {
@@ -130,5 +152,8 @@ test('Capacity Benchmark: 100,000 profile capacity benchmark completes with memo
   assert.ok(report.matchingBenchmarks.pool100000.durationMs < 250, 'Matching 100k candidates must finish within 250ms');
   assert.ok(report.memory.peakHeapUsedMB < 250, `Heap memory (${report.memory.peakHeapUsedMB}MB) must stay bounded below 250MB`);
   assert.ok(report.concurrencyBenchmarks.filterPercentiles.p95 > 0);
+  assert.ok(report.payloadBenchmark.payloadReductionPercent > 99);
+  assert.equal(report.payloadBenchmark.safetyVerdict, 'BOUNDED_SAFE');
   assert.ok(report.queryPlans.compositeSearch);
+  assert.ok(report.queryPlans.keysetPagination);
 });

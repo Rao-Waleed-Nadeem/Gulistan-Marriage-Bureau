@@ -414,9 +414,9 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/repositories.ts": {
-    "mtime": 1795207357.0017517,
-    "seen": 1795208679.2243922,
-    "ast_hash": "aacb6d1d69cb2f620d462ef8e0d758c8",
+    "mtime": 1795214490.4881008,
+    "seen": 1795215048.3695078,
+    "ast_hash": "56402a7d41f3edf3909f6b2a2c7ab4ae",
     "semantic_hash": ""
   },
   "frontend/src/lib/supabaseClient.ts": {
@@ -432,9 +432,9 @@
     "semantic_hash": "c54bc4338b4552045d4ff81e948ad087"
   },
   "frontend/src/types/index.ts": {
-    "mtime": 1795205866.1634846,
-    "seen": 1795208679.2243922,
-    "ast_hash": "1744218226a41a191c54a1bededdf5c4",
+    "mtime": 1795212249.952492,
+    "seen": 1795215048.3695078,
+    "ast_hash": "ef209aed6bf26fcc8b906d0d39eb0607",
     "semantic_hash": ""
   },
   "frontend/src/utils/finance.ts": {
@@ -552,9 +552,9 @@
     "semantic_hash": ""
   },
   "backend/AGENT_TASK_QUEUE.md": {
-    "mtime": 1795208631.7539637,
-    "seen": 1795208679.2243922,
-    "ast_hash": "7caad9b30ce55b661a7765c9bf3386d7",
+    "mtime": 1795214941.257831,
+    "seen": 1795215048.3695078,
+    "ast_hash": "5366ae9c332662feed39eb0581ba1923",
     "semantic_hash": ""
   },
   "backend/README.md": {
@@ -576,9 +576,9 @@
     "semantic_hash": "b01a55e2a1f5aa275c04f49d41e5293a"
   },
   "backend/docs/02-data-model.md": {
-    "mtime": 1795208459.8767352,
-    "seen": 1795208679.2243922,
-    "ast_hash": "9de566e9db64d255b400cf006c55a7ea",
+    "mtime": 1795214872.1532283,
+    "seen": 1795215048.3695078,
+    "ast_hash": "6f5690518807867e55419502ae6ff8a5",
     "semantic_hash": ""
   },
   "backend/docs/03-authorization-and-privacy.md": {
@@ -588,9 +588,9 @@
     "semantic_hash": "45cd1f6a036b0e2c7302487c13b2cff2"
   },
   "backend/docs/04-backend-workflows.md": {
-    "mtime": 1795208291.5706754,
-    "seen": 1795208679.2243922,
-    "ast_hash": "aae39f03f57dfe7e803d458c7bd0d4a0",
+    "mtime": 1795214891.8445947,
+    "seen": 1795215048.3695078,
+    "ast_hash": "63a8680bad312260924b4443243ee534",
     "semantic_hash": ""
   },
   "backend/docs/05-matching-and-sharing.md": {
@@ -702,9 +702,9 @@
     "semantic_hash": "aa3e89f60d835a6a5d4c87022c648dc2"
   },
   "backend/migrations/README.md": {
-    "mtime": 1795207602.3513157,
-    "seen": 1795208679.2243922,
-    "ast_hash": "f651951f4104c66038bc6569b186a6af",
+    "mtime": 1795214819.7215035,
+    "seen": 1795215048.3695078,
+    "ast_hash": "32b0e0eb42b49a2fea46df4cc04c5a26",
     "semantic_hash": ""
   },
   "frontend/README.md": {
@@ -738,9 +738,9 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/crypto.ts": {
-    "mtime": 1794596074.7005322,
-    "seen": 1794597609.9589164,
-    "ast_hash": "3726fd5ecd08475b7e40a593e7d2e1af",
+    "mtime": 1795214291.4583497,
+    "seen": 1795215048.3695078,
+    "ast_hash": "d7d590e0aa199c3e205b2fe972314ae8",
     "semantic_hash": ""
   },
   "frontend/src/hooks/index.ts": {
@@ -798,15 +798,15 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/migration.test.ts": {
-    "mtime": 1794654238.0181744,
-    "seen": 1794654302.3452032,
-    "ast_hash": "5b5b9e29317ec0b7585676199586cc2a",
+    "mtime": 1795214606.9252007,
+    "seen": 1795215048.3695078,
+    "ast_hash": "01991f6f48888ef24b0f09e2e733fe1f",
     "semantic_hash": ""
   },
   "frontend/src/lib/migration.ts": {
-    "mtime": 1794654230.1980927,
-    "seen": 1794654302.3452032,
-    "ast_hash": "8618f2b05e2a1fd3755184d8abf59ee8",
+    "mtime": 1795214567.0528374,
+    "seen": 1795215048.3695078,
+    "ast_hash": "1f1d6a5bb96165d23a8302a111ac26e9",
     "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
@@ -939,6 +939,18 @@
     "mtime": 1795205215.4305084,
     "seen": 1795208679.2243922,
     "ast_hash": "9bfbfe3c44b7763e8d90ad844789921d",
+    "semantic_hash": ""
+  },
+  "backend/migrations/00011_durable_migration_batches_and_reconciliation.sql": {
+    "mtime": 1795212068.4989,
+    "seen": 1795215048.3695078,
+    "ast_hash": "d128fd7d14b819b5f4360a030799db36",
+    "semantic_hash": ""
+  },
+  "backend/tests/migration_00011.test.js": {
+    "mtime": 1795212094.688053,
+    "seen": 1795215048.3695078,
+    "ast_hash": "c1a8a68e6cf78f2abb02f3cf073e4df8",
     "semantic_hash": ""
   },
   "backend/package-lock.json": {

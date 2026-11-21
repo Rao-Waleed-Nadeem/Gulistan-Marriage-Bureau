@@ -25,6 +25,7 @@ import {
   MatchRecommendation,
   MigrationBatchRecord,
   MigrationStagedRecord,
+  PaginatedResult,
 } from '../types';
 import { FinancialTransaction } from '../utils/finance';
 import { AuthSession, canAccessRole } from './auth';
@@ -85,11 +86,24 @@ export interface ProfileFilters {
   status?: string;
   gender?: string;
   city?: string;
+  caste?: string;
+  minAge?: number;
+  maxAge?: number;
+  maritalStatus?: string;
+  limit?: number;
+  offset?: number;
+  cursorCreatedAt?: string;
+  cursorId?: string;
+  unbounded?: boolean;
 }
 
 export interface IProfileRepository {
   findById(id: string, session: AuthSession | null): Promise<ProfileRecord | null>;
   findAll(session: AuthSession | null, filters?: ProfileFilters): Promise<ProfileRecord[]>;
+  findPaginated(
+    session: AuthSession | null,
+    filters?: ProfileFilters
+  ): Promise<PaginatedResult<ProfileRecord>>;
   create(profileData: Partial<ProfileRecord>, session: AuthSession | null): Promise<ProfileRecord>;
   updateStatus(id: string, newStatus: ProfileStatus, session: AuthSession | null): Promise<ProfileRecord>;
   updateProfileDetails(
@@ -492,7 +506,260 @@ class ProfileRepositoryImpl implements IProfileRepository {
     return sanitizeProfileForRole(found, viewerRole, !!isOwner);
   }
 
+  async findPaginated(
+    session: AuthSession | null,
+    filters?: ProfileFilters
+  ): Promise<PaginatedResult<ProfileRecord>> {
+    const config = getClientConfig();
+    const viewerRole: Role = session?.isAuthenticated && session.user ? session.user.role : 'public';
+    const isStaff = canAccessRole(session, 'nadeem') || canAccessRole(session, 'admin');
+
+    const limit = Math.min(Math.max(filters?.limit ?? 20, 1), 100);
+    const offset = Math.max(filters?.offset ?? 0, 0);
+
+    if (config.mode === 'backend') {
+      const client = getSupabaseClient();
+      if (!client) throw new Error('BACKEND_NOT_CONFIGURED');
+
+      // Attempt optimized server RPC if available
+      try {
+        const { data: rpcData, error: rpcError } = await client.rpc('search_profiles_paginated', {
+          p_status: filters?.status && filters.status !== 'all' ? filters.status : null,
+          p_gender: filters?.gender && filters.gender !== 'all' ? filters.gender : null,
+          p_city: filters?.city && filters.city !== 'all' ? filters.city : null,
+          p_caste: filters?.caste && filters.caste !== 'all' ? filters.caste : null,
+          p_min_age: filters?.minAge ?? null,
+          p_max_age: filters?.maxAge ?? null,
+          p_marital_status: filters?.maritalStatus && filters.maritalStatus !== 'all' ? filters.maritalStatus : null,
+          p_limit: limit,
+          p_offset: offset,
+          p_cursor_created_at: filters?.cursorCreatedAt ?? null,
+          p_cursor_id: filters?.cursorId ?? null,
+        });
+
+        if (!rpcError && rpcData) {
+          const rawItems = rpcData.items || [];
+          const items: ProfileRecord[] = await Promise.all(
+            rawItems.map(async (row: any) => {
+              const photoUrl = row.photo_storage_path ? await resolveCandidatePhotoUrl(row.photo_storage_path) : '';
+              const isOwner = session?.user?.id && (
+                session.user.id === row.id ||
+                session.user.id === row.reference_code
+              );
+              return sanitizeProfileForRole({
+                id: row.reference_code || row.id,
+                databaseId: row.id,
+                referenceCode: row.reference_code,
+                fullName: row.full_name,
+                displayName: row.full_name,
+                gender: row.gender,
+                age: row.age,
+                height: "5'6\"",
+                maritalStatus: row.marital_status,
+                religion: row.religion,
+                aqeedah: row.aqeedah,
+                caste: row.caste,
+                education: row.education,
+                occupation: row.occupation,
+                monthlyIncomePKR: row.monthly_income_pkr || 0,
+                currentCity: row.current_city,
+                status: row.status,
+                createdAt: row.created_at,
+                updatedAt: row.created_at,
+                photoUrl,
+              } as ProfileRecord, viewerRole, !!isOwner);
+            })
+          );
+
+          return {
+            items,
+            totalCount: Number(rpcData.total_count || 0),
+            limit: Number(rpcData.limit || limit),
+            offset: Number(rpcData.offset || offset),
+            hasMore: Boolean(rpcData.has_more),
+            nextCursor: rpcData.next_cursor || undefined,
+          };
+        }
+      } catch {
+        // Fallback to direct PostgREST pagination query below
+      }
+
+      // Direct PostgREST query with count: 'exact' and .range()
+      let query = client
+        .from('profiles')
+        .select(`
+          *,
+          profile_preferences (*),
+          profile_siblings (*),
+          profile_property_details (*),
+          profile_photos (*)
+        `, { count: 'exact' });
+
+      if (filters?.status && filters.status !== 'all') {
+        query = query.eq('status', filters.status);
+      } else if (!isStaff) {
+        query = query.in('status', ['active', 'introduction_authorized']);
+      }
+      if (filters?.gender && filters.gender !== 'all') {
+        query = query.eq('gender', filters.gender);
+      }
+      if (filters?.city && filters.city !== 'all') {
+        query = query.ilike('current_city', `%${filters.city}%`);
+      }
+      if (filters?.caste && filters.caste !== 'all') {
+        query = query.ilike('caste', `%${filters.caste}%`);
+      }
+      if (filters?.minAge !== undefined) {
+        query = query.gte('age', filters.minAge);
+      }
+      if (filters?.maxAge !== undefined) {
+        query = query.lte('age', filters.maxAge);
+      }
+      if (filters?.maritalStatus && filters.maritalStatus !== 'all') {
+        query = query.eq('marital_status', filters.maritalStatus);
+      }
+
+      // Keyset cursor vs offset pagination
+      if (filters?.cursorCreatedAt && filters?.cursorId) {
+        query = query.or(`created_at.lt.${filters.cursorCreatedAt},and(created_at.eq.${filters.cursorCreatedAt},id.lt.${filters.cursorId})`);
+        query = query.order('created_at', { ascending: false }).order('id', { ascending: false }).limit(limit + 1);
+      } else {
+        query = query.order('created_at', { ascending: false }).order('id', { ascending: false }).range(offset, offset + limit);
+      }
+
+      const { data, count, error } = await query;
+      if (error) throw new Error(`DATABASE_ERROR: ${error.message}`);
+      const rawRows = data || [];
+      const hasMore = rawRows.length > limit;
+      const pageRows = hasMore ? rawRows.slice(0, limit) : rawRows;
+
+      const items: ProfileRecord[] = await Promise.all(
+        pageRows.map(async (d: any) => {
+          const row = d as ProfileRow;
+          const rawPath = d.profile_photos?.[0]?.storage_path || '';
+          const photoUrl = rawPath ? await resolveCandidatePhotoUrl(rawPath) : '';
+          const nested = {
+            preferences: d.profile_preferences?.[0] || undefined,
+            siblings: d.profile_siblings || [],
+            property: d.profile_property_details?.[0] || undefined,
+            photoUrl,
+          };
+          const dto = profileRowToDTO(row, nested);
+          const isOwner = session?.user?.id && (
+            session.user.id === dto.accountId ||
+            session.user.id === dto.createdBy ||
+            session.user.id === dto.databaseId ||
+            session.user.id === dto.id ||
+            (dto.contactEmail && session.user.email?.toLowerCase() === dto.contactEmail.toLowerCase())
+          );
+          return sanitizeProfileForRole(dto, viewerRole, !!isOwner);
+        })
+      );
+
+      const nextCursor = pageRows.length > 0 ? {
+        createdAt: pageRows[pageRows.length - 1].created_at,
+        id: pageRows[pageRows.length - 1].id,
+      } : undefined;
+
+      return {
+        items,
+        totalCount: count ?? items.length,
+        limit,
+        offset,
+        hasMore,
+        nextCursor,
+      };
+    }
+
+    // Demo Mode
+    let list = [...demoProfilesStore];
+
+    // Status filter
+    if (filters?.status && filters.status !== 'all') {
+      list = list.filter((p) => p.status === filters.status);
+    } else if (!isStaff) {
+      list = list.filter((p) => p.status === 'active' || p.status === 'introduction_authorized');
+    }
+
+    // Demographic filters
+    if (filters?.gender && filters.gender !== 'all') {
+      list = list.filter((p) => p.gender === filters.gender);
+    }
+    if (filters?.city && filters.city !== 'all') {
+      list = list.filter((p) => p.currentCity.toLowerCase().includes(filters.city!.toLowerCase()));
+    }
+    if (filters?.caste && filters.caste !== 'all') {
+      list = list.filter((p) => p.caste.toLowerCase().includes(filters.caste!.toLowerCase()));
+    }
+    if (filters?.minAge !== undefined) {
+      list = list.filter((p) => p.age >= filters.minAge!);
+    }
+    if (filters?.maxAge !== undefined) {
+      list = list.filter((p) => p.age <= filters.maxAge!);
+    }
+    if (filters?.maritalStatus && filters.maritalStatus !== 'all') {
+      list = list.filter((p) => p.maritalStatus === filters.maritalStatus);
+    }
+
+    // Sort reverse chronological by createdAt, then id
+    list.sort((a, b) => {
+      const timeA = new Date(a.createdAt || 0).getTime();
+      const timeB = new Date(b.createdAt || 0).getTime();
+      if (timeB !== timeA) return timeB - timeA;
+      return (b.databaseId || b.id).localeCompare(a.databaseId || a.id);
+    });
+
+    const totalCount = list.length;
+    let paginatedList: ProfileRecord[];
+    let hasMore = false;
+
+    if (filters?.cursorCreatedAt && filters?.cursorId) {
+      const cursorTime = new Date(filters.cursorCreatedAt).getTime();
+      const cursorIdx = list.findIndex((p) => {
+        const pTime = new Date(p.createdAt || 0).getTime();
+        return pTime < cursorTime || (pTime === cursorTime && (p.databaseId || p.id) < filters.cursorId!);
+      });
+      const sliceStart = cursorIdx >= 0 ? cursorIdx : list.length;
+      paginatedList = list.slice(sliceStart, sliceStart + limit);
+      hasMore = sliceStart + limit < totalCount;
+    } else {
+      paginatedList = list.slice(offset, offset + limit);
+      hasMore = offset + limit < totalCount;
+    }
+
+    const items = paginatedList.map((p) => {
+      const isOwner = session?.user?.id && (
+        session.user.id === p.accountId ||
+        session.user.id === p.createdBy ||
+        session.user.id === p.databaseId ||
+        session.user.id === p.id ||
+        (p.contactEmail && session.user.email?.toLowerCase() === p.contactEmail.toLowerCase())
+      );
+      return sanitizeProfileForRole(p, viewerRole, !!isOwner);
+    });
+
+    const nextCursor = paginatedList.length > 0 ? {
+      createdAt: paginatedList[paginatedList.length - 1].createdAt,
+      id: paginatedList[paginatedList.length - 1].databaseId || paginatedList[paginatedList.length - 1].id,
+    } : undefined;
+
+    return {
+      items,
+      totalCount,
+      limit,
+      offset,
+      hasMore,
+      nextCursor,
+    };
+  }
+
   async findAll(session: AuthSession | null, filters?: ProfileFilters): Promise<ProfileRecord[]> {
+    // If specific pagination or search bounds are requested, delegate to findPaginated
+    if (filters?.limit !== undefined || filters?.offset !== undefined || filters?.cursorCreatedAt || filters?.cursorId || filters?.caste || filters?.minAge || filters?.maxAge || filters?.maritalStatus) {
+      const res = await this.findPaginated(session, filters);
+      return res.items;
+    }
+
     const config = getClientConfig();
     const viewerRole: Role = session?.isAuthenticated && session.user ? session.user.role : 'public';
 
@@ -518,6 +785,11 @@ class ProfileRepositoryImpl implements IProfileRepository {
       }
       if (filters?.city && filters.city !== 'all') {
         query = query.ilike('current_city', `%${filters.city}%`);
+      }
+
+      // Bound queries by default (max 100) unless explicit staff unbounded opt-in (remediates P1-19)
+      if (!filters?.unbounded) {
+        query = query.limit(100);
       }
 
       const { data, error } = await query;
@@ -546,7 +818,7 @@ class ProfileRepositoryImpl implements IProfileRepository {
       }));
     }
 
-    // Demo Mode
+    // Demo Mode: bound by default (100) unless unbounded
     let list = [...demoProfilesStore];
     if (filters?.status && filters.status !== 'all') {
       list = list.filter((p) => p.status === filters.status);
@@ -556,6 +828,10 @@ class ProfileRepositoryImpl implements IProfileRepository {
     }
     if (filters?.city && filters.city !== 'all') {
       list = list.filter((p) => p.currentCity.toLowerCase() === filters.city!.toLowerCase());
+    }
+
+    if (!filters?.unbounded && list.length > 100) {
+      list = list.slice(0, 100);
     }
 
     return list.map((p) => {

@@ -343,3 +343,18 @@ export interface GalleryPhotoEntry {
   fileBytes?: Uint8Array | string;
 }
 
+export interface PaginationCursor {
+  createdAt: string;
+  id: string;
+}
+
+export interface PaginatedResult<T> {
+  items: T[];
+  totalCount: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+  nextCursor?: PaginationCursor;
+}
+
+
