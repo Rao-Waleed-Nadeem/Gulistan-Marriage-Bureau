@@ -26,8 +26,8 @@ Read this file before making any change. The owner expects small, detailed, veri
 - The documented frontend baseline is React + Vite + TypeScript + Tailwind CSS v4. Inspect actual package/config files before relying on versions.
 - Current UI/local role switching and mock records are prototype behavior, not authentication, authorization, or production data.
 - `backend/` is the sibling workspace for backend implementation, migrations, server-side functions, backend tests and backend-specific configuration.
-- Supabase PostgreSQL/Auth/private Storage is PROPOSED, not already provisioned or production-ready. Validate provider account, region, plan, limits, recovery and owner decisions before using real data or credentials.
-- SQL migrations are the intended schema source of truth after the provider is approved.
+- Supabase PostgreSQL, Supabase Auth, and private S3 Storage is the approved architecture baseline (ADR-002). The 12 sequential SQL migrations in `backend/migrations/` are the authoritative schema source of truth. Live cloud project provisioning, credentials, billing plans, and production launch remain strictly owner-governed actions.
+- SQL migrations in `backend/migrations/` are the authoritative schema source of truth.
 - Docker is optional for reproducible builds/tests; not required for daily development. Do not self-host production PostgreSQL in Docker at this stage.
 - Core search/matching must work without paid AI. AI must never independently authorize, approve, disclose, change roles or write financial records.
 

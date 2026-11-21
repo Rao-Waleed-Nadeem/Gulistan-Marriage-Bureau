@@ -58,11 +58,15 @@ The health endpoint distinctly evaluates 5 separate infrastructure subsystems:
 
 ### Runbook 2: Suspected Photo Leak or Uncertified Access Containment
 **Condition:** A report of unauthorized photo access or compromised proposal link.
-1. **Instant Token Revocation:** Revoke all active share grants for the target candidate profile:
+1. **Instant Token Revocation:** Revoke all active share grants for the target candidate profile using the authoritative schema columns:
    ```sql
    UPDATE public.share_grants 
-   SET status = 'revoked', revoked_at = NOW() 
-   WHERE candidate_profile_id = 'TARGET_PROFILE_ID';
+   SET is_revoked = TRUE, revoked_at = NOW(), revoked_reason = 'emergency_incident_containment' 
+   WHERE profile_id = 'TARGET_PROFILE_ID';
+   ```
+   Or invoke the atomic server RPC:
+   ```sql
+   SELECT public.revoke_share_grant('GRANT_UUID', 'Emergency incident containment', 'ACTOR_UUID');
    ```
 2. **Purge Signed URLs:** Clear edge cache and rotate storage bucket signed token secret.
 3. **Verify Candidate Consent State:** Check `public.candidate_consents` and transition profile to `restricted`:
@@ -88,9 +92,16 @@ The health endpoint distinctly evaluates 5 separate infrastructure subsystems:
 
 ---
 
-### Runbook 4: Migration Batch Rollback
+### Runbook 4: Migration Batch Rollback & Raw Content Purge
 **Condition:** A staged WhatsApp or gallery import batch is discovered to have corrupted source data or uncertified consent.
-1. **Execute Rollback Command:** Call `rollbackMigrationBatch(batchId, reason, adminSession)` via Admin Portal or CLI script.
-2. **Verify Profiles Restricted:** Confirm all imported records from the batch transition to `restricted` status and are removed from search matching pools.
-3. **Verify Ledger / Audit Entries:** Audit log records `MIGRATION_BATCH_ROLLED_BACK` with actor, timestamp, and justification.
-4. **Reconcile Batch:** Run `reconcileMigrationBatch` to confirm 100% accounted rows.
+1. **Execute Atomic Server Rollback:** Execute the Migration 00011 atomic server RPC:
+   ```sql
+   SELECT public.rollback_migration_batch('BATCH_UUID', 'Emergency rollback: invalid consent', 'ACTOR_UUID');
+   ```
+2. **Purge Sensitive Raw Source Content:** Minimize third-party PII while retaining cryptographic provenance:
+   ```sql
+   SELECT public.purge_staged_raw_content('BATCH_UUID', 'ACTOR_UUID');
+   ```
+3. **Verify Profiles Restricted:** Confirm all imported records from the batch transition to `restricted` status and are removed from search matching pools.
+4. **Verify Ledger / Audit Entries:** Audit log records `migration_batch_rolled_back` with actor, timestamp, and justification.
+5. **Reconcile Batch:** Run `reconcileMigrationBatch` to confirm 100% accounted rows.

@@ -13,6 +13,10 @@ import {
   exportBackup,
   executeRestoreDrill,
   executePointInTimeRestore,
+  generatePostgresBackupCommand,
+  generatePostgresRestoreCommand,
+  generateStorageBackupCommand,
+  generateStorageRestoreCommand,
 } from '../scripts/restore-drill.js';
 
 test('Restore Drill: computeChecksum produces deterministic SHA-256 hash', () => {
@@ -54,6 +58,8 @@ test('Restore Drill: executeRestoreDrill restores state, reconciles ledger, and 
   const result = executeRestoreDrill(corruptedState, backup);
 
   assert.equal(result.success, true);
+  assert.equal(result.mode, 'DATA_STRUCTURE_RECOVERY_SIMULATION');
+  assert.equal(result.isSimulated, true);
   assert.equal(result.restoredCounts.profiles, 3);
   assert.equal(result.restoredCounts.candidateConsents, 3);
   assert.equal(result.restoredCounts.financialTransactions, 3);
@@ -125,4 +131,23 @@ test('Restore Drill: executePointInTimeRestore recovers exact target state and d
   // Verify corrupted profile was safely excluded
   const hasCorrupted = pitrResult.state.profiles.some(p => p.id === 'prof-CORRUPTED');
   assert.equal(hasCorrupted, false);
+});
+
+test('Restore Drill: generates authoritative live PostgreSQL & Storage backup/restore commands (OPS-06)', () => {
+  const dbUrl = 'postgresql://postgres:secret@db.xyz.supabase.co:5432/postgres';
+  const backupCmd = generatePostgresBackupCommand({ dbUrl, outputFile: 'backup_20261121.dump' });
+  assert.ok(backupCmd.includes('pg_dump -Fc'));
+  assert.ok(backupCmd.includes('backup_20261121.dump'));
+  assert.ok(backupCmd.includes(dbUrl));
+
+  const restoreCmd = generatePostgresRestoreCommand({ dbUrl, inputFile: 'backup_20261121.dump' });
+  assert.ok(restoreCmd.includes('pg_restore --clean'));
+  assert.ok(restoreCmd.includes('backup_20261121.dump'));
+  assert.ok(restoreCmd.includes(dbUrl));
+
+  const storageBackup = generateStorageBackupCommand('candidate-photos', './storage_bkp');
+  assert.ok(storageBackup.includes('supabase storage download candidate-photos'));
+
+  const storageRestore = generateStorageRestoreCommand('candidate-photos', './storage_bkp');
+  assert.ok(storageRestore.includes('supabase storage upload candidate-photos'));
 });

@@ -76,6 +76,14 @@ The runner automatically:
    - `00002_financial_ledger.sql` (Financial transactions, positive amount checks, append-only policies).
    - `00003_complete_normalized_schema.sql` (Full normalized domain tables, match cases, agreements, CRM).
    - `00004_staged_migration_batches.sql` (Staged migration batches, records, RLS).
+   - `00005_auth_lifecycle_ownership_and_audit.sql` (Account status, profile ownership, consent audit & lifecycle state machine).
+   - `00006_profile_intake_rpc_and_ownership.sql` (Transactional profile intake RPC create_profile_bundle, assisted/self-service ownership).
+   - `00007_photo_storage_rls_and_share_grants.sql` (Private photo storage RLS, signed grants & privacy purge).
+   - `00008_canonical_matches_and_nadeem_approval.sql` (Canonical match pairs, Nadeem approval & decision RPCs).
+   - `00009_customer_portal_and_crm_enhancements.sql` (Reminder delivery schema, customer preference updates & recommendations).
+   - `00010_matchmaker_and_finance_enhancements.sql` (Matchmaker UUID/code separation, tiered agreement & financial reversals).
+   - `00011_durable_migration_batches_and_reconciliation.sql` (Durable migration batches, explicit consent, rollback & raw content purge).
+   - `00012_search_indexes_and_server_pagination.sql` (Composite search indexes, keyset pagination index & bounded search RPC).
 5. Records migration versions, filenames, SHA-256 checksums, and execution times (ms).
 6. Rolls back transactions and fails closed on any SQL or connection error.
 

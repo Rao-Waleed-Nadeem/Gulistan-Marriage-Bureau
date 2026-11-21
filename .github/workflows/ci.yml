@@ -70,3 +70,33 @@ jobs:
 
       - name: Run 100k synthetic capacity benchmark verification
         run: node backend/scripts/capacity-benchmark.js
+
+  staging-integration:
+    name: Staging Cloud Verification (Gated by Owner Credentials)
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || (secrets.STAGING_SUPABASE_URL != '' && secrets.STAGING_SUPABASE_ANON_KEY != '') }}
+    env:
+      SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+      DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+      CANDIDATE_PHOTO_BUCKET: candidate-photos
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install backend dependencies
+        run: npm --prefix backend install
+
+      - name: Verify staging migrations checksum
+        if: ${{ env.DATABASE_URL != '' }}
+        run: npm --prefix backend run deploy:migrations:verify
+
+      - name: Execute live staging smoke test (with response body privacy assertions)
+        if: ${{ env.SUPABASE_URL != '' && env.SUPABASE_ANON_KEY != '' }}
+        run: node backend/scripts/smoke-test.js

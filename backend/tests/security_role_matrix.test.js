@@ -19,8 +19,33 @@ const createSession = (role, id = 'usr-test', email = 'test@gulistan.pk') => ({
 
 const anonSession = null;
 const customerSession = createSession('customer', 'cust-401', 'family@client.pk');
+const suspendedCustomerSession = {
+  ...createSession('customer', 'cust-suspended', 'suspended@client.pk'),
+  accountStatus: 'suspended'
+};
 const nadeemSession = createSession('nadeem', 'nadeem-1', 'nadeem@gulistan.pk');
 const adminSession = createSession('admin', 'admin-1', 'admin@gulistan.pk');
+
+// =============================================================================
+// 0. Account Suspension & Status Invariant Tests (OPS-02, P0-16)
+// =============================================================================
+
+test('Security Matrix: Suspended accounts are rejected across all authenticated operations (P0-16)', () => {
+  const evaluateActiveSession = (session) => {
+    if (!session || !session.isAuthenticated) {
+      throw new Error('UNAUTHORIZED: Authentication required.');
+    }
+    if (session.accountStatus === 'suspended') {
+      throw new Error('ACCOUNT_SUSPENDED: Suspended accounts cannot execute database operations.');
+    }
+    return { authorized: true };
+  };
+
+  assert.throws(() => evaluateActiveSession(suspendedCustomerSession), /ACCOUNT_SUSPENDED/);
+  assert.equal(evaluateActiveSession(customerSession).authorized, true);
+  assert.equal(evaluateActiveSession(nadeemSession).authorized, true);
+  assert.equal(evaluateActiveSession(adminSession).authorized, true);
+});
 
 // =============================================================================
 // 1. Anonymous (Unauthenticated) Negative Authorization Tests

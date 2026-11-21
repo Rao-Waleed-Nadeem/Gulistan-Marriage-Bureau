@@ -48,15 +48,15 @@
     "semantic_hash": ""
   },
   "backend/scripts/restore-drill.js": {
-    "mtime": 1794656332.9486442,
-    "seen": 1794656671.3276002,
-    "ast_hash": "e0adcde02053610a2083836683d6a956",
+    "mtime": 1795269518.712101,
+    "seen": 1795271288.7884326,
+    "ast_hash": "afd1a7f19904bfc41c4ccb6cddf73079",
     "semantic_hash": ""
   },
   "backend/scripts/smoke-test.js": {
-    "mtime": 1794655514.294978,
-    "seen": 1794655804.104077,
-    "ast_hash": "27fe3e255eeed9cdaf44ce796f11629e",
+    "mtime": 1795269349.3522315,
+    "seen": 1795271288.7884326,
+    "ast_hash": "54da4a1f36a6858ed6be397e051af1c4",
     "semantic_hash": ""
   },
   "backend/scripts/validate-migrations.js": {
@@ -66,9 +66,9 @@
     "semantic_hash": "644d198fba3be0c8386bb27fcb065472"
   },
   "backend/tests/backup_restore.test.js": {
-    "mtime": 1794656364.5750573,
-    "seen": 1794656671.3276002,
-    "ast_hash": "9bc4202113b96013d4253bd2ac59fcda",
+    "mtime": 1795269564.0357513,
+    "seen": 1795271288.7884326,
+    "ast_hash": "63f0da6e4a0e60dd8c9841644368b66f",
     "semantic_hash": ""
   },
   "backend/tests/capacity_benchmark.test.js": {
@@ -84,10 +84,10 @@
     "semantic_hash": "b34cf164afbd20ae39f3aa65471b02a0"
   },
   "backend/tests/deployment_smoke.test.js": {
-    "mtime": 1792844915.4447832,
-    "seen": 1794580988.7395577,
-    "ast_hash": "9a421c3cfd82f2dc79f33d2a4d34aa2f",
-    "semantic_hash": "9a421c3cfd82f2dc79f33d2a4d34aa2f"
+    "mtime": 1795269364.0862298,
+    "seen": 1795271288.7884326,
+    "ast_hash": "2ff5b7f0782b51dfee187bb3b51afa39",
+    "semantic_hash": ""
   },
   "backend/tests/family_property.test.js": {
     "mtime": 1792845364.689703,
@@ -156,9 +156,9 @@
     "semantic_hash": "b5142779885499fd356387bf800c988c"
   },
   "frontend/package.json": {
-    "mtime": 1795267222.9606516,
-    "seen": 1795267832.089861,
-    "ast_hash": "b6a25ca38acf6efab08919d894ee36ac",
+    "mtime": 1795269852.866338,
+    "seen": 1795271288.7884326,
+    "ast_hash": "c486f0e15a370d563c9289fe151952bf",
     "semantic_hash": ""
   },
   "frontend/src/App.original.tsx": {
@@ -486,10 +486,10 @@
     "semantic_hash": "05a3e31b046391682f3f0a0334ef3db9"
   },
   "AGENTS.md": {
-    "mtime": 1792783886.9468577,
-    "seen": 1794580988.7395577,
-    "ast_hash": "70090440ecbe11e401d6e85b39a7666b",
-    "semantic_hash": "70090440ecbe11e401d6e85b39a7666b"
+    "mtime": 1795269658.7395194,
+    "seen": 1795271288.7884326,
+    "ast_hash": "adf061c743c1f521261f351a4e11241a",
+    "semantic_hash": ""
   },
   "BIBLE/ANTIGRAVITY-MASTER-IMPLEMENTATION-PROMPT.md": {
     "mtime": 1794565294.6987278,
@@ -552,9 +552,9 @@
     "semantic_hash": ""
   },
   "backend/AGENT_TASK_QUEUE.md": {
-    "mtime": 1795267792.6473453,
-    "seen": 1795267832.089861,
-    "ast_hash": "799f9138378caabf1c12fd64cb8b3d69",
+    "mtime": 1795271271.309365,
+    "seen": 1795271288.7884326,
+    "ast_hash": "be16c003587430c4c2afdaad045cf862",
     "semantic_hash": ""
   },
   "backend/README.md": {
@@ -642,21 +642,21 @@
     "semantic_hash": ""
   },
   "backend/docs/13-backup-restore-drill.md": {
-    "mtime": 1792844518.2790742,
-    "seen": 1794580988.7395577,
-    "ast_hash": "4bac7d5e8d8fde87fe3d89ec315a9865",
-    "semantic_hash": "4bac7d5e8d8fde87fe3d89ec315a9865"
+    "mtime": 1795269605.4313078,
+    "seen": 1795271288.7884326,
+    "ast_hash": "fae6f9ee2c919ceb3cff1b8479fa60e5",
+    "semantic_hash": ""
   },
   "backend/docs/14-release-readiness-review.md": {
-    "mtime": 1794656474.435116,
-    "seen": 1794656671.3276002,
-    "ast_hash": "0417bd85c9022eea6ce15abfcebe77dc",
+    "mtime": 1795269744.3737879,
+    "seen": 1795271288.7884326,
+    "ast_hash": "23f6af383a417969ff22f280558f1be6",
     "semantic_hash": ""
   },
   "backend/docs/15-staging-deployment-runbook.md": {
-    "mtime": 1795081297.5532923,
-    "seen": 1795081429.7350109,
-    "ast_hash": "d8792418137f6b4737ac49aece204648",
+    "mtime": 1795269680.8549476,
+    "seen": 1795271288.7884326,
+    "ast_hash": "40ab4b71a3a1b5d4f406552c96fa0622",
     "semantic_hash": ""
   },
   "backend/docs/README.md": {
@@ -810,15 +810,15 @@
     "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
-    "mtime": 1794655714.3811836,
-    "seen": 1794655804.104077,
-    "ast_hash": "eefc8d8f5509908b3988587617a2533a",
+    "mtime": 1795271142.030248,
+    "seen": 1795271288.7884326,
+    "ast_hash": "7cf30136383ff5c44a39f7edaceb941e",
     "semantic_hash": ""
   },
   "backend/tests/security_role_matrix.test.js": {
-    "mtime": 1794655677.1328726,
-    "seen": 1794655804.104077,
-    "ast_hash": "63bc3a7e8950e9392a728dd925962914",
+    "mtime": 1795269452.5746663,
+    "seen": 1795271288.7884326,
+    "ast_hash": "34cc30259544b9cb86b3428a803f8280",
     "semantic_hash": ""
   },
   "frontend/src/lib/accessibility.test.ts": {
@@ -834,15 +834,15 @@
     "semantic_hash": ""
   },
   "backend/docs/16-monitoring-and-incident-runbook.md": {
-    "mtime": 1794656400.0089877,
-    "seen": 1794656671.3276002,
-    "ast_hash": "bddf5045650c080236c85bca76a87c39",
+    "mtime": 1795269635.3566508,
+    "seen": 1795271288.7884326,
+    "ast_hash": "2a96fc97a59ade7f78b945bf975b1d31",
     "semantic_hash": ""
   },
   "backend/docs/17-design-theme-review.md": {
-    "mtime": 1794656431.4754891,
-    "seen": 1794656671.3276002,
-    "ast_hash": "7752b395b7d0d2b3cafa7782403b6bd6",
+    "mtime": 1795271065.6798642,
+    "seen": 1795271288.7884326,
+    "ast_hash": "675cb1d9427a69f8fa872b1b9b295087",
     "semantic_hash": ""
   },
   "backend/tests/deploy_migrations.test.js": {
@@ -969,6 +969,24 @@
     "mtime": 1795267154.4329984,
     "seen": 1795267832.089861,
     "ast_hash": "03fe836e7f3d8c8318c7a921ac0cfce0",
+    "semantic_hash": ""
+  },
+  "backend/tests/rls_integration.test.js": {
+    "mtime": 1795270858.8327694,
+    "seen": 1795271288.7884326,
+    "ast_hash": "42f3ee79eea8e9d5302df88bd6a1c2ce",
+    "semantic_hash": ""
+  },
+  "frontend/src/lib/device_matrix.test.ts": {
+    "mtime": 1795269964.4998078,
+    "seen": 1795271288.7884326,
+    "ast_hash": "bcf37edbc4eeca47403d26727a5c948c",
+    "semantic_hash": ""
+  },
+  "frontend/src/lib/e2e_scenarios.test.ts": {
+    "mtime": 1795270996.5459032,
+    "seen": 1795271288.7884326,
+    "ast_hash": "e4a6adbe390547b9a38376307f7684df",
     "semantic_hash": ""
   },
   "backend/package-lock.json": {

@@ -126,6 +126,9 @@ export function executeRestoreDrill(corruptedDbState, backupBundle) {
 
   return {
     success: true,
+    mode: 'DATA_STRUCTURE_RECOVERY_SIMULATION',
+    isSimulated: true,
+    simulationNotice: 'SIMULATION ONLY: In-memory JavaScript data-structure drill. Does not execute live pg_restore or Supabase WAL restore.',
     backupId: backupBundle.backupId,
     durationMs: Number(durationMs.toFixed(3)),
     restoredCounts: {
@@ -150,6 +153,46 @@ export function executeRestoreDrill(corruptedDbState, backupBundle) {
     },
     restoredDbState
   };
+}
+
+/**
+ * Generates an authoritative pg_dump command string for live PostgreSQL backup.
+ * @param {object} options
+ * @param {string} options.dbUrl Database connection string
+ * @param {string} [options.outputFile] Backup file path
+ */
+export function generatePostgresBackupCommand({ dbUrl, outputFile = 'gulistan_backup.dump' }) {
+  if (!dbUrl) throw new Error('Database URL required to generate backup command');
+  return `pg_dump -Fc --no-acl --no-owner "${dbUrl}" -f "${outputFile}"`;
+}
+
+/**
+ * Generates an authoritative pg_restore command string for live PostgreSQL recovery.
+ * @param {object} options
+ * @param {string} options.dbUrl Database connection string
+ * @param {string} [options.inputFile] Backup file path
+ */
+export function generatePostgresRestoreCommand({ dbUrl, inputFile = 'gulistan_backup.dump' }) {
+  if (!dbUrl) throw new Error('Database URL required to generate restore command');
+  return `pg_restore --clean --if-exists --no-acl --no-owner -d "${dbUrl}" "${inputFile}"`;
+}
+
+/**
+ * Generates Supabase Storage CLI backup command string for private photo objects.
+ * @param {string} bucket
+ * @param {string} targetDir
+ */
+export function generateStorageBackupCommand(bucket = 'candidate-photos', targetDir = './backup_photos') {
+  return `supabase storage download ${bucket} --output "${targetDir}"`;
+}
+
+/**
+ * Generates Supabase Storage CLI restore command string for private photo objects.
+ * @param {string} bucket
+ * @param {string} sourceDir
+ */
+export function generateStorageRestoreCommand(bucket = 'candidate-photos', sourceDir = './backup_photos') {
+  return `supabase storage upload ${bucket} "${sourceDir}"`;
 }
 
 /**

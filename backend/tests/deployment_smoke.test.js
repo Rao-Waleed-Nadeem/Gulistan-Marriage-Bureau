@@ -78,8 +78,8 @@ test('Smoke Test: validateEnvironmentSanity detects missing credentials and bloc
   assert.ok(leakedRes.issues.some(i => i.includes('CRITICAL: Service role secret detected')));
 });
 
-test('Smoke Test: validateSecurityBaseline verifies RLS across all core tables', () => {
-  const baseline = validateSecurityBaseline(['profiles', 'candidate_consents', 'audit_events', 'financial_transactions']);
+test('Smoke Test: validateSecurityBaseline verifies RLS across all core tables', async () => {
+  const baseline = await validateSecurityBaseline(['profiles', 'candidate_consents', 'audit_events', 'financial_transactions']);
 
   assert.equal(baseline.allRlsEnforced, true);
   assert.equal(baseline.tables.length, 4);
@@ -89,8 +89,8 @@ test('Smoke Test: validateSecurityBaseline verifies RLS across all core tables',
   }
 });
 
-test('Smoke Test: validateStorageSecurity confirms private photo bucket and 48-hour signed URLs', () => {
-  const storage = validateStorageSecurity('candidate-photos');
+test('Smoke Test: validateStorageSecurity confirms private photo bucket and 48-hour signed URLs', async () => {
+  const storage = await validateStorageSecurity('candidate-photos');
 
   assert.equal(storage.bucket, 'candidate-photos');
   assert.equal(storage.isPrivate, true);
@@ -113,4 +113,71 @@ test('Smoke Test: runSmokeTests produces structured diagnostic report', async ()
   assert.equal(report.environmentSanity.healthy, true);
   assert.equal(report.securityBaseline.allRlsEnforced, true);
   assert.equal(report.storageSecurity.isPrivate, true);
+});
+
+test('Smoke Test: runSmokeTests flags CRITICAL_SECURITY_LEAK if anonymous probe returns candidate records (OPS-03)', async () => {
+  // Mock global.fetch to simulate an RLS misconfiguration returning rows on anonymous probe
+  const originalFetch = global.fetch;
+  global.fetch = async (url) => {
+    if (url.includes('/rest/v1/profiles')) {
+      return {
+        status: 200,
+        json: async () => [{ id: 'leaked-uuid', full_name: 'Leaked Candidate' }],
+      };
+    }
+    return { status: 403 };
+  };
+
+  try {
+    const report = await runSmokeTests({
+      isLive: true,
+      env: {
+        SUPABASE_URL: 'https://test-live.supabase.co',
+        SUPABASE_ANON_KEY: 'test-anon-key',
+        CANDIDATE_PHOTO_BUCKET: 'candidate-photos',
+      },
+    });
+
+    assert.equal(report.passed, false);
+    assert.equal(report.liveProbe.success, false);
+    assert.ok(report.liveProbe.error.includes('CRITICAL_SECURITY_LEAK'));
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('Smoke Test: runSmokeTests passes if anonymous probe returns empty array (OPS-03)', async () => {
+  const originalFetch = global.fetch;
+  global.fetch = async (url) => {
+    if (url.includes('/rest/v1/profiles')) {
+      return {
+        status: 200,
+        json: async () => [],
+      };
+    }
+    if (url.includes('/storage/v1/bucket/')) {
+      return {
+        status: 200,
+        json: async () => ({ public: false }),
+      };
+    }
+    return { status: 403 };
+  };
+
+  try {
+    const report = await runSmokeTests({
+      isLive: true,
+      env: {
+        SUPABASE_URL: 'https://test-live.supabase.co',
+        SUPABASE_ANON_KEY: 'test-anon-key',
+        CANDIDATE_PHOTO_BUCKET: 'candidate-photos',
+      },
+    });
+
+    assert.equal(report.passed, true);
+    assert.equal(report.liveProbe.success, true);
+    assert.equal(report.storageSecurity.isPrivate, true);
+  } finally {
+    global.fetch = originalFetch;
+  }
 });
