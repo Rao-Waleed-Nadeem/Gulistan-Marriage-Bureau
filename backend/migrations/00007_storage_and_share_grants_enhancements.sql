@@ -116,15 +116,15 @@ BEGIN
     END IF;
     -- 4a. Validate the disclosure snapshot: only explicitly approved keys,
     -- and never raw photo paths or storage metadata, may be returned publicly.
-    IF jsonb_typeof(p_approved_fields) <> 'array'
-       OR jsonb_typeof(p_disclosed_snapshot) <> 'object' THEN
+    IF jsonb_typeof(p_approved_fields) IS DISTINCT FROM 'array'
+       OR jsonb_typeof(p_disclosed_snapshot) IS DISTINCT FROM 'object' THEN
         RAISE EXCEPTION 'INVALID_DISCLOSURE: Approved fields must be an array and snapshot must be an object.'
             USING ERRCODE = '22023';
     END IF;
 
     FOR v_snapshot_key IN SELECT jsonb_object_keys(p_disclosed_snapshot)
     LOOP
-        IF NOT (p_approved_fields ? v_snapshot_key) THEN
+        IF NOT COALESCE(p_approved_fields ? v_snapshot_key, FALSE) THEN
             RAISE EXCEPTION 'UNAPPROVED_DISCLOSURE: Snapshot key % is not in approved_fields.', v_snapshot_key
                 USING ERRCODE = '42501';
         END IF;
