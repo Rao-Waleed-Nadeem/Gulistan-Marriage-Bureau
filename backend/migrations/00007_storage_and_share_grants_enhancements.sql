@@ -29,6 +29,21 @@ BEGIN;
 -- contract has been verified. This migration deliberately does not mutate
 -- managed Storage objects, so it can run under the project's DB role.
 
+-- Customer may inspect consent records only for a profile they own.
+-- Consent writes remain mediated by the approved consent workflow/RPC.
+DROP POLICY IF EXISTS consents_customer_own_select ON public.candidate_consents;
+CREATE POLICY consents_customer_own_select ON public.candidate_consents
+    FOR SELECT TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1
+            FROM public.profiles p
+            WHERE p.id = candidate_consents.profile_id
+              AND (p.account_id = auth.uid() OR p.created_by = auth.uid())
+              AND public.auth_is_account_active(auth.uid())
+        )
+    );
+
 -- 2. Enhance Share Grants Schema (P0-08, P1-27)
 -- ------------------------------------------------------------------------------
 -- Store match_case_id and full immutable disclosed snapshot at grant issuance.
