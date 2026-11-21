@@ -174,11 +174,11 @@ BEGIN
             -- Enforce zero fact fabrication: validate required invariants
             IF v_full_name IS NULL OR length(trim(v_full_name)) = 0 OR
                v_contact_phone IS NULL OR length(trim(v_contact_phone)) = 0 OR
-               v_gender NOT IN ('male', 'female') OR
+               v_gender IS NULL OR v_gender NOT IN ('male', 'female') OR
                v_age IS NULL OR v_age < 18 OR v_age > 100 OR
                v_height_inches IS NULL OR v_height_inches < 48 OR v_height_inches > 96 OR
                v_height_display IS NULL OR
-               v_marital_status NOT IN ('never_married', 'divorced', 'widowed', 'khula') OR
+               v_marital_status IS NULL OR v_marital_status NOT IN ('never_married', 'divorced', 'widowed', 'khula') OR
                NULLIF(trim(v_parsed->>'religion'), '') IS NULL OR
                NULLIF(trim(v_parsed->>'aqeedah'), '') IS NULL OR
                NULLIF(trim(v_parsed->>'caste'), '') IS NULL OR
